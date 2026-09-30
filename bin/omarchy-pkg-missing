@@ -2,9 +2,10 @@
 
 # omarchy:summary=Returns true if any of the named packages are missing from the system (or false if they're all there).
 # omarchy:args=<packages...>
+# Fedora port: rpm/dnf instead of pacman/yay.
 
 for pkg in "$@"; do
-  if ! pacman -Q "$pkg" &>/dev/null; then
+  if ! rpm -q --whatprovides "$pkg" &>/dev/null; then
     exit 0
   fi
 done
