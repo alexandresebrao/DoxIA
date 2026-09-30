@@ -57,6 +57,10 @@ packages=(
 )
 dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 
+# Fedora's own quickshell (0.2.x) and uwsm can win over the COPR builds on first
+# install; Omarchy 4 needs quickshell >= 0.3.1.
+dnf upgrade -y --refresh quickshell uwsm
+
 # Fedora ships tuned-ppd (same D-Bus API as power-profiles-daemon, which conflicts
 # with it) but no powerprofilesctl, which Omarchy's power menu relies on.
 if [[ ! -x /usr/bin/powerprofilesctl ]]; then
