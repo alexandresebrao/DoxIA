@@ -44,7 +44,7 @@ packages=(
   # Wayland/desktop utilities used by omarchy-* commands
   brightnessctl pamixer playerctl wireplumber wl-clipboard wtype grim slurp cliphist
   gpu-screen-recorder libnotify upower udiskie xdg-user-dirs xdg-terminal-exec
-  bluez-tools NetworkManager-tui wiremix power-profiles-daemon
+  bluez-tools NetworkManager-tui wiremix
 
   # CLI toolbox used by Omarchy scripts and TUIs
   btop fastfetch gum jq socat inotify-tools fzf eza zoxide ripgrep fd-find bat tmux
@@ -56,6 +56,12 @@ packages=(
   fontawesome-fonts-all jetbrains-mono-fonts
 )
 dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
+
+# Fedora ships tuned-ppd (same D-Bus API as power-profiles-daemon, which conflicts
+# with it) but no powerprofilesctl, which Omarchy's power menu relies on.
+if [[ ! -x /usr/bin/powerprofilesctl ]]; then
+  install -Dm755 "$omarchy_path/fedora/bin/powerprofilesctl" /usr/local/bin/powerprofilesctl
+fi
 
 echo "==> Linking Omarchy into /usr/share/omarchy"
 # Many Omarchy scripts reference /usr/share/omarchy directly (Arch package path).

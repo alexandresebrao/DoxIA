@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Minimal powerprofilesctl (list/get/set) for Fedora's tuned-ppd, which serves the
+# same net.hadess.PowerProfiles D-Bus API but ships no powerprofilesctl CLI.
+
+set -euo pipefail
+
+bus=(busctl --system)
+dest=(net.hadess.PowerProfiles /net/hadess/PowerProfiles net.hadess.PowerProfiles)
+
+active_profile() {
+  "${bus[@]}" get-property "${dest[@]}" ActiveProfile | sed -E 's/^s "(.*)"$/\1/'
+}
+
+profiles() {
+  "${bus[@]}" --json=short get-property "${dest[@]}" Profiles |
+    jq -r '.data[].Profile.data'
+}
+
+case "${1:-list}" in
+  get)
+    active_profile
+    ;;
+  set)
+    [[ -n ${2:-} ]] || { echo "Usage: powerprofilesctl set <profile>" >&2; exit 1; }
+    "${bus[@]}" set-property "${dest[@]}" ActiveProfile s "$2"
+    ;;
+  list)
+    # Same layout as upstream: highest profile first, "*" marks the active one.
+    active=$(active_profile)
+    profiles | tac | while read -r profile; do
+      if [[ $profile == "$active" ]]; then
+        printf '* %s:\n\n' "$profile"
+      else
+        printf '  %s:\n\n' "$profile"
+      fi
+    done
+    ;;
+  *)
+    echo "Usage: powerprofilesctl [list|get|set <profile>]" >&2
+    exit 1
+    ;;
+esac
