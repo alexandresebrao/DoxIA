@@ -78,7 +78,7 @@ Item {
     var flow = polkitAgent.flow
     if (!flow) return
 
-    currentMessage = String(flow.message || "Authentication is needed...")
+    currentMessage = String(flow.message || "Autenticação necessária...")
     currentPrompt = String(flow.inputPrompt || "")
     currentSupplementary = String(flow.supplementaryMessage || "")
     responseRequired = !!flow.isResponseRequired
@@ -336,7 +336,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: root.errorFlash ? "Wrong" : (root.submitted ? "Checking..." : "Enter password")
+            text: root.errorFlash ? "Senha incorreta" : (root.submitted ? "Verificando..." : "Digite a senha")
             color: root.errorFlash ? Color.polkit.textError : root.foreground
             opacity: root.errorFlash ? 1 : 0.36
             font.family: root.fontFamily

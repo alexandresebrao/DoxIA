@@ -1,6 +1,6 @@
 function promptLooksFingerprint(text) {
   var s = String(text || "").toLowerCase()
-  return s.indexOf("finger") !== -1 || s.indexOf("fprint") !== -1 || s.indexOf("swipe") !== -1
+  return s.indexOf("finger") !== -1 || s.indexOf("fprint") !== -1 || s.indexOf("swipe") !== -1 || s.indexOf("dedo") !== -1
 }
 
 function fingerprintConfiguredFromPamConfig(raw) {
@@ -19,8 +19,9 @@ function fingerprintConfiguredFromPamConfig(raw) {
 
 function authorizationLabel(message) {
   var text = String(message || "")
-  var match = text.match(/^Authentication is (?:needed|required) to run [`']([^`']+)[`'] as /i)
-  return match ? "Authorize running '" + match[1] + "'" : text
+  var match = text.match(/^Authentication is (?:needed|required) to run [`']([^`']+)[`'] as /i) ||
+    text.match(/^A autenticação é necessária para executar [`']([^`']+)[`'] como /i)
+  return match ? "Autorizar a execução de '" + match[1] + "'" : text
 }
 
 if (typeof module !== "undefined") {

@@ -13,9 +13,15 @@ assert(!polkit.promptLooksFingerprint('Password:'), 'polkit ignores password pro
 
 assertEqual(
   polkit.authorizationLabel("Authentication is needed to run `/usr/bin/true' as the super user"),
-  "Authorize running '/usr/bin/true'",
+  "Autorizar a execução de '/usr/bin/true'",
   'polkit shortens the standard pkexec message'
 )
+assertEqual(
+  polkit.authorizationLabel("A autenticação é necessária para executar `/usr/bin/true' como o superusuário"),
+  "Autorizar a execução de '/usr/bin/true'",
+  'polkit shortens the pt-BR pkexec message'
+)
+assert(polkit.promptLooksFingerprint('Passe o dedo no leitor'), 'polkit detects pt-BR fingerprint prompts')
 assertEqual(
   polkit.authorizationLabel('Authentication is required to change system settings'),
   'Authentication is required to change system settings',
