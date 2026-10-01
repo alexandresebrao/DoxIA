@@ -26,7 +26,9 @@ display_columns() {
 
 logo_dimensions() {
   [[ -f $LOGO_FILE ]] || return 1
-  printf '%s %s' "$(display_columns <"$LOGO_FILE")" "$(wc -l <"$LOGO_FILE")"
+  # fastfetch strips the $1..$9 logo color placeholders before drawing, so they
+  # take no columns on screen and must not be counted here either.
+  printf '%s %s' "$(sed 's/\$[1-9]//g' "$LOGO_FILE" | display_columns)" "$(wc -l <"$LOGO_FILE")"
 }
 
 hypr_dispatch() {

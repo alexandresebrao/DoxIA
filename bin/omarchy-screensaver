@@ -35,10 +35,43 @@ wait_for_terminal_resize() {
 
 wait_for_terminal_resize
 
+# ChapeuOS palette: every effect settles on silver (CHAPEU) fading into Xi blue
+# (OS) instead of its own default colors. Effects that animate in strong green
+# (matrix, binarypath, decrypt, vhstape, errorcorrect, swarm, colorshift) are left out;
+# synthgrid has no final gradient to recolor.
+effects=($(ttfx --help | awk '/^Commands:/{f=1;next} /^Options:/{f=0} f && $1!="help" {print $1}' | grep -vxE 'matrix|binarypath|decrypt|vhstape|errorcorrect|swarm|colorshift|synthgrid'))
+
+# The final gradient spans the whole canvas, not the text, so build one stop per
+# terminal column: silver across CHAPEU, blue across OS (which starts at column
+# 84 of the 111-column wordmark).
+wordmark=~/.config/omarchy/branding/screensaver.txt
+cols=$(stty size 2>/dev/null | cut -d' ' -f2)
+stops=($(awk -v cols="${cols:-120}" -v os_col=84 '
+  { if (length($0) > w) w = length($0) }
+  function mix(a, b, t,   i, out) {
+    out = ""
+    for (i = 0; i < 3; i++)
+      out = out sprintf("%02x", a[i] + (b[i] - a[i]) * t)
+    return out
+  }
+  END {
+    s1[0]=0xf4; s1[1]=0xf6; s1[2]=0xfa; s2[0]=0x8a; s2[1]=0x93; s2[2]=0xa3
+    b1[0]=0x7f; b1[1]=0x98; b1[2]=0xff; b2[0]=0x32; b2[1]=0x48; b2[2]=0xb8
+    off = int((cols - w) / 2)
+    for (c = 0; c < cols; c++) {
+      x = c - off
+      if (x < os_col) { t = x / os_col; if (t < 0) t = 0; print mix(s1, s2, t) }
+      else { t = (x - os_col) / (w - os_col); if (t > 1) t = 1; print mix(b1, b2, t) }
+    }
+  }' "$wordmark"))
+((${#stops[@]})) || stops=(f4f6fa c9ced8 8a93a3 7f98ff 3248b8)
+
 while true; do
-  ttfx -i ~/.config/omarchy/branding/screensaver.txt \
-    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c\
-    --random-effect --no-eol --no-restore-cursor &
+  effect=${effects[RANDOM % ${#effects[@]}]}
+  ttfx -i "$wordmark" \
+    --frame-rate 120 --canvas-width 0 --canvas-height 0 --reuse-canvas --anchor-canvas c --anchor-text c \
+    --no-eol --no-restore-cursor \
+    "$effect" --final-gradient-stops "${stops[@]}" --final-gradient-steps 1 --final-gradient-direction horizontal &
 
   while pgrep -t "${tty#/dev/}" -x ttfx >/dev/null; do
     if read -n1 -t 1 || ! screensaver_in_focus; then

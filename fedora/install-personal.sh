@@ -49,6 +49,12 @@ seed hypr/xdph.conf "$HOME/.config/hypr/xdph.conf"
 omarchy-pkg-add wtype jq
 systemctl --user try-restart xdg-desktop-portal-hyprland || true
 
+echo "==> Screensaver effects (ttfx, no Fedora package)"
+if ! command -v ttfx >/dev/null; then
+  omarchy-pkg-add cargo
+  cargo install --git https://github.com/omacom/ttfx --tag v0.5.0 --root "$HOME/.local"
+fi
+
 echo "==> Bar layout and default agent"
 seed omarchy/shell.json "$HOME/.config/omarchy/shell.json"
 seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"

@@ -1,9 +1,19 @@
 #!/bin/bash
 
-# omarchy:summary=Display the Omarchy logo in the terminal using green color.
+# omarchy:summary=Display the ChapeuOS wordmark in the terminal (silver CHAPEU, Xi blue OS).
+
+# The colored wordmark is pre-rendered with 24-bit colors so it never depends on
+# the terminal palette (the old version painted logo.txt with ANSI green, \e[32m).
+LOGO_ANSI="$HOME/.config/omarchy/branding/logo.ansi"
 
 clear
-echo -e "\033[32m"
-cat <$OMARCHY_PATH/logo.txt
-echo -e "\033[0m"
+echo
+if [[ -r $LOGO_ANSI ]]; then
+  cat <"$LOGO_ANSI"
+else
+  printf '\033[1;38;2;201;206;216m'
+  cat <$OMARCHY_PATH/logo.txt
+  printf '\033[0m'
+fi
+echo
 echo
