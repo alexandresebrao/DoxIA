@@ -19,10 +19,27 @@ case "${1:-}" in
     ;;
 esac
 
+# Interface da placa de rede que leva à internet. Usa a rota default de menor
+# métrica numa placa física (/sys/class/net/<dev>/device), para uma VPN
+# (ppp0, tun0) que empurra rotas próprias, inclusive para 1.1.1.1, não tomar o
+# lugar do Wi-Fi/cabo. Sem placa física com rota default, cai no ip route get.
+uplink_device() {
+  local dev
+
+  while read -r dev; do
+    if [[ -e /sys/class/net/$dev/device ]]; then
+      echo "$dev"
+      return
+    fi
+  done < <(ip -j route show default 2>/dev/null | jq -r 'sort_by(.metric // 0) | .[].dev' 2>/dev/null)
+
+  ip route get "$internet_probe" 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }'
+}
+
 print_status() {
   local device nm state ssid signal freq
 
-  device=$(ip route get "$internet_probe" 2>/dev/null | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }')
+  device=$(uplink_device)
 
   if [[ -z $device ]]; then
     printf 'disconnected\t\t\t\n'
@@ -90,14 +107,15 @@ print_ping_samples() {
 print_verbose() {
   local route_json iface gw src prefix link
 
-  route_json=$(ip -j route get "$internet_probe" 2>/dev/null)
-  [[ -z $route_json ]] && return
-
-  iface=$(jq -r '.[0].dev // ""' <<<"$route_json" 2>/dev/null)
-  gw=$(jq -r '.[0].gateway // ""' <<<"$route_json" 2>/dev/null)
-  src=$(jq -r '.[0].prefsrc // ""' <<<"$route_json" 2>/dev/null)
-
+  iface=$(uplink_device)
   [[ -z $iface ]] && return
+
+  route_json=$(ip -j route show default dev "$iface" 2>/dev/null)
+  gw=$(jq -r 'sort_by(.metric // 0) | .[0].gateway // ""' <<<"$route_json" 2>/dev/null)
+  src=$(jq -r 'sort_by(.metric // 0) | .[0].prefsrc // ""' <<<"$route_json" 2>/dev/null)
+  if [[ -z $src ]]; then
+    src=$(ip -j addr show "$iface" 2>/dev/null | jq -r '[.[0].addr_info[]? | select(.family == "inet") | .local][0] // ""' 2>/dev/null)
+  fi
 
   prefix=$(ip -j addr show "$iface" 2>/dev/null | jq -r '.[0].addr_info[]? | select(.family == "inet") | .prefixlen // ""' 2>/dev/null | head -n 1)
 
