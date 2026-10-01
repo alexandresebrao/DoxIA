@@ -28,6 +28,18 @@ for dir in "$tela"/*/places; do
   dirs+=("$sub/places")
 done
 
+# O Desktop do Tela é um monitor claro, bem diferente das outras pastas. Aqui
+# ele vira a pasta normal com um monitor branco, como Downloads e Documentos.
+monitor='m24 28h16c1.108 0 2 0.892 2 2v9c0 1.108-0.892 2-2 2h-6v2h3c0.554 0 1 0.446 1 1v1h-14v-1c0-0.554 0.446-1 1-1h3v-2h-6c-1.108 0-2-0.892-2-2v-9c0-1.108 0.892-2 2-2z'
+for sub in scalable scalable@2x; do
+  places="$dest/$sub/places"
+  [[ -f $places/folder-download.svg ]] || continue
+  for icon in folder-desktop user-desktop; do
+    perl -0pe 's{(<path class="ColorScheme-Background" d=")[^"]*(")}{${1}'"$monitor"'${2}}' \
+      "$places/folder-download.svg" > "$places/$icon.svg"
+  done
+done
+
 {
   echo "[Icon Theme]"
   echo "Name=$name"
