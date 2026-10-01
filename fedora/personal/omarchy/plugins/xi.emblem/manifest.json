@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "xi.emblem",
+  "name": "Xi Emblem",
+  "version": "1.0.0",
+  "author": "klab",
+  "license": "MIT",
+  "description": "Botão do menu Omarchy em forma de V-fin, inspirado no RX-105 Xi Gundam.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Emblem.qml" },
+  "barWidget": {
+    "displayName": "Xi Emblem",
+    "description": "V-fin amarela, câmera verde e nome. Clique abre o menu, botão direito abre o terminal.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "left",
+    "defaults": { "showLabel": false, "label": "Alexandre" },
+    "schema": [
+      { "key": "showLabel", "type": "boolean", "label": "Mostrar o nome", "defaultValue": false },
+      { "key": "label", "type": "string", "label": "Nome", "defaultValue": "Alexandre" }
+    ]
+  }
+}

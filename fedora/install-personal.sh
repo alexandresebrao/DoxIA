@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
-# Restores my plugins (FortiVPN, Java servers, Now Playing), bar layout, default
-# agent and Hyprland window rules from fedora/personal. Existing files are backed up.
+# Restores my plugins (FortiVPN, Java servers, Now Playing, screen share, Xi bar),
+# themes (Xi Gundam, RHEL 8), ChapeuOS branding, bar layout, default agent,
+# screen-share picker config and Hyprland window rules from fedora/personal. Existing files are backed up.
 # Can be re-run on its own to reapply them:
 #
 #   bash ~/.local/share/omarchy/fedora/install-personal.sh
@@ -35,6 +36,19 @@ for plugin in "$personal"/omarchy/plugins/*/; do
   seed "omarchy/plugins/$name" "$HOME/.config/omarchy/plugins/$name"
 done
 
+echo "==> Themes and branding"
+for theme in "$personal"/omarchy/themes/*/; do
+  name=$(basename "$theme")
+  seed "omarchy/themes/$name" "$HOME/.config/omarchy/themes/$name"
+done
+seed omarchy/branding "$HOME/.config/omarchy/branding"
+omarchy-pkg-add redhat-display-fonts redhat-text-fonts
+
+echo "==> Screen share (Hyprland picker, stop button in the bar)"
+seed hypr/xdph.conf "$HOME/.config/hypr/xdph.conf"
+omarchy-pkg-add wtype jq
+systemctl --user try-restart xdg-desktop-portal-hyprland || true
+
 echo "==> Bar layout and default agent"
 seed omarchy/shell.json "$HOME/.config/omarchy/shell.json"
 seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"
@@ -42,6 +56,9 @@ seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"
 echo "==> Hyprland window rules"
 if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua 2>/dev/null; then
   { echo; cat "$personal/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
+fi
+if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua 2>/dev/null; then
+  { echo; cat "$personal/hypr/screenshare-rule.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 
 echo "==> FortiVPN (openfortivpn + polkit helper)"
@@ -55,3 +72,6 @@ if [[ ! -d /usr/local/java/tomcat || ! -d $HOME/.sdkman/candidates/java/8.0.192-
 fi
 
 echo "Add VPN profiles from the FortiVPN widget; credentials stay in /etc/openfortivpn."
+
+echo "==> Theme"
+omarchy-theme-set "$(cat "$personal/omarchy/theme.name")"

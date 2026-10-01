@@ -95,8 +95,8 @@ Panel {
     else player.loopState = MprisLoopState.None
   }
 
-  visible: hasMedia
-  implicitWidth: hasMedia ? row.implicitWidth + Style.space(14) : 0
+  // Always shown: with no player it is a music glyph that launches Spotify.
+  implicitWidth: row.implicitWidth + Style.space(14)
   implicitHeight: bar ? bar.barSize : Style.bar.sizeHorizontal
 
   onOpenedChanged: if (opened) {
@@ -136,7 +136,7 @@ Panel {
       id: glyph
       textFormat: Text.PlainText
       anchors.verticalCenter: parent.verticalCenter
-      text: root.playing ? root.gPause : root.gPlay
+      text: !root.hasMedia ? root.gMusic : (root.playing ? root.gPause : root.gPlay)
       color: root.playing ? root.barForeground : Qt.darker(root.barForeground, 1.5)
       font.family: root.fontFamily
       font.pixelSize: Style.font.body
@@ -144,11 +144,13 @@ Panel {
 
     Item {
       id: scrollClip
-      width: Math.min(root.maxLabelWidth, labelText.implicitWidth)
+      // Largura fixa: títulos curtos não encolhem o widget, então trocar de
+      // faixa não empurra o resto da barra.
+      width: root.maxLabelWidth
       height: glyph.height
       clip: true
       anchors.verticalCenter: parent.verticalCenter
-      visible: !(root.bar && root.bar.vertical) && root.title !== ""
+      visible: !(root.bar && root.bar.vertical) && root.hasMedia && root.title !== ""
 
       Text {
         id: labelText
@@ -158,19 +160,26 @@ Panel {
         font.family: root.fontFamily
         font.pixelSize: Style.font.body
         anchors.verticalCenter: parent.verticalCenter
-        readonly property bool needsScroll: implicitWidth > scrollClip.width
-        // While the popup shows the full title, park the marquee at the start
-        // instead of freezing it mid-scroll.
-        width: root.opened ? scrollClip.width : implicitWidth
-        elide: root.opened ? Text.ElideRight : Text.ElideNone
-        onTextChanged: x = 0
+        // Com a largura fixa, títulos curtos cabem inteiros; mesmo assim o
+        // letreiro gira sempre que está tocando. Pausado (ou com o popup
+        // aberto mostrando o título completo) ele estaciona no início.
+        readonly property bool scrolling: root.playing && !root.opened && scrollClip.visible
+        width: scrolling ? implicitWidth : scrollClip.width
+        elide: scrolling ? Text.ElideNone : Text.ElideRight
+        onTextChanged: {
+          x = 0
+          if (marquee.running) marquee.restart()
+        }
 
         NumberAnimation on x {
-          running: labelText.needsScroll && !root.opened
+          id: marquee
+          running: labelText.scrolling
           loops: Animation.Infinite
-          duration: Math.max(6000, labelText.implicitWidth * 25)
+          // Velocidade constante (~40 px/s), independente do tamanho do título.
+          duration: Math.max(4000, (scrollClip.width + labelText.implicitWidth) * 25)
           from: scrollClip.width
           to: -labelText.implicitWidth
+          onRunningChanged: if (!running) labelText.x = 0
         }
       }
     }
@@ -183,11 +192,15 @@ Panel {
     cursorShape: Qt.PointingHandCursor
     acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
     onClicked: function(mouse) {
+      if (!root.hasMedia) {
+        if (mouse.button === Qt.LeftButton && root.bar) root.bar.run("omarchy-launch-spotify")
+        return
+      }
       if (mouse.button === Qt.RightButton) root.playPause()
       else if (mouse.button === Qt.MiddleButton) root.next()
       else root.toggle()
     }
-    onEntered: if (root.bar && !root.opened) root.bar.showTooltip(root, root.title + (root.artist ? " — " + root.artist : ""))
+    onEntered: if (root.bar && !root.opened) root.bar.showTooltip(root, root.hasMedia ? root.title + (root.artist ? " — " + root.artist : "") : "Abrir Spotify")
     onExited: if (root.bar) root.bar.hideTooltip(root)
   }
 
@@ -277,8 +290,8 @@ Panel {
           Text {
             textFormat: Text.PlainText
             width: parent.width
-            visible: text !== ""
-            text: root.artist
+            // Sempre ocupa a linha (mesmo vazia) para o popup não mudar de altura.
+            text: root.artist || " "
             color: Qt.darker(root.foreground, 1.25)
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
@@ -288,8 +301,8 @@ Panel {
           Text {
             textFormat: Text.PlainText
             width: parent.width
-            visible: text !== "" && text !== root.artist
-            text: root.album
+            opacity: root.album !== "" && root.album !== root.artist ? 1 : 0
+            text: root.album || " "
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -301,7 +314,9 @@ Panel {
         Column {
           width: parent.width
           spacing: Style.space(4)
-          visible: root.length > 0
+          // Fica no layout mesmo sem duração conhecida (troca de faixa, rádio)
+          // para a altura do popup não oscilar.
+          opacity: root.length > 0 ? 1 : 0
 
           PanelSlider {
             id: progress
@@ -345,6 +360,7 @@ Panel {
             iconText: root.gShuffle
             tooltipText: root.player && root.player.shuffle ? "Aleatório: ligado" : "Aleatório: desligado"
             visible: root.player !== null && root.player.shuffleSupported
+            toggle: true
             lit: root.player !== null && root.player.shuffle
             onClicked: root.toggleShuffle()
           }
@@ -359,7 +375,6 @@ Panel {
             iconText: root.playing ? root.gPause : root.gPlay
             tooltipText: root.playing ? "Pausar" : "Tocar"
             iconSize: Style.font.iconLarge * 1.4
-            bordered: true
             enabled: root.player !== null && root.player.canTogglePlaying
             onClicked: root.playPause()
           }
@@ -375,6 +390,7 @@ Panel {
             tooltipText: !root.player ? "" : (root.player.loopState === MprisLoopState.Track ? "Repetir: faixa"
               : (root.player.loopState === MprisLoopState.Playlist ? "Repetir: tudo" : "Repetir: desligado"))
             visible: root.player !== null && root.player.loopSupported
+            toggle: true
             lit: root.player !== null && root.player.loopState !== MprisLoopState.None
             onClicked: root.cycleLoop()
           }
@@ -396,7 +412,8 @@ Panel {
           }
 
           PanelActionButton {
-            visible: root.player !== null && root.player.canRaise
+            opacity: root.player !== null && root.player.canRaise ? 1 : 0
+            enabled: opacity > 0
             iconText: root.gOpen
             tooltipText: "Abrir " + root.playerLabel(root.player)
             foreground: root.foreground
@@ -470,14 +487,22 @@ Panel {
     }
   }
 
+  // Só o ícone: sem fundo nem borda em nenhum estado. Botões de alternar
+  // (aleatório/repetir) ficam brancos ligados e cinza desligados; o hover
+  // só clareia/aumenta o ícone.
   component ControlButton: Button {
+    id: ctl
     property bool lit: false
-    foreground: root.foreground
+    property bool toggle: false
+    foreground: ctl.hot ? Qt.lighter(root.foreground, 1.25) : ((!ctl.toggle || ctl.lit) ? root.foreground : root.dim)
     fontFamily: root.fontFamily
     iconSize: Style.font.iconLarge
     horizontalPadding: Style.spacing.controlPaddingX
     verticalPadding: Style.spacing.controlPaddingY
-    selected: lit
+    color: "transparent"
+    borderSpec: Border.none()
+    scale: ctl.hot && ctl.enabled ? 1.12 : 1.0
+    Behavior on scale { NumberAnimation { duration: 120 } }
     opacity: enabled ? 1.0 : 0.4
   }
 }

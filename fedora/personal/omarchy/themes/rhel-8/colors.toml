@@ -1,0 +1,45 @@
+# Red Hat Enterprise Linux 8 "Ootpa"
+# Preto/carvão do GNOME Classic do RHEL 8, vermelho Red Hat (#ee0000)
+# e a paleta PatternFly do web console (Cockpit) para os ANSI.
+mode = "dark"
+
+accent = "#ee0000"
+# Usado pelos plugins xi.* da barra no lugar do amarelo (V-fin).
+highlight = "#f0f0f0"
+# Visual dos workspaces no plugin xi.workspaces: "plates" (Xi) ou "underline".
+workspace_style = "underline"
+# Visual do uso de CPU/memória no plugin xi.reactor: "hud" (Xi) ou "cockpit".
+reactor_style = "cockpit"
+# Cor das barras de uso (no lugar do azul do PatternFly).
+usage_fill = "#ee0000"
+selection = "#3c3f42"
+muted = "#4f5255"
+
+background = "#151515"
+dark_background = "#0f0f0f"
+darker_background = "#0a0a0a"
+lighter_background = "#212427"
+
+foreground = "#d2d2d2"
+dark_foreground = "#8a8d90"
+light_foreground = "#f0f0f0"
+bright_foreground = "#ffffff"
+
+hyprland_active_border = "rgba(ee0000ee) rgba(a30000ee) 45deg"
+hyprland_inactive_border = "rgba(3c3f42aa)"
+
+red = "#ee0000"
+yellow = "#f0ab00"
+orange = "#ec7a08"
+green = "#5ba352"
+cyan = "#009596"
+blue = "#2b9af3"
+magenta = "#a18fff"
+brown = "#a30000"
+
+bright_red = "#f56e6e"
+bright_yellow = "#f4c145"
+bright_green = "#95d58e"
+bright_cyan = "#73c5c5"
+bright_blue = "#73bcf7"
+bright_magenta = "#b2a3ff"

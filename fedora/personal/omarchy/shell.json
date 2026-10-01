@@ -1,34 +1,19 @@
 {
-  "version": 1,
-  "idle": {
-    "screensaver": 150,
-    "lock": 300
-  },
   "bar": {
-    "position": "top",
-    "transparent": false,
     "centerAnchor": "omarchy.clock",
     "layout": {
-      "left": [
-        {
-          "id": "omarchy.menu"
-        },
-        {
-          "id": "omarchy.workspaces"
-        }
-      ],
       "center": [
         {
-          "id": "omarchy.indicators"
+          "id": "klab.media"
         },
         {
-          "id": "omarchy.clock",
           "format": "dddd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
+          "id": "omarchy.clock",
           "verticalFormat": "HH\n—\nmm"
         },
         {
-          "id": "klab.media"
+          "id": "klab.screenshare"
         },
         {
           "id": "omarchy.keyboard-layout"
@@ -40,7 +25,21 @@
           "id": "omarchy.system-update"
         }
       ],
+      "left": [
+        {
+          "id": "xi.emblem"
+        },
+        {
+          "id": "xi.workspaces"
+        },
+        {
+          "id": "omarchy.indicators"
+        }
+      ],
       "right": [
+        {
+          "id": "xi.reactor"
+        },
         {
           "id": "omarchy.tray"
         },
@@ -69,7 +68,14 @@
           "id": "omarchy.power"
         }
       ]
-    }
+    },
+    "position": "top",
+    "transparent": false
   },
-  "plugins": []
+  "idle": {
+    "lock": 300,
+    "screensaver": 150
+  },
+  "plugins": [],
+  "version": 1
 }

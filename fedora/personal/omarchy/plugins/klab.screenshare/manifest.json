@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "klab.screenshare",
+  "name": "Compartilhamento de tela",
+  "version": "1.0.0",
+  "author": "klab",
+  "license": "MIT",
+  "description": "Bolinha vermelha na barra enquanto alguma app compartilha a tela; clique para parar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Compartilhamento de tela",
+    "description": "Aparece só durante o compartilhamento (Meet, etc.); clique para parar.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

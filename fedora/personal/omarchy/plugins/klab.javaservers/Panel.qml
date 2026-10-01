@@ -21,7 +21,6 @@ Panel {
   readonly property string playGlyph: String.fromCodePoint(0xF040A)
   readonly property string stopGlyph: String.fromCodePoint(0xF04DB)
   readonly property string logGlyph: String.fromCodePoint(0xF0219)
-  readonly property string openGlyph: String.fromCodePoint(0xF03CC)
 
   readonly property int refreshIntervalSec: Math.max(2, parseInt(setting("refreshIntervalSec", 5), 10) || 5)
   readonly property string pluginDir: String(Qt.resolvedUrl(".")).replace(/^file:\/\//, "").replace(/\/$/, "")
@@ -139,9 +138,13 @@ Panel {
     close()
   }
 
-  function openUrl(s) {
-    Quickshell.execDetached(["xdg-open", s.url])
-    close()
+  // Ciclo branco → vermelho → branco do LED de "no ar" (3 s).
+  property real ledPhase: 0
+  SequentialAnimation on ledPhase {
+    running: root.opened && root.anyRunning
+    loops: Animation.Infinite
+    NumberAnimation { to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
+    NumberAnimation { to: 0.0; duration: 1500; easing.type: Easing.InOutSine }
   }
 
   implicitWidth: button.implicitWidth
@@ -311,6 +314,17 @@ Panel {
                   NumberAnimation { to: 1.0; duration: 500 }
                   onRunningChanged: if (!running) parent.opacity = 1.0
                 }
+
+                // No ar: alterna branco ↔ vermelho, como um LED de atividade.
+                Rectangle {
+                  id: led
+                  anchors.fill: parent
+                  radius: parent.radius
+                  color: "#d62a2f"
+                  // Fase vem do painel: o status recria as linhas a cada
+                  // refresh e uma animação local reiniciaria no branco.
+                  opacity: row.up && !row.transitioning ? root.ledPhase : 0
+                }
               }
 
               Column {
@@ -350,25 +364,19 @@ Panel {
                 onClicked: root.openLog(row.modelData)
               }
 
-              PanelActionButton {
-                Layout.alignment: Qt.AlignVCenter
-                visible: row.up && row.modelData.estado === "rodando"
-                iconText: root.openGlyph
-                tooltipText: "Abrir " + row.modelData.url
-                foreground: root.foreground
-                fontFamily: root.fontFamily
-                onClicked: root.openUrl(row.modelData)
-              }
-
+              // Só o ícone, sem fundo nem borda; o hover clareia/aumenta.
               Button {
+                id: toggleBtn
                 Layout.alignment: Qt.AlignVCenter
                 iconText: row.up ? root.stopGlyph : root.playGlyph
                 tooltipText: row.action !== "" ? "Aguarde…" : (row.up ? "Parar " : "Iniciar ") + row.modelData.nome
-                foreground: root.foreground
+                foreground: toggleBtn.hot ? Qt.lighter(root.foreground, 1.25) : root.foreground
                 fontFamily: root.fontFamily
                 iconSize: Style.font.iconLarge
-                bordered: true
-                selected: row.up
+                color: "transparent"
+                borderSpec: Border.none()
+                scale: toggleBtn.hot && toggleBtn.enabled ? 1.12 : 1.0
+                Behavior on scale { NumberAnimation { duration: 120 } }
                 enabled: row.action === "" && root.javaOk
                 opacity: enabled ? 1.0 : 0.4
                 onClicked: root.toggleService(row.modelData)
