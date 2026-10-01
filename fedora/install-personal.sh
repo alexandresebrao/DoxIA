@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# Fedora port of Omarchy: personal setup (run as your user, after install-user.sh).
+# Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
 # Restores my plugins (FortiVPN, Java servers, Now Playing), bar layout, default
 # agent and Hyprland window rules from fedora/personal. Existing files are backed up.
+# Can be re-run on its own to reapply them:
 #
 #   bash ~/.local/share/omarchy/fedora/install-personal.sh
 
@@ -53,6 +54,4 @@ if [[ ! -d /usr/local/java/tomcat || ! -d $HOME/.sdkman/candidates/java/8.0.192-
   echo "/usr/local/java/jboss-4.0.2 and the Oracle JDK 8 at ~/.sdkman/candidates/java/8.0.192-oracle."
 fi
 
-echo
-echo "Done. Restart the shell (or log out and back in) to load the plugins."
 echo "Add VPN profiles from the FortiVPN widget; credentials stay in /etc/openfortivpn."

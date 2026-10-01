@@ -92,6 +92,9 @@ o.exec_on_start("systemctl --user start omarchy-sleep-lock.service")
 EOF
 fi
 
+echo "==> Personal setup (plugins, bar layout, window rules)"
+bash "$OMARCHY_PATH/fedora/install-personal.sh"
+
 echo
 echo "Done. Log out of KDE and pick \"Omarchy (Hyprland uwsm)\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the Omarchy menu."

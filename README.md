@@ -25,19 +25,13 @@ sudo bash ~/.local/share/omarchy/fedora/install-system.sh
 bash ~/.local/share/omarchy/fedora/install-user.sh
 ```
 
-Optionally, restore my personal setup (plugins, bar layout, window rules):
-
-```bash
-bash ~/.local/share/omarchy/fedora/install-personal.sh
-```
-
 Then log out and pick **Omarchy (Hyprland uwsm)** on the login screen.
 `Super + K` shows the keybindings and `Super + Space` opens the Omarchy menu.
 
 ### Personal setup
 
-`fedora/personal/` holds my own Omarchy customizations, installed by
-`fedora/install-personal.sh`:
+`fedora/personal/` holds my own Omarchy customizations. `install-user.sh` installs
+them through `fedora/install-personal.sh`, which can also be re-run on its own:
 
 - **klab.fortivpn**: openfortivpn profiles and a connect toggle in the bar (installs
   `openfortivpn` and a polkit helper; credentials stay in `/etc/openfortivpn`)
