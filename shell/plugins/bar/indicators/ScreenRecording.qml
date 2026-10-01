@@ -10,8 +10,8 @@ BarIndicator {
   active: recording
   activeText: "󰻂"
   inactiveText: "󰻂"
-  activeTooltipText: "Stop recording"
-  inactiveTooltipText: "Screen Recording"
+  activeTooltipText: "Parar gravação"
+  inactiveTooltipText: "Gravar tela"
 
   function refresh() {
     if (!root.bar || statusProc.running) return

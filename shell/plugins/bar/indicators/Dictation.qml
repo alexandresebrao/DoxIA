@@ -11,8 +11,8 @@ BarIndicator {
   active: state === "recording"
   activeText: icon
   inactiveText: "󰍬"
-  activeTooltipText: state
-  inactiveTooltipText: "Dictate"
+  activeTooltipText: state === "recording" ? "Gravando ditado" : (state === "transcribing" ? "Transcrevendo…" : state)
+  inactiveTooltipText: "Ditar"
 
   function update(raw) {
     var data = extractData(raw)

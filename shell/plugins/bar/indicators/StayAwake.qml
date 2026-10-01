@@ -9,8 +9,8 @@ BarIndicator {
   active: idleService ? idleService.stayAwake : false
   activeText: "󰅶"
   inactiveText: "󰅶"
-  activeTooltipText: "Allow Idle Lock & Screensaver"
-  inactiveTooltipText: "Stay Awake"
+  activeTooltipText: "Permitir bloqueio e proteção de tela"
+  inactiveTooltipText: "Manter acordado"
 
   function toggle() {
     if (root.idleService) root.idleService.setIdleEnabled(root.active)

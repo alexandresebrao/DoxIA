@@ -9,8 +9,8 @@ BarIndicator {
   active: nightlightService ? nightlightService.enabled : false
   activeText: "󰔎"
   inactiveText: "󰔎"
-  activeTooltipText: "Day Light"
-  inactiveTooltipText: "Night Light"
+  activeTooltipText: "Desativar luz noturna"
+  inactiveTooltipText: "Luz noturna"
 
   function toggle() {
     if (root.nightlightService) root.nightlightService.setNightlight(!root.active)
