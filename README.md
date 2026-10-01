@@ -1,3 +1,38 @@
+# Omarchy for Fedora
+
+> **This is an unofficial Fedora port of [Omarchy](https://github.com/basecamp/omarchy)**,
+> maintained by [@alexandresebrao](https://github.com/alexandresebrao). It is not
+> affiliated with or supported by Basecamp. Report port issues here, not upstream.
+
+Omarchy normally ships as an Arch Linux distribution. This port runs the Omarchy
+Hyprland + Quickshell desktop on **Fedora**, installed alongside an existing desktop
+such as KDE Plasma without touching it. The UI is translated to **Brazilian Portuguese**.
+
+### What changes from upstream
+
+- `dnf` instead of `pacman` in the package helpers (`omarchy-pkg-*`) and update scripts
+- Flathub pickers (`omarchy-pkg-flatpak-install` / `-remove`) take the place of the AUR
+- Hyprland, Quickshell, uwsm and gpu-screen-recorder come from COPR
+- `tuned-ppd` with a small `powerprofilesctl` shim for the power menu
+- Lock screen PAM config adapted to Fedora
+- Menus, panels, notifications and OSD messages in pt-BR
+
+### Install
+
+```bash
+git clone https://github.com/alexandresebrao/omarchy-fedora.git ~/.local/share/omarchy
+sudo bash ~/.local/share/omarchy/fedora/install-system.sh
+bash ~/.local/share/omarchy/fedora/install-user.sh
+```
+
+Then log out and pick **Omarchy (Hyprland uwsm)** on the login screen.
+`Super + K` shows the keybindings and `Super + Space` opens the Omarchy menu.
+
+The user script backs up any existing config it replaces (`*.bak-omarchy-<date>`)
+and leaves KDE's autostart, environment and Chromium settings alone.
+
+---
+
 # Omarchy
 
 Omarchy is a beautiful, modern & opinionated Linux distribution by DHH.
