@@ -45,7 +45,7 @@ if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua 2>/dev/null; then
 fi
 
 echo "==> FortiVPN (openfortivpn + polkit helper)"
-rpm -q openfortivpn &>/dev/null || sudo dnf install -y openfortivpn
+omarchy-pkg-add openfortivpn
 sudo "$HOME/.config/omarchy/plugins/klab.fortivpn/setup-system.sh"
 
 if [[ ! -d /usr/local/java/tomcat || ! -d $HOME/.sdkman/candidates/java/8.0.192-oracle ]]; then
