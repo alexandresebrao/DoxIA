@@ -92,8 +92,8 @@ install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omar
 install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
 restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
-# The theme has no user picker: it logs in SDDM's last user, which a fresh SDDM
-# doesn't have yet (the Arch ISO seeds it).
+# The theme preselects SDDM's last user and session, which a fresh SDDM doesn't
+# have yet (the Arch ISO seeds it): start on the ChapeuOS session.
 if [[ ! -s /var/lib/sddm/state.conf ]]; then
   install -d -o sddm -g sddm /var/lib/sddm
   printf '[Last]\nUser=%s\nSession=/usr/share/wayland-sessions/omarchy.desktop\n' "$target_user" > /var/lib/sddm/state.conf
