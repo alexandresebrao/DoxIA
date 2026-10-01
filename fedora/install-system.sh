@@ -78,6 +78,10 @@ fi
 # Same mechanism as `omarchy dev link`: OMARCHY_PATH points at the checkout.
 echo "OMARCHY_PATH=$omarchy_path" > /etc/omarchy.conf
 
+echo "==> ChapeuOS About screen (fastfetch)"
+mkdir -p /etc/fastfetch
+ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
+
 echo "==> Installing Omarchy session entry"
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" \
   /usr/share/wayland-sessions/omarchy.desktop

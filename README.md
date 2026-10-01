@@ -1,12 +1,16 @@
-# Omarchy for Fedora
+# ChapeuOS
 
-> **This is an unofficial Fedora port of [Omarchy](https://github.com/basecamp/omarchy)**,
+> **ChapeuOS is an unofficial Fedora port of [Omarchy](https://github.com/basecamp/omarchy)**,
 > maintained by [@alexandresebrao](https://github.com/alexandresebrao). It is not
-> affiliated with or supported by Basecamp. Report port issues here, not upstream.
+> affiliated with or supported by Basecamp. Report issues here, not upstream.
 
-Omarchy normally ships as an Arch Linux distribution. This port runs the Omarchy
-Hyprland + Quickshell desktop on **Fedora**, installed alongside an existing desktop
-such as KDE Plasma without touching it. The UI is translated to **Brazilian Portuguese**.
+Omarchy normally ships as an Arch Linux distribution. ChapeuOS (*chapéu* is Portuguese
+for hat, as in Fedora) runs the Omarchy Hyprland + Quickshell desktop on **Fedora**,
+installed alongside an existing desktop such as KDE Plasma without touching it. The UI
+is translated to **Brazilian Portuguese**.
+
+Commands, paths and config files keep their Omarchy names (`omarchy-*`,
+`~/.local/share/omarchy`, `~/.config/omarchy`) so upstream changes keep merging cleanly.
 
 ### What changes from upstream
 
@@ -16,16 +20,17 @@ such as KDE Plasma without touching it. The UI is translated to **Brazilian Port
 - `tuned-ppd` with a small `powerprofilesctl` shim for the power menu
 - Lock screen PAM config adapted to Fedora
 - Menus, panels, notifications and OSD messages in pt-BR
+- ChapeuOS branding: login session name, About screen and screensaver logos
 
 ### Install
 
 ```bash
-git clone https://github.com/alexandresebrao/omarchy-fedora.git ~/.local/share/omarchy
+git clone https://github.com/alexandresebrao/ChapeuOS.git ~/.local/share/omarchy
 sudo bash ~/.local/share/omarchy/fedora/install-system.sh
 bash ~/.local/share/omarchy/fedora/install-user.sh
 ```
 
-Then log out and pick **Omarchy (Hyprland uwsm)** on the login screen.
+Then log out and pick **ChapeuOS (Hyprland uwsm)** on the login screen.
 `Super + K` shows the keybindings and `Super + Space` opens the Omarchy menu.
 
 ### Personal setup

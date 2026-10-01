@@ -339,7 +339,7 @@
   "remove.ai.perplexity": {"icon":"","iconFont":"omarchy","label":"Perplexity","when":"omarchy-pkg-present perplexity","action":"omarchy-launch-floating-terminal-with-presentation omarchy-remove-ai-perplexity"},
 
   // Update
-  "update.omarchy": {"icon":"","iconFont":"omarchy","label":"Omarchy","action":"omarchy-launch-floating-terminal-with-presentation omarchy-update"},
+  "update.omarchy": {"icon":"","iconFont":"omarchy","label":"ChapeuOS","action":"omarchy-launch-floating-terminal-with-presentation omarchy-update"},
   "update.channel": {"icon":"󰔫","label":"Canal"},
   "update.config": {"icon":"","label":"Configuração","title":"Restaurar padrão"},
   "update.themes": {"icon":"󰸌","label":"Temas extras","when":"omarchy-theme-extras","action":"omarchy-launch-floating-terminal-with-presentation omarchy-theme-update"},
