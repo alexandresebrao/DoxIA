@@ -28,6 +28,9 @@ cp -a "$HOME/.config/omarchy/branding" "$personal/omarchy/branding"
 
 cp "$HOME/.config/hypr/xdph.conf" "$personal/hypr/xdph.conf"
 
+mkdir -p "$personal/omarchy/themed"
+find "$HOME/.config/omarchy/themed" -maxdepth 1 -name '*.tpl' -exec cp {} "$personal/omarchy/themed/" \;
+
 find "$personal" -name __pycache__ -prune -exec rm -rf {} +
 find "$personal" -name '*.bak*' -exec rm -rf {} +
 

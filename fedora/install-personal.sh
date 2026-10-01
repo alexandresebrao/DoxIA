@@ -42,6 +42,9 @@ for theme in "$personal"/omarchy/themes/*/; do
   seed "omarchy/themes/$name" "$HOME/.config/omarchy/themes/$name"
 done
 seed omarchy/branding "$HOME/.config/omarchy/branding"
+for tpl in "$personal"/omarchy/themed/*.tpl; do
+  seed "omarchy/themed/$(basename "$tpl")" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
+done
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark
 
 # Sem minimizar/maximizar/fechar nem ícone do app nas barras de título GTK: o
@@ -89,4 +92,12 @@ fi
 echo "Add VPN profiles from the FortiVPN widget; credentials stay in /etc/openfortivpn."
 
 echo "==> Theme"
+# Pastas vermelhas do RHEL 8 (Papirus-Dark-Red, gerado no $HOME).
+bash "$HOME/.config/omarchy/themes/rhel-8/make-icons.sh"
+# GTK4/libadwaita (Nautilus) com as cores do tema, via themed/gtk.css.tpl.
+gtk_css="$HOME/.config/gtk-4.0/gtk.css"
+mkdir -p "$(dirname "$gtk_css")"
+if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
+  echo "@import url('file://$HOME/.local/state/omarchy/current/theme/gtk.css');" >> "$gtk_css"
+fi
 omarchy-theme-set "$(cat "$personal/omarchy/theme.name")"
