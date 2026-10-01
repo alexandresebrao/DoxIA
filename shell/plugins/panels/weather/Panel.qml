@@ -308,7 +308,10 @@ Panel {
   }
 
   function dayName(dateString) {
-    return Model.dayName(dateString, function(date) { return Qt.formatDate(date, "dddd") })
+    return Model.dayName(dateString, function(date) {
+      var name = Qt.locale().toString(date, "dddd")
+      return name.charAt(0).toUpperCase() + name.slice(1)
+    })
   }
 
   // Bare degree value (no unit letter), used in the forecast row.
@@ -616,7 +619,7 @@ Panel {
               id: locationField
               width: Style.space(190)
               enabled: !root.savingLocation
-              placeholderText: "Search city"
+              placeholderText: "Buscar cidade"
               foreground: root.bar.foreground
               font.family: root.bar.fontFamily
 
@@ -683,7 +686,7 @@ Panel {
             Column {
               spacing: Style.space(5)
               Text {
-                text: "FEELS"
+                text: "SENSAÇÃO"
                 color: Qt.darker(root.bar.foreground, 1.5)
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -701,7 +704,7 @@ Panel {
             Column {
               spacing: Style.space(5)
               Text {
-                text: "WIND"
+                text: "VENTO"
                 color: Qt.darker(root.bar.foreground, 1.5)
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -719,7 +722,7 @@ Panel {
             Column {
               spacing: Style.space(5)
               Text {
-                text: "HUMID"
+                text: "UMIDADE"
                 color: Qt.darker(root.bar.foreground, 1.5)
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -792,7 +795,7 @@ Panel {
 
       Text {
         visible: !root.current
-        text: "Fetching forecast…"
+        text: "Buscando previsão…"
         color: Qt.darker(root.bar.foreground, 1.5)
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.bodySmall

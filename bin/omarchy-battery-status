@@ -129,9 +129,9 @@ if [[ $charge_holding == "true" ]]; then
     threshold_label="${threshold_end}%"
   fi
 
-  echo "Battery ${percentage}%  ·  Holding at ${threshold_label}  ·  ${power_rate}W / ${capacity}Wh"
+  echo "Bateria ${percentage}%  ·  Mantendo em ${threshold_label}  ·  ${power_rate}W / ${capacity}Wh"
 elif [[ $state == "charging" ]]; then
-  echo "Battery ${percentage}%  ·  ${time_remaining} to full  ·   ${power_rate}W / ${capacity}Wh"
+  echo "Bateria ${percentage}%  ·  ${time_remaining} para carga completa  ·   ${power_rate}W / ${capacity}Wh"
 else
-  echo "Battery ${percentage}%  ·  ${time_remaining} left  ·   ${power_rate}W / ${capacity}Wh"
+  echo "Bateria ${percentage}%  ·  ${time_remaining} restantes  ·   ${power_rate}W / ${capacity}Wh"
 fi

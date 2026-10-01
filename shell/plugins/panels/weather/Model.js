@@ -127,7 +127,7 @@ function dayName(dateString, formatter) {
   var d = new Date(dateString + "T12:00:00")
   if (isNaN(d.getTime())) return ""
   if (formatter) return formatter(d)
-  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][d.getDay()]
+  return ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"][d.getDay()]
 }
 
 function openMeteoForecastDays(dailyForecastReport, todayString) {

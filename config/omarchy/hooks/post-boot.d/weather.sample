@@ -5,6 +5,6 @@
 
 weather=$(omarchy-weather-status 2>/dev/null) || true
 
-if [[ -n $weather && $weather != "Weather unavailable" ]]; then
+if [[ -n $weather && $weather != "Clima indisponível" ]]; then
   omarchy-notification-send -u low "$weather"
 fi

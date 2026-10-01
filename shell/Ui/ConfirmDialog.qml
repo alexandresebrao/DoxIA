@@ -6,8 +6,8 @@ Item {
 
   property bool opened: false
   property string message: ""
-  property string cancelText: "Cancel"
-  property string confirmText: "Confirm"
+  property string cancelText: "Cancelar"
+  property string confirmText: "Confirmar"
   property int selectedIndex: 1
   property color background: Color.background
   property color foreground: Color.foreground

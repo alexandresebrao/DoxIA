@@ -58,18 +58,18 @@ function bandLabel(band) {
 // instead -- "WI-FI BAND: 2.4GHZ". Once a band is pinned the pills are on
 // screen and say it themselves, so the header drops back to a plain label.
 function bandSectionTitle(selected, current) {
-  if (selected !== "auto") return "WI-FI BAND"
+  if (selected !== "auto") return "BANDA DO WI-FI"
 
   var label = bandLabel(current)
-  if (label === "") return "WI-FI BAND"
+  if (label === "") return "BANDA DO WI-FI"
 
-  return "WI-FI BAND: " + label.toUpperCase()
+  return "BANDA DO WI-FI: " + label.toUpperCase()
 }
 
 function bandTooltip(band) {
-  if (band === "auto") return "Let Wi-Fi pick the band"
+  if (band === "auto") return "Deixar o Wi-Fi escolher a banda"
   if (!band) return ""
-  return "Stay on " + bandLabel(band)
+  return "Manter em " + bandLabel(band)
 }
 
 function parseBandStatus(raw) {
@@ -257,7 +257,7 @@ function formatPingLatency(ms, hasSamples) {
   if (hasSamples === false) return "--"
 
   var value = parseFloat(ms)
-  if (!isFinite(value) || value < 0) return "Timeout"
+  if (!isFinite(value) || value < 0) return "Tempo esgotado"
   return value.toFixed(value > 0 && value < 10 ? 1 : 0) + " ms"
 }
 
@@ -294,8 +294,8 @@ function wifiSectionTitle(wifiNetworks, index) {
   var net = networks[index]
   if (!net) return ""
 
-  if (net.known && index === 0) return "KNOWN NETWORKS"
-  if (!net.known && (index === 0 || (networks[index - 1] && networks[index - 1].known))) return "OTHER NETWORKS"
+  if (net.known && index === 0) return "REDES CONHECIDAS"
+  if (!net.known && (index === 0 || (networks[index - 1] && networks[index - 1].known))) return "OUTRAS REDES"
   return ""
 }
 
@@ -327,12 +327,12 @@ var enterpriseConnectScript =
 
 function networkFailureReason(reason, needsCredentials, reasons) {
   var r = reasons || {}
-  if (needsCredentials && reason === r.NoSecrets) return "Passphrase required"
-  if (needsCredentials && reason === r.WifiAuthTimeout) return "Wrong password"
-  if (reason === r.WifiNetworkLost) return "Network lost"
-  if (reason === r.WifiClientDisconnected) return "Disconnected"
-  if (reason === r.WifiClientFailed) return "Connection failed"
-  return "Failed to connect"
+  if (needsCredentials && reason === r.NoSecrets) return "Senha necessária"
+  if (needsCredentials && reason === r.WifiAuthTimeout) return "Senha incorreta"
+  if (reason === r.WifiNetworkLost) return "Rede perdida"
+  if (reason === r.WifiClientDisconnected) return "Desconectado"
+  if (reason === r.WifiClientFailed) return "Falha na conexão"
+  return "Não foi possível conectar"
 }
 
 // Whether a failed connect should reopen the passphrase prompt. NoSecrets

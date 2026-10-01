@@ -81,14 +81,14 @@ function availableScales(scales, width, height) {
 
 function brightnessName(percent) {
   var p = Math.round(percent)
-  if (p >= 95) return "Sun blast"
-  if (p >= 80) return "Solar flare"
-  if (p >= 65) return "Golden hour"
-  if (p >= 45) return "Even day"
-  if (p >= 30) return "Soft glow"
-  if (p >= 20) return "Lamp light"
-  if (p >= 10) return "Candlelit"
-  return "Night owl"
+  if (p >= 95) return "Sol a pino"
+  if (p >= 80) return "Explosão solar"
+  if (p >= 65) return "Hora dourada"
+  if (p >= 45) return "Dia claro"
+  if (p >= 30) return "Brilho suave"
+  if (p >= 20) return "Luz de abajur"
+  if (p >= 10) return "Luz de velas"
+  return "Coruja noturna"
 }
 
 function parseDisplays(raw) {

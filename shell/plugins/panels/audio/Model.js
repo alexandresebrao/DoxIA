@@ -23,16 +23,16 @@ function listSnapshot(list) {
 }
 
 function outputVolumeName(volume, muted) {
-  if (muted) return "Muted"
+  if (muted) return "Mudo"
   var p = Math.round(volume * 100)
-  if (p === 0) return "Silenced"
-  if (p >= 100) return "Concert hall"
-  if (p >= 85) return "Party mode"
-  if (p >= 70) return "Cranked up"
-  if (p >= 50) return "Steady groove"
-  if (p >= 30) return "Easy listening"
-  if (p >= 15) return "Murmur"
-  return "Whisper"
+  if (p === 0) return "Silenciado"
+  if (p >= 100) return "Sala de concerto"
+  if (p >= 85) return "Modo festa"
+  if (p >= 70) return "No talo"
+  if (p >= 50) return "Ritmo constante"
+  if (p >= 30) return "Som ambiente"
+  if (p >= 15) return "Murmúrio"
+  return "Sussurro"
 }
 
 function parseSinkAvailability(raw) {
@@ -62,11 +62,11 @@ function nodeProps(node) {
 }
 
 function nodeLabel(node) {
-  if (!node) return "Unknown"
+  if (!node) return "Desconhecido"
   var p = nodeProps(node)
   var nickname = friendlyDeviceLabel(node.nickname || node.nick || p["node.nick"] || p["device.profile.description"] || "")
   if (nickname) return nickname
-  return friendlyDeviceLabel(node.description || p["node.description"] || node.name || "Unknown")
+  return friendlyDeviceLabel(node.description || p["node.description"] || node.name || "Desconhecido")
 }
 
 function isHeadphones(node) {
@@ -216,11 +216,11 @@ function unmatchedMprisStreamLabel(label, players, streams) {
 }
 
 function streamLabel(node, players, streams) {
-  if (!node) return "Stream"
+  if (!node) return "Transmissão"
   var label = rawStreamLabel(node)
   return friendlyStreamLabel(matchingMprisStreamLabel(label, players)
     || unmatchedMprisStreamLabel(label, players, streams)
-    || label) || "Stream"
+    || label) || "Transmissão"
 }
 
 function streamRepresentsPlayer(node, player, players, streams) {

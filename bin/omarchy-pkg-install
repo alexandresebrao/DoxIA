@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# omarchy:summary=Show a fuzzy-finder TUI for picking new Arch and OPR packages to install.
+# omarchy:summary=Show a fuzzy-finder TUI for picking new Fedora packages to install.
 # omarchy:requires-sudo=true
+# Fedora port: dnf instead of pacman.
 
 fzf_args=(
   --multi
-  --preview 'pacman -Sii {1}'
+  --preview 'dnf -q -C info {1} 2>/dev/null || dnf -q info {1}'
   --preview-label='alt-p: toggle description, alt-j/k: scroll, tab: multi-select'
   --preview-label-pos='bottom'
   --preview-window 'down:65%:wrap'
@@ -15,12 +16,17 @@ fzf_args=(
   --color 'pointer:green,marker:green'
 )
 
-pkg_names=$(pacman -Slq | fzf "${fzf_args[@]}")
+# Cached metadata keeps the list instant; refresh only when there is no cache yet.
+available=$(dnf -q -C repoquery --available --qf '%{name}\n' 2>/dev/null)
+[[ -z $available ]] && available=$(dnf -q repoquery --available --qf '%{name}\n' 2>/dev/null)
+
+# Leave out what is already installed.
+pkg_names=$(comm -23 <(sort -u <<<"$available") <(rpm -qa --qf '%{NAME}\n' | sort -u) | fzf "${fzf_args[@]}")
 
 if [[ -n $pkg_names ]]; then
   source omarchy-sudo-keepalive
 
-  # Convert newline-separated selections to space-separated for pacman
-  echo "$pkg_names" | tr '\n' ' ' | xargs sudo pacman -S --noconfirm
+  # Convert newline-separated selections to space-separated for dnf
+  echo "$pkg_names" | tr '\n' ' ' | xargs sudo dnf install -y
   omarchy-show-done
 fi

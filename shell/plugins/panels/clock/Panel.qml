@@ -67,7 +67,7 @@ Panel {
   // The interface is English throughout, so day names are not taken from the
   // system locale. Where the week starts still is: that is a regional
   // convention rather than a translation, and it stays overridable above.
-  readonly property var labelLocale: Qt.locale("en_US")
+  readonly property var labelLocale: Qt.locale()
   readonly property string nextWeekStartLabel: labelLocale.dayName(Model.toggledWeekStart(weekStart), Locale.LongFormat)
   readonly property var weekdays: Model.weekdayOrder(weekStart)
   readonly property var weeks: Model.monthGrid(viewYear, viewMonth, weekStart, todayKey)
@@ -315,7 +315,7 @@ Panel {
                 id: heroDate
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
-                text: Qt.formatDate(root.today, "MMMM d")
+                text: Qt.locale().toString(root.today, "d 'de' MMMM")
                 color: heroMouse.containsMouse
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
@@ -723,7 +723,7 @@ Panel {
                 // "MAY 2026" and a "SEPTEMBER 2026".
                 width: Style.space(130)
                 horizontalAlignment: Text.AlignHCenter
-                text: Qt.formatDate(root.viewDate, "MMMM yyyy").toUpperCase()
+                text: Qt.locale().toString(root.viewDate, "MMMM yyyy").toUpperCase()
                 color: Qt.darker(root.contentForeground, 1.4)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.body

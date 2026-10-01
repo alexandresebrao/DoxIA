@@ -819,7 +819,7 @@ Item {
   function openDmenu(payload) {
     requestSerial += 1
     mode = payload.mode === "input" ? "input" : "select"
-    dmenuPrompt = String(payload.prompt || (mode === "input" ? "Input" : "Select"))
+    dmenuPrompt = String(payload.prompt || (mode === "input" ? "Digite" : "Selecione"))
     dmenuOptions = Array.isArray(payload.options) ? payload.options : []
     selectionFile = String(payload.selectionFile || "")
     doneFile = String(payload.doneFile || "")
@@ -1122,8 +1122,8 @@ Item {
           anchors.fill: parent
           opened: root.deleteConfirmOpen
           z: 10
-          message: "Do you want to uninstall " + ((root.deleteTarget && root.deleteTarget.label) || "") + "?"
-          confirmText: "Uninstall"
+          message: "Deseja desinstalar " + ((root.deleteTarget && root.deleteTarget.label) || "") + "?"
+          confirmText: "Desinstalar"
           background: root.background
           foreground: root.foreground
           scrim: root.scrim
@@ -1155,7 +1155,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: root.filterText || (root.dmenuActive ? (root.dmenuPrompt + "…") : ((root.item(root.activeMenu) ? (root.item(root.activeMenu).title || root.item(root.activeMenu).label) : "Go") + "…"))
+            text: root.filterText || (root.dmenuActive ? (root.dmenuPrompt + "…") : ((root.item(root.activeMenu) ? (root.item(root.activeMenu).title || root.item(root.activeMenu).label) : "Ir") + "…"))
             color: root.foreground
             opacity: root.filterText ? 1 : 0.58
             font.family: root.fontFamily
@@ -1406,7 +1406,7 @@ Item {
 
             Text {
               textFormat: Text.PlainText
-              text: root.filterText ? "No matches for “" + root.filterText + "”" : "Nothing here yet"
+              text: root.filterText ? "Nada encontrado para “" + root.filterText + "”" : "Nada aqui ainda"
               color: root.foreground
               opacity: 0.7
               font.family: root.fontFamily

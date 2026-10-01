@@ -47,7 +47,7 @@ packages=(
   bluez-tools NetworkManager-tui wiremix
 
   # CLI toolbox used by Omarchy scripts and TUIs
-  btop fastfetch gum jq socat inotify-tools fzf eza zoxide ripgrep fd-find bat tmux
+  btop fastfetch gum jq socat inotify-tools fzf util-linux-script eza zoxide ripgrep fd-find bat tmux
   ImageMagick vips-tools ffmpegthumbnailer qrencode zbar tesseract tldr inxi plocate
   python3-gobject tree-sitter-cli nss-mdns
 

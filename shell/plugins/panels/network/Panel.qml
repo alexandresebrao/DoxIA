@@ -56,13 +56,13 @@ Panel {
   readonly property bool hasTransferStats: info.rx_bytes !== undefined
   property int connectionPhraseIndex: 0
   readonly property var connectionPhrases: [
-    "Wiring bits",
-    "Handling packets",
-    "Sorting frames",
-    "Hauling bytes",
-    "Routing crumbs",
-    "Counting collisions",
-    "Bending light",
+    "Ligando bits",
+    "Manuseando pacotes",
+    "Ordenando quadros",
+    "Carregando bytes",
+    "Roteando migalhas",
+    "Contando colisões",
+    "Curvando a luz",
   ]
   readonly property string connectionPhrase: connectionPhrases[connectionPhraseIndex % connectionPhrases.length]
   readonly property bool networkManagerAvailable: Networking.backend === NetworkBackendType.NetworkManager
@@ -137,7 +137,7 @@ Panel {
   readonly property bool qrHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === qrHeaderIndex
   readonly property bool speedHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === speedHeaderIndex
   readonly property bool toggleHeaderHasCursor: cursorActive && focusSection === "header" && headerIndex === toggleHeaderIndex
-  readonly property string toggleHint: Networking.wifiEnabled ? "Turn Wi-Fi off" : "Turn Wi-Fi on"
+  readonly property string toggleHint: Networking.wifiEnabled ? "Desligar Wi-Fi" : "Ligar Wi-Fi"
   readonly property var dnsProviders: ["DHCP", "Cloudflare", "Google", "Custom"]
   property int dnsIndex: 0
   // ["2.4", "5", ...], or empty when there is nothing to choose between.
@@ -942,9 +942,9 @@ Panel {
     onTriggered: {
       if (!root.actionKind) return
       var reason
-      if (root.actionKind === "connect") reason = "Timed out connecting"
-      else if (root.actionKind === "disconnect") reason = "Timed out disconnecting"
-      else reason = "Timed out forgetting"
+      if (root.actionKind === "connect") reason = "Tempo esgotado ao conectar"
+      else if (root.actionKind === "disconnect") reason = "Tempo esgotado ao desconectar"
+      else reason = "Tempo esgotado ao esquecer"
       root.failureSsid = root.actionSsid
       root.failureReason = reason
       root.actionSsid = ""
@@ -1112,7 +1112,7 @@ Panel {
             id: qrAction
             visible: root.canShareWifi
             iconText: "󰐲"
-            tooltipText: "Show QR code"
+            tooltipText: "Mostrar QR code"
             foreground: root.bar.foreground
             fontFamily: root.bar.fontFamily
             iconSize: Style.font.subtitle * 1.5
@@ -1128,7 +1128,7 @@ Panel {
             id: speedAction
             visible: root.canRunSpeedTest
             iconText: "󰓅"
-            tooltipText: "Run a speed test"
+            tooltipText: "Testar velocidade"
             foreground: root.bar.foreground
             fontFamily: root.bar.fontFamily
             iconSize: Style.font.subtitle * 1.5
@@ -1177,7 +1177,7 @@ Panel {
             readonly property string title: {
               if (root.info.type === "wifi") return root.info.ssid || "Wi-Fi"
               if (root.info.type === "ethernet") return "Ethernet"
-              return root.info.iface || (root.kind === "disconnected" ? "Disconnected" : "No connection")
+              return root.info.iface || (root.kind === "disconnected" ? "Desconectado" : "Sem conexão")
             }
             readonly property string detail: root.headerDetail()
 
@@ -1196,11 +1196,11 @@ Panel {
             text: {
               if (root.info.type === "wifi") {
                 if (root.canDisconnect) return root.connectionPhrase.toUpperCase()
-                if (root.kind === "disconnected") return "NOT CONNECTED"
+                if (root.kind === "disconnected") return "NÃO CONECTADO"
                 return ""
               }
               if (root.info.type === "ethernet") return root.connectionPhrase.toUpperCase()
-              if (root.kind === "disconnected") return "NOT CONNECTED"
+              if (root.kind === "disconnected") return "NÃO CONECTADO"
               return ""
             }
             visible: text !== ""
@@ -1236,33 +1236,33 @@ Panel {
             text: root.formatPingLatency(root.internetPingLatency)
             color: root.internetPingPacketLoss > 0 ? root.bar.urgent : root.bar.foreground
           }
-          InfoLabel { text: "Packet Loss" }
+          InfoLabel { text: "Perda de pacotes" }
           DetailValue {
             text: root.formatPacketLoss(root.internetPingPacketLoss)
             color: root.internetPingPacketLoss > 0 ? root.bar.urgent : root.bar.foreground
           }
 
-          InfoLabel { text: "Receiving" }
+          InfoLabel { text: "Recebendo" }
           DetailValue { text: root.hasTransferStats ? root.formatRate(root.downloadRate) : "--" }
-          InfoLabel { text: "Sending" }
+          InfoLabel { text: "Enviando" }
           DetailValue { text: root.hasTransferStats ? root.formatRate(root.uploadRate) : "--" }
 
-          InfoLabel { text: "Downloaded" }
+          InfoLabel { text: "Baixado" }
           DetailValue { text: root.hasTransferStats ? root.formatBytes(parseFloat(root.info.rx_bytes || "0")) : "--" }
-          InfoLabel { text: "Uploaded" }
+          InfoLabel { text: "Enviado" }
           DetailValue { text: root.hasTransferStats ? root.formatBytes(parseFloat(root.info.tx_bytes || "0")) : "--" }
 
-          InfoLabel { text: "IP Address" }
+          InfoLabel { text: "Endereço IP" }
           DetailValue {
             text: root.info.ip || "--"
             copyable: !!root.info.ip
-            tooltipText: "Copy IP"
+            tooltipText: "Copiar IP"
           }
           InfoLabel { text: "Gateway" }
           DetailValue {
             text: root.info.gateway || "--"
             copyable: !!root.info.gateway
-            tooltipText: "Copy gateway"
+            tooltipText: "Copiar gateway"
           }
         }
       }
@@ -1303,7 +1303,7 @@ Panel {
 
             PanelSectionHeader {
               id: bandAutoLabel
-              text: "AUTOMATIC"
+              text: "AUTOMÁTICO"
               foreground: root.bar.foreground
               fontFamily: root.bar.fontFamily
               anchors.verticalCenter: parent.verticalCenter
@@ -1336,8 +1336,8 @@ Panel {
               PanelToolTip {
                 visible: bandAutoSwitch.containsMouse
                 text: root.bandPinned
-                  ? "Let Wi-Fi pick the band"
-                  : "Stay on " + root.bandLabel(root.bandCurrent)
+                  ? "Deixar o Wi-Fi escolher a banda"
+                  : "Manter em " + root.bandLabel(root.bandCurrent)
                 fontFamily: root.bar.fontFamily
               }
             }
@@ -1408,7 +1408,7 @@ Panel {
         spacing: Style.space(10)
 
         PanelSectionHeader {
-          text: "DNS PROVIDER"
+          text: "PROVEDOR DE DNS"
           foreground: root.bar.foreground
           fontFamily: root.bar.fontFamily
         }
@@ -1424,7 +1424,7 @@ Panel {
           DnsProviderPill {
             provider: "DHCP"
             index: 0
-            tooltipText: "Use DNS from DHCP"
+            tooltipText: "Usar DNS do DHCP"
             width: dnsRow.cellWidth
             onClicked: root.setDns(provider)
           }
@@ -1432,7 +1432,7 @@ Panel {
           DnsProviderPill {
             provider: "Cloudflare"
             index: 1
-            tooltipText: "Set DNS to Cloudflare"
+            tooltipText: "Usar DNS da Cloudflare"
             width: dnsRow.cellWidth
             onClicked: root.setDns(provider)
           }
@@ -1440,7 +1440,7 @@ Panel {
           DnsProviderPill {
             provider: "Google"
             index: 2
-            tooltipText: "Set DNS to Google"
+            tooltipText: "Usar DNS do Google"
             width: dnsRow.cellWidth
             onClicked: root.setDns(provider)
           }
@@ -1448,7 +1448,7 @@ Panel {
           DnsProviderPill {
             provider: "Custom"
             index: 3
-            tooltipText: "Set custom DNS servers"
+            tooltipText: "Definir servidores DNS personalizados"
             width: dnsRow.cellWidth
             onClicked: root.setDns(provider)
           }
@@ -1464,7 +1464,7 @@ Panel {
 
       PanelSectionHeader {
         visible: root.wifiStationAvailable && root.scanning
-        text: "SCANNING WI-FI…"
+        text: "PROCURANDO REDES WI-FI…"
         foreground: root.bar.foreground
         fontFamily: root.bar.fontFamily
       }
@@ -1650,11 +1650,11 @@ Panel {
     readonly property string statusText: {
       if (!net) return ""
       if (isPasswordOpen) return ""
-      if (isBusy && root.actionKind === "connect") return "Connecting…"
-      if (isBusy && root.actionKind === "disconnect") return "Disconnecting…"
-      if (isBusy && root.actionKind === "forget") return "Forgetting…"
-      if (isFailed) return root.failureReason || "Failed"
-      if (isConnected) return "Connected"
+      if (isBusy && root.actionKind === "connect") return "Conectando…"
+      if (isBusy && root.actionKind === "disconnect") return "Desconectando…"
+      if (isBusy && root.actionKind === "forget") return "Esquecendo…"
+      if (isFailed) return root.failureReason || "Falhou"
+      if (isConnected) return "Conectado"
       return ""
     }
 
@@ -1769,7 +1769,7 @@ Panel {
 
         PanelToolTip {
           visible: rightMouse.containsMouse || row.forgetFocused
-          text: "Forget network"
+          text: "Esquecer rede"
           fontFamily: root.bar.fontFamily
         }
       }
@@ -1785,7 +1785,7 @@ Panel {
 
         Text {
           textFormat: Text.PlainText
-          text: row.net ? (row.net.ssid || "Hidden") : ""
+          text: row.net ? (row.net.ssid || "Oculta") : ""
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.body
@@ -1845,7 +1845,7 @@ Panel {
         anchors.right: connectPwBtn.left
         anchors.top: parent.top
         anchors.rightMargin: Style.space(6)
-        placeholderText: "Identity (user@domain)"
+        placeholderText: "Identidade (usuario@dominio)"
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         foreground: root.bar.foreground
@@ -1871,7 +1871,7 @@ Panel {
         anchors.bottomMargin: Style.spacing.rowGap / 2
         anchors.rightMargin: Style.space(6)
         password: true
-        placeholderText: "Passphrase"
+        placeholderText: "Senha"
         font.family: Style.font.family
         font.pixelSize: Style.font.body
         foreground: root.bar.foreground
@@ -1904,7 +1904,7 @@ Panel {
           anchors.fill: parent
           horizontalAlignment: Text.AlignHCenter
           verticalAlignment: Text.AlignVCenter
-          text: row.isFailed ? "Wrong password" : "Connecting..."
+          text: row.isFailed ? "Senha incorreta" : "Conectando..."
           color: row.isFailed ? root.bar.urgent : root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -1921,7 +1921,7 @@ Panel {
         anchors.verticalCenter: parent.verticalCenter
         enabled: row.net && pwField.text.length > 0 && (!row.isEnterprise || idField.text.length > 0)
         iconText: "󰄬"
-        tooltipText: "Connect"
+        tooltipText: "Conectar"
         foreground: root.bar.foreground
         fontFamily: root.bar.fontFamily
         onClicked: row.submitCredentials()
@@ -1932,7 +1932,7 @@ Panel {
 
   component DetailValue: InfoValue {
     property bool copyable: false
-    property string tooltipText: "Copy to clipboard"
+    property string tooltipText: "Copiar"
 
     Layout.fillWidth: true
     horizontalAlignment: Text.AlignRight

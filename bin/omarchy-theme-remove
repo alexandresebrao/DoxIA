@@ -35,5 +35,5 @@ fi
 
 # Now remove the theme directory for THEME_NAME
 rm -rf "$THEME_PATH"
-omarchy-notification-send "Theme removed" "$THEME_NAME" || true
+omarchy-notification-send "Tema removido" "$THEME_NAME" || true
 echo "Removed $THEME_NAME"

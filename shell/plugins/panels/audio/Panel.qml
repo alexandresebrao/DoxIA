@@ -174,7 +174,7 @@ Panel {
   readonly property bool hasOutput: !!(volumeSink && volumeSink.audio)
   readonly property bool hasInput: !!(source && source.audio)
   readonly property bool anyAudible: (hasOutput && !outputMuted) || (hasInput && !inputMuted)
-  readonly property string toggleHint: anyAudible ? "Mute" : "Unmute"
+  readonly property string toggleHint: anyAudible ? "Silenciar" : "Ativar som"
 
   readonly property color hoverFill: bar
     ? Style.hoverFillFor(bar.foreground, Color.accent)
@@ -751,7 +751,7 @@ Panel {
               spacing: Style.space(2)
 
               Text {
-                text: "Audio"
+                text: "Áudio"
                 color: root.bar.foreground
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.title
@@ -793,7 +793,7 @@ Panel {
 
               PanelSectionHeader {
                 id: outputHeader
-                text: "OUTPUT"
+                text: "SAÍDA"
                 foreground: root.bar.foreground
                 fontFamily: root.bar.fontFamily
                 anchors.left: parent.left
@@ -880,7 +880,7 @@ Panel {
 
               PanelSectionHeader {
                 id: microphoneHeader
-                text: "INPUT"
+                text: "ENTRADA"
                 foreground: root.bar.foreground
                 fontFamily: root.bar.fontFamily
                 anchors.left: parent.left
@@ -983,7 +983,7 @@ Panel {
             visible: root.displayAudioStreams.length > 0
 
             PanelSectionHeader {
-              text: "SOURCES"
+              text: "FONTES"
               foreground: root.bar.foreground
               fontFamily: root.bar.fontFamily
             }

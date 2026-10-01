@@ -34,4 +34,4 @@ esac
 
 env -u BROWSER xdg-settings set default-web-browser "$desktop_id" || exit 1
 
-omarchy-notification-send -g $glyph "$name is now the default browser"
+omarchy-notification-send -g $glyph "$name agora é o navegador padrão"

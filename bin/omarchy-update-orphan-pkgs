@@ -2,10 +2,11 @@
 
 # omarchy:summary=Review and optionally remove orphaned system packages after updates
 # omarchy:requires-sudo=true
+# Fedora port: dnf's unneeded dependencies instead of pacman -Qtdq.
 
 set -e
 
-mapfile -t orphans < <(pacman -Qtdq 2>/dev/null || true)
+mapfile -t orphans < <(dnf -q repoquery --unneeded --qf '%{name}\n' 2>/dev/null | sort -u || true)
 (( ${#orphans[@]} )) || exit 0
 
 echo -e "\e[32m\nOrphan system packages\e[0m"
@@ -25,5 +26,5 @@ if ! gum confirm --default=false "Remove ${#orphans[@]} orphaned package(s)?"; t
 fi
 
 echo -e "\e[32m\nRemoving orphan system packages\e[0m"
-sudo pacman -Rns "${orphans[@]}"
+sudo dnf autoremove -y
 echo

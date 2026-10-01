@@ -64,19 +64,19 @@ Panel {
 
   property int phraseIndex: 0
   readonly property var activePhrases: [
-    "Untangling wires",
-    "Streaming vikings",
-    "Pairing mysteries",
-    "Herding headsets",
-    "Taming radios",
-    "Summoning speakers",
-    "Wrangling codecs",
-    "Polishing packets"
+    "Desembaraçando fios",
+    "Transmitindo vikings",
+    "Pareando mistérios",
+    "Reunindo fones",
+    "Domando rádios",
+    "Invocando caixas de som",
+    "Negociando codecs",
+    "Polindo pacotes"
   ]
   readonly property bool rotatingPhrases: adapter && adapter.enabled
   readonly property string heroStatusText: {
-    if (!adapter) return "No adapter"
-    if (!adapter.enabled) return "Turned Off"
+    if (!adapter) return "Sem adaptador"
+    if (!adapter.enabled) return "Desligado"
     return activePhrases[phraseIndex % activePhrases.length]
   }
 
@@ -101,7 +101,7 @@ Panel {
   // sits above the device sections so the adapter can be toggled by keyboard
   // even when it is off and no device rows exist.
   readonly property bool headerHasCursor: cursorActive && focusSection === "header"
-  readonly property string toggleHint: root.adapter && root.adapter.enabled ? "Turn Bluetooth off" : "Turn Bluetooth on"
+  readonly property string toggleHint: root.adapter && root.adapter.enabled ? "Desligar Bluetooth" : "Ligar Bluetooth"
 
   readonly property color hoverFill: bar
     ? Style.hoverFillFor(bar.foreground, Color.accent)
@@ -183,7 +183,7 @@ Panel {
     var rows = scrollRows
     if (index < 0 || index >= rows.length) return ""
     if (index > 0 && rows[index - 1].section === rows[index].section) return ""
-    return rows[index].section === "known" ? "PAIRED" : "AVAILABLE"
+    return rows[index].section === "known" ? "PAREADOS" : "DISPONÍVEIS"
   }
 
   function audioSinks() {
@@ -775,7 +775,7 @@ Panel {
           spacing: Style.space(10)
 
           PanelSectionHeader {
-            text: "CONNECTED"
+            text: "CONECTADOS"
             foreground: root.bar.foreground
             fontFamily: root.bar.fontFamily
           }
@@ -867,9 +867,9 @@ Panel {
         Text {
           textFormat: Text.PlainText
           visible: root.connectedDevices.length === 0 && root.scrollRows.length === 0
-          text: !root.adapter ? "No Bluetooth adapter"
-              : !root.adapter.enabled ? "Turn Bluetooth on to scan"
-              : "Scanning for devices…"
+          text: !root.adapter ? "Nenhum adaptador Bluetooth"
+              : !root.adapter.enabled ? "Ligue o Bluetooth para procurar"
+              : "Procurando dispositivos…"
           color: Qt.darker(root.bar.foreground, 1.5)
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -894,9 +894,9 @@ Panel {
     readonly property string action: root.pendingAction(dev ? dev.address : "")
     readonly property string actionTooltip: {
       if (!dev) return ""
-      if (isConnected) return "Disconnect"
-      if (isDiscovered) return "Pair"
-      return "Connect"
+      if (isConnected) return "Desconectar"
+      if (isDiscovered) return "Parear"
+      return "Conectar"
     }
 
     readonly property bool rowSelected: root.cursorActive && root.focusSection === sectionName && root.selectedIndex === rowIndex
@@ -911,13 +911,13 @@ Panel {
 
     readonly property string statusText: {
       if (!dev) return ""
-      if (action === "forgetting") return "Forgetting…"
-      if (action === "disconnecting" || devState === 2) return "Disconnecting…"
+      if (action === "forgetting") return "Esquecendo…"
+      if (action === "disconnecting" || devState === 2) return "Desconectando…"
       if (isConnected) {
         if (dev.batteryAvailable) return Math.round(dev.battery * 100) + "%"
-        return sectionName === "connected" ? "" : "Connected"
+        return sectionName === "connected" ? "" : "Conectado"
       }
-      if (action === "connecting" || devState === 3 || dev.pairing === true) return "Connecting…"
+      if (action === "connecting" || devState === 3 || dev.pairing === true) return "Conectando…"
       if (isDiscovered) return ""
       return ""
     }
@@ -994,7 +994,7 @@ Panel {
 
         Text {
           textFormat: Text.PlainText
-          text: root.deviceLabel(row.dev) || "Device"
+          text: root.deviceLabel(row.dev) || "Dispositivo"
           color: root.bar.foreground
           font.family: root.bar.fontFamily
           font.pixelSize: Style.font.body
@@ -1019,7 +1019,7 @@ Panel {
         anchors.verticalCenter: parent.verticalCenter
         visible: row.showForgetButton
         iconText: "󰅙"
-        tooltipText: "Forget"
+        tooltipText: "Esquecer"
         foreground: root.bar.foreground
         hoverColor: root.bar.foreground
         fontFamily: root.bar.fontFamily

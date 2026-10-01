@@ -257,7 +257,7 @@ pass "sleep lock stops polling a shell that refused to lock"
 # logind suspends regardless of this exit status, so an unlocked suspend is
 # otherwise invisible. The warning is the only trace the user ever sees, and the
 # journal line is what makes it diagnosable after the fact.
-grep -qF "did not lock before suspend" "$notify_log" ||
+grep -qF "não foi bloqueada antes da suspensão" "$notify_log" ||
   fail "sleep lock warns that the session was left unlocked" \
     "notifications: $(< "$notify_log")"
 pass "sleep lock warns that the session was left unlocked"

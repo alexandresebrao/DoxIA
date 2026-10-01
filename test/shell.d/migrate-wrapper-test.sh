@@ -36,7 +36,7 @@ run_migrate >"$test_tmp/migrate.out"
 [[ $(sed -n '1p' "$test_tmp/calls") == "migration" ]] || fail "omarchy-migrate runs pending migrations"
 pass "omarchy-migrate runs migrations without force"
 
-grep -Fx 'Omarchy Migrations' "$test_tmp/dismissals" >/dev/null || fail "omarchy-migrate dismisses migration notifications"
+grep -Fx 'Migrações do Omarchy' "$test_tmp/dismissals" >/dev/null || fail "omarchy-migrate dismisses migration notifications"
 pass "omarchy-migrate clears completed migration notifications"
 
 rm -rf "$test_home/.local/state/omarchy/migrations"

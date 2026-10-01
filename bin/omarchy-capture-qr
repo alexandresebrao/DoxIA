@@ -23,7 +23,7 @@ SELECTION=$(slurp 2>/dev/null)
 RESULT=$(grim -g "$SELECTION" - | zbarimg -q --raw -Sdisable -Sqrcode.enable - 2>/dev/null)
 
 if [[ -z $RESULT ]]; then
-  omarchy-notification-send -g 󰐲 -u critical "No QR code found" "Select a region containing a QR code"
+  omarchy-notification-send -g 󰐲 -u critical "Nenhum QR code encontrado" "Selecione uma região que contenha um QR code"
   exit 1
 fi
 
@@ -33,4 +33,4 @@ fi
 # the notification history, and an unmarked copy would be retained by clipboard
 # history. Pasting still works; only the recorded copy is given up.
 printf '%s' "$RESULT" | wl-copy --sensitive
-omarchy-notification-send -g 󰐲 "QR code copied to clipboard"
+omarchy-notification-send -g 󰐲 "QR code copiado para a área de transferência"

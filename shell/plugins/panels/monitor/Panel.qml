@@ -549,7 +549,7 @@ Panel {
               spacing: Style.space(2)
 
               Text {
-                text: "Display"
+                text: "Tela"
                 color: root.bar.foreground
                 font.family: root.bar.fontFamily
                 font.pixelSize: Style.font.title
@@ -565,7 +565,7 @@ Panel {
                   if (root.brightnessAvailable) {
                     return root.brightnessName(brightnessSlider.dragging ? brightnessSlider.liveValue : root.brightnessPercent).toUpperCase()
                   }
-                  return "FIXED BRIGHTNESS"
+                  return "BRILHO FIXO"
                 }
                 color: Qt.darker(root.bar.foreground, 1.4)
                 font.family: root.bar.fontFamily
@@ -595,7 +595,7 @@ Panel {
 
               PanelSectionHeader {
                 id: brightnessHeader
-                text: "BRIGHTNESS"
+                text: "BRILHO"
                 foreground: root.bar.foreground
                 fontFamily: root.bar.fontFamily
                 anchors.left: parent.left
@@ -668,7 +668,7 @@ Panel {
 
               PanelSectionHeader {
                 id: textSizeHeader
-                text: "TEXT SIZE"
+                text: "TAMANHO DO TEXTO"
                 foreground: root.bar.foreground
                 fontFamily: root.bar.fontFamily
                 anchors.left: parent.left
@@ -740,7 +740,7 @@ Panel {
 
               PanelSectionHeader {
                 id: scaleHeader
-                text: "SCALE"
+                text: "ESCALA"
                 foreground: root.bar.foreground
                 fontFamily: root.bar.fontFamily
                 anchors.left: parent.left
@@ -802,7 +802,7 @@ Panel {
             visible: root.displays.length > 1
 
             PanelSectionHeader {
-              text: "DISPLAYS"
+              text: "TELAS"
               foreground: root.bar.foreground
               fontFamily: root.bar.fontFamily
             }
@@ -893,7 +893,7 @@ Panel {
 
       Text {
         textFormat: Text.PlainText
-        text: monitorRow.display.name + (monitorRow.display.focused ? " · focused" : "")
+        text: monitorRow.display.name + (monitorRow.display.focused ? " · em foco" : "")
         color: root.bar.foreground
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.body

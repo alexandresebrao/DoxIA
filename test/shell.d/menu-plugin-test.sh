@@ -125,7 +125,7 @@ cat >"$TMPDIR/plugins.json" <<'JSON'
 JSON
 
 pick clone ""
-[[ $CALLS == *"notification: No plugin to clone"* ]] ||
+[[ $CALLS == *"notification: Nenhum plugin para clonar"* ]] ||
   fail "clone picker offers an already cloned plugin" "$CALLS"
 pass "clone picker omits plugins already cloned locally"
 
@@ -180,6 +180,6 @@ cat >"$TMPDIR/plugins.json" <<'JSON'
 JSON
 
 pick enable ""
-[[ $CALLS == *"notification: No plugin to enable"* ]] \
+[[ $CALLS == *"notification: Nenhum plugin para ativar"* ]] \
   || fail "picker says when a verb has nothing to act on" "$CALLS"
 pass "picker says when a verb has nothing to act on"

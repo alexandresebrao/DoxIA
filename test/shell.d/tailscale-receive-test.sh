@@ -52,7 +52,7 @@ notifications=$(<"$WORKDIR/notifications")
   fail "taildrop receive saves incoming files" "$(ls "$downloads")"
 pass "taildrop receive saves incoming files"
 
-grep -qF -- "Received photo.png Saved to $downloads -u critical --image $downloads/photo.png" <<<"$notifications" ||
+grep -qF -- "Recebido: photo.png Salvo em $downloads -u critical --image $downloads/photo.png" <<<"$notifications" ||
   fail "taildrop receive previews received images" "$notifications"
 pass "taildrop receive previews received images"
 
@@ -61,7 +61,7 @@ while IFS= read -r line; do
 done <<<"$notifications"
 pass "taildrop receive announcements wait to be answered"
 
-grep -q "^Received notes with space.pdf .* -g " <<<"$notifications" ||
+grep -q "^Recebido: notes with space.pdf .* -g " <<<"$notifications" ||
   fail "taildrop receive announces other files with a glyph" "$notifications"
 pass "taildrop receive announces other files with a glyph"
 
@@ -87,7 +87,7 @@ receive 1 env DECOY=browser-download.iso
 notifications=$(<"$WORKDIR/notifications")
 
 [[ -f $downloads/photo-1.png ]] || fail "taildrop receive keeps both files on a name clash" "$(ls "$downloads")"
-grep -q "^Received photo-1.png " <<<"$notifications" ||
+grep -q "^Recebido: photo-1.png " <<<"$notifications" ||
   fail "taildrop receive keeps both files on a name clash" "$notifications"
 pass "taildrop receive keeps both files on a name clash"
 

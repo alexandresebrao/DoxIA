@@ -127,7 +127,7 @@ fi
 if OMARCHY_TEST_RAW_WEBCAM=true "$ROOT/bin/omarchy-capture-screenrecording-with-webcam"; then
   fail "screenrecording webcam picker rejects output-only video devices"
 fi
-grep -Fx 'No webcam devices found' "$OMARCHY_TEST_NOTIFICATION_ARGS" >/dev/null || \
+grep -Fx 'Nenhuma webcam encontrada' "$OMARCHY_TEST_NOTIFICATION_ARGS" >/dev/null || \
   fail "screenrecording webcam picker reports no capture-capable device"
 pass "screenrecording webcam picker rejects output-only video devices"
 

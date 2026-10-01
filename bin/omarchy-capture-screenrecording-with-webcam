@@ -5,7 +5,7 @@
 
 mapfile -t devices < <(omarchy-capture-webcam-list)
 if (( ${#devices[@]} == 0 )); then
-  omarchy-notification-send "No webcam devices found" -u critical -t 3000
+  omarchy-notification-send "Nenhuma webcam encontrada" -u critical -t 3000
   exit 1
 fi
 
