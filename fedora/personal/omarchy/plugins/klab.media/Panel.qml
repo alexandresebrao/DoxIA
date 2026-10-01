@@ -1,0 +1,483 @@
+import QtQuick
+import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
+import Quickshell.Services.Mpris
+import qs.Commons
+import qs.Ui
+
+// Now-playing bar widget: title in the bar, and a popup with album art, a
+// seekable progress bar and full controls. Talks to MPRIS players directly,
+// so it works with Spotify and anything else that speaks MPRIS.
+Panel {
+  id: root
+  moduleName: "klab.media"
+  ipcTarget: "klab.media"
+  manageIpc: false
+
+  readonly property string gPlay: String.fromCodePoint(0xF040A)
+  readonly property string gPause: String.fromCodePoint(0xF03E4)
+  readonly property string gPrev: String.fromCodePoint(0xF04AE)
+  readonly property string gNext: String.fromCodePoint(0xF04AD)
+  readonly property string gShuffle: String.fromCodePoint(0xF049D)
+  readonly property string gRepeat: String.fromCodePoint(0xF0456)
+  readonly property string gRepeatOne: String.fromCodePoint(0xF0458)
+  readonly property string gMusic: String.fromCodePoint(0xF075A)
+  readonly property string gOpen: String.fromCodePoint(0xF03CC)
+
+  readonly property real maxLabelWidth: Math.max(60, parseInt(setting("maxLabelWidth", 180), 10) || 180)
+
+  // playerctld only proxies the other players; listing it would show every
+  // track twice.
+  readonly property var players: {
+    var all = Mpris.players ? Mpris.players.values : []
+    var out = []
+    for (var i = 0; i < all.length; i++) {
+      var p = all[i]
+      if (String(p.dbusName || "").indexOf("playerctld") === -1) out.push(p)
+    }
+    return out
+  }
+  property string selectedName: ""
+  readonly property var player: {
+    var i
+    for (i = 0; i < players.length; i++) if (players[i].dbusName === selectedName) return players[i]
+    for (i = 0; i < players.length; i++) if (players[i].isPlaying) return players[i]
+    for (i = 0; i < players.length; i++) if (players[i].trackTitle) return players[i]
+    return players.length > 0 ? players[0] : null
+  }
+
+  readonly property bool hasMedia: player !== null && (player.trackTitle !== "" || player.trackArtist !== "")
+  readonly property bool playing: player !== null && player.isPlaying
+  readonly property string title: player ? (player.trackTitle || "") : ""
+  readonly property string artist: player ? (player.trackArtist || "") : ""
+  readonly property string album: player ? (player.trackAlbum || "") : ""
+  readonly property string artUrl: player ? (player.trackArtUrl || "") : ""
+  readonly property real length: player && player.lengthSupported ? player.length : 0
+  readonly property bool canSeek: player !== null && player.canSeek && player.positionSupported && length > 0
+
+  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property color dim: Qt.darker(foreground, 1.55)
+  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
+
+  function formatTime(seconds) {
+    var s = Math.max(0, Math.floor(seconds || 0))
+    var h = Math.floor(s / 3600)
+    var m = Math.floor((s % 3600) / 60)
+    var sec = s % 60
+    var mm = h > 0 && m < 10 ? "0" + m : String(m)
+    return (h > 0 ? h + ":" : "") + mm + ":" + (sec < 10 ? "0" : "") + sec
+  }
+
+  function playerLabel(p) {
+    if (!p) return ""
+    var name = p.identity || p.desktopEntry || ""
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  }
+
+  function playPause() { if (player && player.canTogglePlaying) player.togglePlaying() }
+  function next() { if (player && player.canGoNext) player.next() }
+  function previous() { if (player && player.canGoPrevious) player.previous() }
+
+  function seekBy(delta) {
+    if (!canSeek) return
+    player.position = Math.max(0, Math.min(length, player.position + delta))
+  }
+
+  function toggleShuffle() {
+    if (player && player.shuffleSupported) player.shuffle = !player.shuffle
+  }
+
+  function cycleLoop() {
+    if (!player || !player.loopSupported) return
+    if (player.loopState === MprisLoopState.None) player.loopState = MprisLoopState.Playlist
+    else if (player.loopState === MprisLoopState.Playlist) player.loopState = MprisLoopState.Track
+    else player.loopState = MprisLoopState.None
+  }
+
+  visible: hasMedia
+  implicitWidth: hasMedia ? row.implicitWidth + Style.space(14) : 0
+  implicitHeight: bar ? bar.barSize : Style.bar.sizeHorizontal
+
+  onOpenedChanged: if (opened) {
+    labelText.x = 0
+    if (player) player.positionChanged()
+    Qt.callLater(function() { keyCatcher.forceActiveFocus() })
+  }
+
+  // MPRIS only reports position on seeks, so poll it while the popup shows it.
+  Timer {
+    interval: 500
+    running: root.opened && root.playing
+    repeat: true
+    onTriggered: if (root.player) root.player.positionChanged()
+  }
+
+  IpcHandler {
+    target: root.ipcTarget
+    function open(): void { root.open() }
+    function close(): void { root.close() }
+    function show(): void { root.open() }
+    function hide(): void { root.close() }
+    function toggle(): void { root.toggle() }
+    function playPause(): void { root.playPause() }
+    function next(): void { root.next() }
+    function previous(): void { root.previous() }
+  }
+
+  // ---------------- bar ----------------
+
+  Row {
+    id: row
+    anchors.centerIn: parent
+    spacing: Style.space(6)
+
+    Text {
+      id: glyph
+      textFormat: Text.PlainText
+      anchors.verticalCenter: parent.verticalCenter
+      text: root.playing ? root.gPause : root.gPlay
+      color: root.playing ? root.barForeground : Qt.darker(root.barForeground, 1.5)
+      font.family: root.fontFamily
+      font.pixelSize: Style.font.body
+    }
+
+    Item {
+      id: scrollClip
+      width: Math.min(root.maxLabelWidth, labelText.implicitWidth)
+      height: glyph.height
+      clip: true
+      anchors.verticalCenter: parent.verticalCenter
+      visible: !(root.bar && root.bar.vertical) && root.title !== ""
+
+      Text {
+        id: labelText
+        textFormat: Text.PlainText
+        text: root.title + (root.artist ? "  ·  " + root.artist : "")
+        color: root.barForeground
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.body
+        anchors.verticalCenter: parent.verticalCenter
+        readonly property bool needsScroll: implicitWidth > scrollClip.width
+        // While the popup shows the full title, park the marquee at the start
+        // instead of freezing it mid-scroll.
+        width: root.opened ? scrollClip.width : implicitWidth
+        elide: root.opened ? Text.ElideRight : Text.ElideNone
+        onTextChanged: x = 0
+
+        NumberAnimation on x {
+          running: labelText.needsScroll && !root.opened
+          loops: Animation.Infinite
+          duration: Math.max(6000, labelText.implicitWidth * 25)
+          from: scrollClip.width
+          to: -labelText.implicitWidth
+        }
+      }
+    }
+  }
+
+  MouseArea {
+    id: barMouse
+    anchors.fill: parent
+    hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
+    acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+    onClicked: function(mouse) {
+      if (mouse.button === Qt.RightButton) root.playPause()
+      else if (mouse.button === Qt.MiddleButton) root.next()
+      else root.toggle()
+    }
+    onEntered: if (root.bar && !root.opened) root.bar.showTooltip(root, root.title + (root.artist ? " — " + root.artist : ""))
+    onExited: if (root.bar) root.bar.hideTooltip(root)
+  }
+
+  // ---------------- popup ----------------
+
+  KeyboardPanel {
+    id: panel
+    anchorItem: root
+    owner: root
+    bar: root.bar
+    open: root.opened
+    focusTarget: keyCatcher
+    contentWidth: panel.fittedContentWidth(Style.space(320))
+    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(640))
+
+    PanelKeyCatcher {
+      id: keyCatcher
+      anchors.fill: parent
+      onCloseRequested: root.close()
+      onTabRequested: function(direction) { root.switchPanel(direction) }
+      onActivateRequested: root.playPause()
+      onMoveRequested: function(dx, dy) {
+        if (dx !== 0) root.seekBy(dx * 5)
+        else if (dy < 0) root.previous()
+        else if (dy > 0) root.next()
+      }
+      onTextKey: function(t) {
+        if (t === " " || t === "k") root.playPause()
+        else if (t === "n") root.next()
+        else if (t === "p") root.previous()
+        else if (t === "s") root.toggleShuffle()
+        else if (t === "r") root.cycleLoop()
+      }
+
+      Column {
+        id: column
+        width: parent.width
+        spacing: Style.space(12)
+
+        // Album art
+        BorderSurface {
+          width: parent.width
+          height: width
+          radius: Style.spacing.labelGap
+          color: Style.normalFillFor(root.foreground, Color.accent)
+          borderSpec: Border.controlSpec("normal", root.foreground, Color.accent)
+
+          Image {
+            id: art
+            anchors.fill: parent
+            anchors.margins: Style.space(2)
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            cache: true
+            sourceSize.width: 640
+            sourceSize.height: 640
+            source: root.artUrl
+            visible: status === Image.Ready
+          }
+
+          Text {
+            anchors.centerIn: parent
+            visible: !art.visible
+            text: root.gMusic
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.displayLarge * 2
+          }
+        }
+
+        // Track info
+        Column {
+          width: parent.width
+          spacing: Style.space(2)
+
+          Text {
+            textFormat: Text.PlainText
+            width: parent.width
+            text: root.title || "Nada tocando"
+            color: root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.heading
+            font.bold: true
+            elide: Text.ElideRight
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            width: parent.width
+            visible: text !== ""
+            text: root.artist
+            color: Qt.darker(root.foreground, 1.25)
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.body
+            elide: Text.ElideRight
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            width: parent.width
+            visible: text !== "" && text !== root.artist
+            text: root.album
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+          }
+        }
+
+        // Progress
+        Column {
+          width: parent.width
+          spacing: Style.space(4)
+          visible: root.length > 0
+
+          PanelSlider {
+            id: progress
+            width: parent.width
+            bar: root.bar
+            minimum: 0
+            maximum: Math.max(1, root.length)
+            step: 1
+            value: root.player ? root.player.position : 0
+            enabled: root.canSeek
+            onReleased: function(v) { if (root.canSeek) root.player.position = v }
+          }
+
+          RowLayout {
+            width: parent.width
+
+            Text {
+              textFormat: Text.PlainText
+              text: root.formatTime(progress.dragging ? progress.liveValue : (root.player ? root.player.position : 0))
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+            Item { Layout.fillWidth: true }
+            Text {
+              textFormat: Text.PlainText
+              text: root.formatTime(root.length)
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+          }
+        }
+
+        // Controls
+        RowLayout {
+          width: parent.width
+          spacing: Style.space(4)
+
+          ControlButton {
+            iconText: root.gShuffle
+            tooltipText: root.player && root.player.shuffle ? "Aleatório: ligado" : "Aleatório: desligado"
+            visible: root.player !== null && root.player.shuffleSupported
+            lit: root.player !== null && root.player.shuffle
+            onClicked: root.toggleShuffle()
+          }
+          Item { Layout.fillWidth: true }
+          ControlButton {
+            iconText: root.gPrev
+            tooltipText: "Anterior"
+            enabled: root.player !== null && root.player.canGoPrevious
+            onClicked: root.previous()
+          }
+          ControlButton {
+            iconText: root.playing ? root.gPause : root.gPlay
+            tooltipText: root.playing ? "Pausar" : "Tocar"
+            iconSize: Style.font.iconLarge * 1.4
+            bordered: true
+            enabled: root.player !== null && root.player.canTogglePlaying
+            onClicked: root.playPause()
+          }
+          ControlButton {
+            iconText: root.gNext
+            tooltipText: "Próxima"
+            enabled: root.player !== null && root.player.canGoNext
+            onClicked: root.next()
+          }
+          Item { Layout.fillWidth: true }
+          ControlButton {
+            iconText: root.player && root.player.loopState === MprisLoopState.Track ? root.gRepeatOne : root.gRepeat
+            tooltipText: !root.player ? "" : (root.player.loopState === MprisLoopState.Track ? "Repetir: faixa"
+              : (root.player.loopState === MprisLoopState.Playlist ? "Repetir: tudo" : "Repetir: desligado"))
+            visible: root.player !== null && root.player.loopSupported
+            lit: root.player !== null && root.player.loopState !== MprisLoopState.None
+            onClicked: root.cycleLoop()
+          }
+        }
+
+        // Source + open app
+        RowLayout {
+          width: parent.width
+          spacing: Style.space(6)
+
+          Text {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            text: root.playerLabel(root.player)
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+          }
+
+          PanelActionButton {
+            visible: root.player !== null && root.player.canRaise
+            iconText: root.gOpen
+            tooltipText: "Abrir " + root.playerLabel(root.player)
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: { root.player.raise(); root.close() }
+          }
+        }
+
+        // Other players
+        Column {
+          width: parent.width
+          spacing: Style.space(4)
+          visible: root.players.length > 1
+
+          PanelSeparator { foreground: root.foreground }
+
+          Repeater {
+            model: root.players
+
+            CursorSurface {
+              id: sourceRow
+              required property var modelData
+              readonly property bool selected: root.player === modelData
+
+              width: parent.width
+              implicitHeight: sourceInner.implicitHeight + Style.space(10)
+              hasCursor: sourceMouse.containsMouse
+              current: selected
+              foreground: root.foreground
+
+              RowLayout {
+                id: sourceInner
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: Style.space(8)
+                anchors.rightMargin: Style.space(8)
+                spacing: Style.space(8)
+
+                Text {
+                  text: sourceRow.modelData.isPlaying ? root.gPause : root.gPlay
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.body
+                }
+
+                Text {
+                  textFormat: Text.PlainText
+                  Layout.fillWidth: true
+                  text: (sourceRow.modelData.trackTitle || root.playerLabel(sourceRow.modelData))
+                    + (sourceRow.modelData.trackTitle ? "  ·  " + root.playerLabel(sourceRow.modelData) : "")
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                  font.bold: sourceRow.selected
+                  elide: Text.ElideRight
+                }
+              }
+
+              MouseArea {
+                id: sourceMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.selectedName = sourceRow.modelData.dbusName
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  component ControlButton: Button {
+    property bool lit: false
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+    iconSize: Style.font.iconLarge
+    horizontalPadding: Style.spacing.controlPaddingX
+    verticalPadding: Style.spacing.controlPaddingY
+    selected: lit
+    opacity: enabled ? 1.0 : 0.4
+  }
+}

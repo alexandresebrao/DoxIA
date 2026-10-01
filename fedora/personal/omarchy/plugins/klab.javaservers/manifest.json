@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "klab.javaservers",
+  "name": "Servidores Java",
+  "version": "1.0.0",
+  "author": "klab",
+  "license": "MIT",
+  "description": "Play/stop do Tomcat e do JBoss com o JDK Oracle 8 do SDKMAN, direto da barra.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Servidores Java",
+    "description": "Ícone claro com algum servidor no ar, escuro com tudo parado.",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 5
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Intervalo de atualização (segundos)",
+        "min": 2,
+        "max": 600,
+        "step": 1,
+        "defaultValue": 5
+      }
+    ]
+  }
+}

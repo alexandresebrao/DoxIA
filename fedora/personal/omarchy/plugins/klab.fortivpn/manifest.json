@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "klab.fortivpn",
+  "name": "FortiVPN",
+  "version": "2.0.0",
+  "author": "klab",
+  "license": "MIT",
+  "description": "Create openfortivpn connection profiles and connect from the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "FortiVPN",
+    "description": "Manage openfortivpn profiles and toggle the tunnel.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 10
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 2,
+        "max": 600,
+        "step": 1,
+        "defaultValue": 10
+      }
+    ]
+  }
+}

@@ -25,8 +25,27 @@ sudo bash ~/.local/share/omarchy/fedora/install-system.sh
 bash ~/.local/share/omarchy/fedora/install-user.sh
 ```
 
+Optionally, restore my personal setup (plugins, bar layout, window rules):
+
+```bash
+bash ~/.local/share/omarchy/fedora/install-personal.sh
+```
+
 Then log out and pick **Omarchy (Hyprland uwsm)** on the login screen.
 `Super + K` shows the keybindings and `Super + Space` opens the Omarchy menu.
+
+### Personal setup
+
+`fedora/personal/` holds my own Omarchy customizations, installed by
+`fedora/install-personal.sh`:
+
+- **klab.fortivpn**: openfortivpn profiles and a connect toggle in the bar (installs
+  `openfortivpn` and a polkit helper; credentials stay in `/etc/openfortivpn`)
+- **klab.javaservers**: start/stop Tomcat 8.5 and JBoss 4.0.2 with the Oracle JDK 8 from SDKMAN
+- **klab.media**: MPRIS now-playing widget with album art and playback controls
+- Bar layout (`shell.json`), default agent and Hyprland window rules
+
+After changing plugins or the bar, run `fedora/sync-personal.sh` and commit.
 
 The user script backs up any existing config it replaces (`*.bak-omarchy-<date>`)
 and leaves KDE's autostart, environment and Chromium settings alone.

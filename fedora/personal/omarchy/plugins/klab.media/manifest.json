@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "klab.media",
+  "name": "Now Playing",
+  "version": "1.0.0",
+  "author": "klab",
+  "license": "MIT",
+  "description": "MPRIS now-playing with album art, a seekable progress bar and full playback controls.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Now Playing",
+    "description": "Album art, progress bar, shuffle/repeat and previous/play/next for Spotify and other MPRIS players.",
+    "category": "Media",
+    "allowMultiple": false,
+    "defaultSection": "center",
+    "defaults": {
+      "maxLabelWidth": 180
+    },
+    "schema": [
+      {
+        "key": "maxLabelWidth",
+        "type": "integer",
+        "label": "Max title width in the bar (px)",
+        "min": 60,
+        "max": 600,
+        "step": 10,
+        "defaultValue": 180
+      }
+    ]
+  }
+}
