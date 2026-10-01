@@ -42,7 +42,16 @@ for theme in "$personal"/omarchy/themes/*/; do
   seed "omarchy/themes/$name" "$HOME/.config/omarchy/themes/$name"
 done
 seed omarchy/branding "$HOME/.config/omarchy/branding"
-omarchy-pkg-add redhat-display-fonts redhat-text-fonts
+omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark
+
+# Sem minimizar/maximizar/fechar nem ícone do app nas barras de título GTK: o
+# Hyprland cuida das janelas.
+gsettings set org.gnome.desktop.wm.preferences button-layout ':'
+for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+  if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
+    sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
+  fi
+done
 
 echo "==> Screen share (Hyprland picker, stop button in the bar)"
 seed hypr/xdph.conf "$HOME/.config/hypr/xdph.conf"
