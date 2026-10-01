@@ -31,7 +31,7 @@ echo "==> Installing packages"
 packages=(
   # Compositor, session, portals
   hyprland hyprland-guiutils hyprpicker hyprsunset
-  xdg-desktop-portal-hyprland xdg-desktop-portal-gtk uwsm
+  xdg-desktop-portal-hyprland xdg-desktop-portal-gtk uwsm sddm
 
   # Omarchy shell (bar, menu, notifications, OSD, lock, polkit) runs on Quickshell
   quickshell qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia
@@ -85,6 +85,22 @@ ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.json
 echo "==> Installing Omarchy session entry"
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" \
   /usr/share/wayland-sessions/omarchy.desktop
+
+echo "==> Login screen (SDDM with the ChapeuOS theme on a Hyprland greeter)"
+install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
+install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
+install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
+install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
+restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
+# The theme has no user picker: it logs in SDDM's last user, which a fresh SDDM
+# doesn't have yet (the Arch ISO seeds it).
+if [[ ! -s /var/lib/sddm/state.conf ]]; then
+  install -d -o sddm -g sddm /var/lib/sddm
+  printf '[Last]\nUser=%s\nSession=/usr/share/wayland-sessions/omarchy.desktop\n' "$target_user" > /var/lib/sddm/state.conf
+  chown sddm:sddm /var/lib/sddm/state.conf
+fi
+# Replaces whichever display manager the Fedora spin enabled (Plasma Login, GDM).
+systemctl enable --force sddm.service
 
 echo "==> Configuring lock screen PAM (Fedora variant of omarchy-apply-lock)"
 cat > /etc/pam.d/omarchy-lock-password <<'EOF'
