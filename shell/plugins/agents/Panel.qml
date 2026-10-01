@@ -358,7 +358,7 @@ Panel {
     contentWidth: panel.fittedContentWidth(Style.space(380))
     // Taller than the control panels on purpose: this one is a dashboard, and
     // the whole point is reading limits and history without scrolling.
-    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(640))
+    contentHeight: panel.fittedContentHeight(column.implicitHeight, Style.space(700))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -387,11 +387,12 @@ Panel {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         interactive: contentHeight > height
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: ScrollBar { id: panelScroll; policy: ScrollBar.AsNeeded }
 
         Column {
           id: column
-          width: panelFlick.width
+          // Abre espaço para a barra de rolagem não cobrir as porcentagens.
+          width: panelFlick.width - (panelFlick.interactive ? panelScroll.width + Style.space(6) : 0)
           spacing: Style.space(12)
 
           // ---------- Hero: provider mark · name · plan ----------
