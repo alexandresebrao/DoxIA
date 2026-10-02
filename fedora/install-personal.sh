@@ -2,7 +2,7 @@
 
 # Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
 # Restores my plugins (FortiVPN, Java servers, Now Playing, screen share, Xi bar),
-# themes (Xi Gundam, RHEL 8), ChapeuOS branding, bar layout, default agent,
+# themes (Xi Gundam, RHEL 8), ChapeuOS branding, bar layout, menu extensions, default agent,
 # screen-share picker config and Hyprland window rules from fedora/personal. Existing files are backed up.
 # Can be re-run on its own to reapply them:
 #
@@ -67,8 +67,9 @@ if ! command -v ttfx >/dev/null; then
   cargo install --git https://github.com/omacom/ttfx --tag v0.5.0 --root "$HOME/.local"
 fi
 
-echo "==> Bar layout and default agent"
+echo "==> Bar layout, menu extensions and default agent"
 seed omarchy/shell.json "$HOME/.config/omarchy/shell.json"
+seed omarchy/extensions/omarchy-menu.jsonc "$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"
 
 echo "==> Hyprland window rules"
