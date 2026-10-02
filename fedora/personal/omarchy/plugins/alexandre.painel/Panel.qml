@@ -7,7 +7,7 @@ import qs.Ui
 // Clique esquerdo: tela inicial; clique direito: direto no chamado SRE.
 BarWidget {
   id: root
-  moduleName: "klab.painel"
+  moduleName: "alexandre.painel"
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight

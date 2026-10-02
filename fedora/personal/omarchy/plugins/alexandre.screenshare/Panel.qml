@@ -10,7 +10,7 @@ import qs.Ui
 // flutuante do Chrome (escondida pela regra em ~/.config/hypr/hyprland.lua).
 BarWidget {
   id: root
-  moduleName: "klab.screenshare"
+  moduleName: "alexandre.screenshare"
 
   readonly property var nodes: Pipewire.nodes ? Pipewire.nodes.values : []
   readonly property int streamCount: {

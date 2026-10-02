@@ -2,7 +2,7 @@
 
 # One-time system setup for the FortiVPN bar widget. Run it with sudo:
 #
-#   sudo ~/.config/omarchy/plugins/klab.fortivpn/setup-system.sh [import-name]
+#   sudo ~/.config/omarchy/plugins/alexandre.fortivpn/setup-system.sh [import-name]
 #
 # - Installs a root-owned copy of helper.sh as /usr/local/libexec/omarchy-fortivpn-helper,
 #   which is the only thing that reads or writes /etc/openfortivpn/<name>.conf.
@@ -30,7 +30,7 @@ restorecon "$helper" 2>/dev/null || true
 echo "Installed $helper"
 
 cat >"$rule" <<RULE
-// Installed by the klab.fortivpn Omarchy plugin.
+// Installed by the alexandre.fortivpn Omarchy plugin.
 polkit.addRule(function(action, subject) {
   if (subject.user != "$target_user" || !subject.local || !subject.active) return;
 
@@ -66,7 +66,7 @@ fi
 dropin="/etc/systemd/system/openfortivpn@.service.d/10-omarchy.conf"
 install -d -m 755 "$(dirname "$dropin")"
 cat >"$dropin" <<DROPIN
-# Installed by the klab.fortivpn Omarchy plugin.
+# Installed by the alexandre.fortivpn Omarchy plugin.
 [Service]
 Type=simple
 RestartSec=5

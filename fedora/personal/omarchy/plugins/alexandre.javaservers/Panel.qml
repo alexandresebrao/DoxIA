@@ -10,8 +10,8 @@ import qs.Ui
 // ctl.py, que sobe os servidores com o JDK Oracle 8 do SDKMAN.
 Panel {
   id: root
-  moduleName: "klab.javaservers"
-  ipcTarget: "klab.javaservers"
+  moduleName: "alexandre.javaservers"
+  ipcTarget: "alexandre.javaservers"
   manageIpc: false
 
   readonly property string javaGlyph: String.fromCodePoint(0xE256)
@@ -95,7 +95,7 @@ Panel {
         if (done || now - (pendingSince[sv.id] || now) > 90) root.setPending(sv.id, "")
       })
     } catch (e) {
-      console.warn("klab.javaservers: status inválido", e)
+      console.warn("alexandre.javaservers: status inválido", e)
     }
   }
 

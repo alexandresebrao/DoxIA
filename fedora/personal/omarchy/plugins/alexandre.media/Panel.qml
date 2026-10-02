@@ -12,8 +12,8 @@ import qs.Ui
 // so it works with Spotify and anything else that speaks MPRIS.
 Panel {
   id: root
-  moduleName: "klab.media"
-  ipcTarget: "klab.media"
+  moduleName: "alexandre.media"
+  ipcTarget: "alexandre.media"
   manageIpc: false
 
   readonly property string gPlay: String.fromCodePoint(0xF040A)

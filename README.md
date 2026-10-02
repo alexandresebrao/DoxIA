@@ -38,10 +38,10 @@ Then log out and pick **ChapeuOS (Hyprland uwsm)** on the login screen.
 `fedora/personal/` holds my own Omarchy customizations. `install-user.sh` installs
 them through `fedora/install-personal.sh`, which can also be re-run on its own:
 
-- **klab.fortivpn**: openfortivpn profiles and a connect toggle in the bar (installs
+- **alexandre.fortivpn**: openfortivpn profiles and a connect toggle in the bar (installs
   `openfortivpn` and a polkit helper; credentials stay in `/etc/openfortivpn`)
-- **klab.javaservers**: start/stop Tomcat 8.5 and JBoss 4.0.2 with the Oracle JDK 8 from SDKMAN
-- **klab.media**: MPRIS now-playing widget with album art and playback controls
+- **alexandre.javaservers**: start/stop Tomcat 8.5 and JBoss 4.0.2 with the Oracle JDK 8 from SDKMAN
+- **alexandre.media**: MPRIS now-playing widget with album art and playback controls
 - Bar layout (`shell.json`), default agent and Hyprland window rules
 
 After changing plugins or the bar, run `fedora/sync-personal.sh` and commit.

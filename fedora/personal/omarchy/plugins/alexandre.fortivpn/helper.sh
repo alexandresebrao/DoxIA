@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Privileged profile manager for the klab.fortivpn plugin. setup-system.sh
+# Privileged profile manager for the alexandre.fortivpn plugin. setup-system.sh
 # installs a root-owned copy at /usr/local/libexec/omarchy-fortivpn-helper and
 # a polkit rule so the panel can run it through pkexec without a password.
 #
@@ -112,7 +112,7 @@ save_profile() {
   tmp=$(mktemp "$CONF_DIR/.$name.XXXXXX")
   chmod 600 "$tmp"
   {
-    echo "# Managed by the klab.fortivpn Omarchy plugin."
+    echo "# Managed by the alexandre.fortivpn Omarchy plugin."
     echo "host = $host"
     echo "port = $port"
     echo "username = $username"

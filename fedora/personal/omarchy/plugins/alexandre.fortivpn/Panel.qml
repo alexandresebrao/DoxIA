@@ -14,8 +14,8 @@ import qs.Ui
 // and "edit" (new/edit form).
 Panel {
   id: root
-  moduleName: "klab.fortivpn"
-  ipcTarget: "klab.fortivpn"
+  moduleName: "alexandre.fortivpn"
+  ipcTarget: "alexandre.fortivpn"
   manageIpc: false
 
   readonly property string vpnGlyph: String.fromCodePoint(0xF0582)

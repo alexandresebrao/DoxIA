@@ -85,7 +85,7 @@ fi
 
 echo "==> FortiVPN (openfortivpn + polkit helper)"
 omarchy-pkg-add openfortivpn
-sudo "$HOME/.config/omarchy/plugins/klab.fortivpn/setup-system.sh"
+sudo "$HOME/.config/omarchy/plugins/alexandre.fortivpn/setup-system.sh"
 
 if [[ ! -d /usr/local/java/tomcat || ! -d $HOME/.sdkman/candidates/java/8.0.192-oracle ]]; then
   echo

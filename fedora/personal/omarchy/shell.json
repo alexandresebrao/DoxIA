@@ -4,7 +4,7 @@
     "layout": {
       "center": [
         {
-          "id": "klab.media"
+          "id": "alexandre.media"
         },
         {
           "format": "dddd HH:mm",
@@ -13,7 +13,7 @@
           "verticalFormat": "HH\n\u2014\nmm"
         },
         {
-          "id": "klab.screenshare"
+          "id": "alexandre.screenshare"
         },
         {
           "id": "omarchy.keyboard-layout"
@@ -36,7 +36,7 @@
           "id": "omarchy.indicators"
         },
         {
-          "id": "klab.painel"
+          "id": "alexandre.painel"
         }
       ],
       "right": [
@@ -61,10 +61,10 @@
           }
         },
         {
-          "id": "klab.javaservers"
+          "id": "alexandre.javaservers"
         },
         {
-          "id": "klab.fortivpn"
+          "id": "alexandre.fortivpn"
         },
         {
           "id": "omarchy.group",
