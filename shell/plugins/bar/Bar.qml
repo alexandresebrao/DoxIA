@@ -51,6 +51,9 @@ Item {
   property var layoutConfig: fallbackBarConfig.layout
   property string centerAnchor: ""
   property bool requestedTransparent: false
+  // bar.locked in shell.json disables the mouse edit gestures (move bar,
+  // reorder widgets, double-click transparency toggle).
+  property bool locked: false
   property bool useTransparentForeground: false
   property bool transparent: false
   property bool centerSectionHovered: false
@@ -583,6 +586,7 @@ Item {
 
     position = normalizePosition(config.position)
     setRequestedTransparency(config.transparent === true)
+    locked = config.locked === true
     centerAnchor = Util.canonicalWidgetId(config.centerAnchor || "")
 
     // layoutEntries feeds plain JS arrays to the module Repeaters, and QML
@@ -1665,12 +1669,12 @@ Item {
     onPressAndHold: function(mouse) {
       // A widget above us propagates its composed press-and-hold down here without
       // ever handing over the grab, so we'd get no release or cancel to end the move.
-      if (!gestureArea.pressed) return
+      if (!gestureArea.pressed || root.locked) return
       startDrag(mouse.x, mouse.y)
     }
 
     onPositionChanged: function(mouse) {
-      if (!(mouse.buttons & Qt.LeftButton)) return
+      if (root.locked || !(mouse.buttons & Qt.LeftButton)) return
 
       if (!dragging) {
         var distance = Math.abs(mouse.x - pressedX) + Math.abs(mouse.y - pressedY)
@@ -1709,7 +1713,7 @@ Item {
         suppressClick = false
         return
       }
-      if (mouse.button === Qt.LeftButton) {
+      if (mouse.button === Qt.LeftButton && !root.locked) {
         root.toggleTransparency()
         mouse.accepted = true
       }
@@ -1906,7 +1910,7 @@ Item {
       property bool suppressClick: false
       property real pressedX: 0
       property real pressedY: 0
-      readonly property bool canReorder: root.shell && typeof root.shell.mutateShellConfig === "function"
+      readonly property bool canReorder: !root.locked && root.shell && typeof root.shell.mutateShellConfig === "function"
       readonly property real dragThreshold: Style.space(4)
 
       anchors.fill: parent
