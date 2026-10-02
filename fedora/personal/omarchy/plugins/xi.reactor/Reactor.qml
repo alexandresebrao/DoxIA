@@ -70,6 +70,20 @@ BarWidget {
   readonly property bool hasBattery: !!(battery && battery.isPresent)
   readonly property real bat: hasBattery ? Math.max(0, Math.min(1, battery.percentage)) : 0
   readonly property bool batCharging: hasBattery && !UPower.onBattery && bat < 1
+  readonly property bool batPlugged: hasBattery && !UPower.onBattery
+  // Raio sobre o medidor quando o carregador está conectado.
+  readonly property string boltGlyph: String.fromCodePoint(0xF140B)
+  readonly property color barBackground: bar && bar.background !== undefined ? bar.background : "#050505"
+
+  component Bolt: Text {
+    anchors.centerIn: parent
+    text: root.boltGlyph
+    color: root.cText
+    style: Text.Outline
+    styleColor: root.barBackground
+    font.family: root.fontFamily
+    font.pixelSize: Math.round(root.barSize * 0.46)
+  }
 
   function parse(out) {
     var lines = String(out || "").split("\n")
@@ -128,6 +142,7 @@ BarWidget {
     property real value: 0
     // Bateria: a cor acompanha o nível (vermelho quando está acabando).
     property bool inverse: false
+    property bool plugged: false
     spacing: 4
 
     Text {
@@ -148,6 +163,8 @@ BarWidget {
       property real v: gauge.value
       property bool inv: gauge.inverse
       onVChanged: requestPaint()
+
+      Bolt { visible: gauge.plugged }
       Connections {
         target: root
         function onPalChanged() { bars.requestPaint() }
@@ -187,6 +204,7 @@ BarWidget {
     property real value: 0
     // Bateria: alerta quando o valor está baixo, não alto.
     property bool inverse: false
+    property bool plugged: false
     readonly property real load: inverse ? 1 - value : value
     // Com usage_fill (ex.: vermelho), só o alerta dourado acima de 75%.
     readonly property color fill: root.pal.usage_fill
@@ -219,6 +237,8 @@ BarWidget {
         Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 300 } }
       }
+
+      Bolt { visible: usage.plugged }
     }
 
     Text {
@@ -247,8 +267,8 @@ BarWidget {
     Gauge { visible: !root.cockpit; label: "MEM"; value: root.mem }
     Usage { visible: root.cockpit; label: "CPU"; value: root.cpu }
     Usage { visible: root.cockpit; label: "Mem"; value: root.mem }
-    Gauge { visible: !root.cockpit && root.hasBattery; label: "BAT"; value: root.bat; inverse: true }
-    Usage { visible: root.cockpit && root.hasBattery; label: "Bat"; value: root.bat; inverse: true }
+    Gauge { visible: !root.cockpit && root.hasBattery; label: "BAT"; value: root.bat; inverse: true; plugged: root.batPlugged }
+    Usage { visible: root.cockpit && root.hasBattery; label: "Bat"; value: root.bat; inverse: true; plugged: root.batPlugged }
   }
 
   MouseArea {
