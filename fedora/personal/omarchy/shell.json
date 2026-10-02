@@ -65,7 +65,8 @@
           "members": [
             "omarchy.network",
             "omarchy.bluetooth"
-          ]
+          ],
+          "icon": "omarchy.network"
         },
         {
           "id": "klab.javaservers"
@@ -79,7 +80,10 @@
             "omarchy.power",
             "omarchy.monitor",
             "omarchy.audio"
-          ]
+          ],
+          "icon": "omarchy.audio",
+          "wheel": "omarchy.audio",
+          "rightClick": "omarchy.audio"
         }
       ]
     },

@@ -1,11 +1,13 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 
-// HUD de cockpit: GEN (uso de CPU) e MEM (uso de memória) em barras de
-// segmentos inclinados, verde -> amarelo -> vermelho conforme a carga.
+// HUD de cockpit: GEN (uso de CPU), MEM (uso de memória) e BAT (carga da
+// bateria, só quando há bateria) em barras de segmentos inclinados, verde ->
+// amarelo -> vermelho conforme a carga (na bateria, conforme ela acaba).
 BarWidget {
   id: root
   moduleName: "xi.reactor"
@@ -64,6 +66,11 @@ BarWidget {
   property real memTotalGb: 0
   property var lastCpu: null
 
+  readonly property var battery: UPower.displayDevice
+  readonly property bool hasBattery: !!(battery && battery.isPresent)
+  readonly property real bat: hasBattery ? Math.max(0, Math.min(1, battery.percentage)) : 0
+  readonly property bool batCharging: hasBattery && !UPower.onBattery && bat < 1
+
   function parse(out) {
     var lines = String(out || "").split("\n")
     var total = 0, avail = 0
@@ -119,6 +126,8 @@ BarWidget {
     id: gauge
     property string label: ""
     property real value: 0
+    // Bateria: a cor acompanha o nível (vermelho quando está acabando).
+    property bool inverse: false
     spacing: 4
 
     Text {
@@ -137,6 +146,7 @@ BarWidget {
       width: root.segments * (root.segW + 2) + root.segW * 0.6
       height: root.segH
       property real v: gauge.value
+      property bool inv: gauge.inverse
       onVChanged: requestPaint()
       Connections {
         target: root
@@ -151,7 +161,9 @@ BarWidget {
         for (var i = 0; i < n; i++) {
           var x = i * (sw + 2)
           var frac = (i + 1) / n
-          var col = i < lit ? (frac > 0.85 ? root.cRed : (frac > 0.6 ? root.cYellow : root.cGreen)) : root.cMuted
+          var on = inv ? (v <= 0.15 ? root.cRed : (v <= 0.3 ? root.cYellow : root.cGreen))
+                       : (frac > 0.85 ? root.cRed : (frac > 0.6 ? root.cYellow : root.cGreen))
+          var col = i < lit ? on : root.cMuted
           ctx.globalAlpha = i < lit ? 1 : 0.55
           ctx.fillStyle = col
           ctx.beginPath()
@@ -173,10 +185,13 @@ BarWidget {
     id: usage
     property string label: ""
     property real value: 0
+    // Bateria: alerta quando o valor está baixo, não alto.
+    property bool inverse: false
+    readonly property real load: inverse ? 1 - value : value
     // Com usage_fill (ex.: vermelho), só o alerta dourado acima de 75%.
     readonly property color fill: root.pal.usage_fill
-      ? (value > 0.75 ? root.cYellow : root.pal.usage_fill)
-      : (value > 0.9 ? root.cRed : (value > 0.75 ? root.cYellow : root.cBlue))
+      ? (load > 0.75 ? root.cYellow : root.pal.usage_fill)
+      : (load > 0.9 ? root.cRed : (load > 0.75 ? root.cYellow : root.cBlue))
     spacing: 6
 
     Text {
@@ -232,6 +247,8 @@ BarWidget {
     Gauge { visible: !root.cockpit; label: "MEM"; value: root.mem }
     Usage { visible: root.cockpit; label: "CPU"; value: root.cpu }
     Usage { visible: root.cockpit; label: "Mem"; value: root.mem }
+    Gauge { visible: !root.cockpit && root.hasBattery; label: "BAT"; value: root.bat; inverse: true }
+    Usage { visible: root.cockpit && root.hasBattery; label: "Bat"; value: root.bat; inverse: true }
   }
 
   MouseArea {
@@ -244,7 +261,8 @@ BarWidget {
       if (!root.bar) return
       if (containsMouse)
         root.bar.showTooltip(root, (root.cockpit ? "CPU: " : "Gerador (CPU): ") + Math.round(root.cpu * 100) + "%\n"
-          + (root.cockpit ? "Memória: " : "Carga (memória): ") + root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + " GiB")
+          + (root.cockpit ? "Memória: " : "Carga (memória): ") + root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + " GiB"
+          + (root.hasBattery ? "\nBateria: " + Math.round(root.bat * 100) + "%" + (root.batCharging ? " (carregando)" : (UPower.onBattery ? "" : " (na tomada)")) : ""))
       else root.bar.hideTooltip(root)
     }
   }
