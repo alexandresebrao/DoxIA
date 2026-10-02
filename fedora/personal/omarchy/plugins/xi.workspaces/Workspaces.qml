@@ -78,7 +78,7 @@ BarWidget {
     1: "\uf120", // terminais
     2: "\uf0ac", // navegador
     3: "\uf086", // chat
-    4: "\ue8e4", // IDE (WebStorm)
+    4: "\uf121", // IDE
     5: "\uf0e0", // email
     6: "\uf1bc"  // Spotify
   })
