@@ -169,7 +169,7 @@ def wallpaper_console():
         ("", None),
         ("Activate the web console with: systemctl enable --now cockpit.socket", GRAY_5),
         ("", None),
-        ("klab login: _", WHITE),
+        ("alexandre login: _", WHITE),
     ]
     y = int(H * 0.36)
     for text, col in lines:

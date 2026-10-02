@@ -3,7 +3,7 @@
   "id": "xi.reactor",
   "name": "Xi Reactor HUD",
   "version": "1.0.0",
-  "author": "klab",
+  "author": "alexandre",
   "license": "MIT",
   "description": "HUD de cockpit: saída do gerador (CPU) e carga (memória) em barras segmentadas.",
   "kinds": ["bar-widget"],

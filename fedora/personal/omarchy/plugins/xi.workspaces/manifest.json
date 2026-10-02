@@ -3,7 +3,7 @@
   "id": "xi.workspaces",
   "name": "Xi Workspaces",
   "version": "1.0.0",
-  "author": "klab",
+  "author": "alexandre",
   "license": "MIT",
   "description": "Workspaces como placas de armadura angulares, no estilo do Xi Gundam.",
   "kinds": ["bar-widget"],

@@ -3,7 +3,7 @@
   "id": "xi.emblem",
   "name": "Xi Emblem",
   "version": "1.0.0",
-  "author": "klab",
+  "author": "alexandre",
   "license": "MIT",
   "description": "Botão do menu Omarchy em forma de V-fin, inspirado no RX-105 Xi Gundam.",
   "kinds": ["bar-widget"],

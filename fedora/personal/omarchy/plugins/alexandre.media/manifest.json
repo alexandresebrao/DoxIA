@@ -3,7 +3,7 @@
   "id": "alexandre.media",
   "name": "Now Playing",
   "version": "1.0.0",
-  "author": "klab",
+  "author": "alexandre",
   "license": "MIT",
   "description": "MPRIS now-playing with album art, a seekable progress bar and full playback controls.",
   "kinds": [

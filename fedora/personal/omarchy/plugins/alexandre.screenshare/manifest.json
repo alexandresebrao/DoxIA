@@ -3,7 +3,7 @@
   "id": "alexandre.screenshare",
   "name": "Compartilhamento de tela",
   "version": "1.0.0",
-  "author": "klab",
+  "author": "alexandre",
   "license": "MIT",
   "description": "Bolinha vermelha na barra enquanto alguma app compartilha a tela; clique para parar.",
   "kinds": [

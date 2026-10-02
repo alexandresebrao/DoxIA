@@ -3,7 +3,7 @@
   "id": "alexandre.painel",
   "name": "Painel Rápido",
   "version": "1.0.0",
-  "author": "klab",
+  "author": "alexandre",
   "license": "MIT",
   "description": "Botão na barra que abre o Painel Rápido (chamado SRE etc.).",
   "kinds": [

@@ -14,7 +14,7 @@ from pathlib import Path
 
 HOME = Path.home()
 JAVA_HOME = HOME / ".sdkman/candidates/java/8.0.192-oracle"
-STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "klab-javaservers"
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state")) / "alexandre-javaservers"
 STOP_TIMEOUT = 40  # segundos até forçar SIGKILL
 
 SERVICES = {
@@ -31,7 +31,7 @@ SERVICES = {
         "nome": "JBoss 4.0.2",
         "cwd": "/usr/local/java",
         "cmd": ["sh", "/usr/local/java/jboss-4.0.2/bin/run.sh", "-c", "postgres",
-                f"-Djboss.partition.name={os.environ.get('USER', 'klab')}"],
+                f"-Djboss.partition.name={os.environ.get('USER', 'alexandre')}"],
         "match": ["org.jboss.Main"],
         "porta": 8080,
         "pronto_log": b"] Started in",
