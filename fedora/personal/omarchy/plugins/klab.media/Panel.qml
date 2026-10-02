@@ -81,7 +81,7 @@ Panel {
 
   // Volume do player: o stream dele no PipeWire (o mesmo que o painel de
   // áudio mexe). O volume MPRIS do Spotify pode vir desatualizado, então só é
-  // usado quando não há stream encontrado.
+  // lido quando não há stream encontrado (mas é sempre escrito em setVolume).
   readonly property var playbackStreams: {
     var all = Pipewire.nodes ? Pipewire.nodes.values : []
     var out = []
@@ -122,11 +122,10 @@ Panel {
 
   function setVolume(v) {
     v = Math.max(0, Math.min(1, v))
-    if (hasStreamVolume) {
-      for (var i = 0; i < playerStreams.length; i++) playerStreams[i].audio.volume = v
-    } else if (player && player.volumeSupported && player.canControl) {
-      player.volume = v
-    }
+    // O Spotify reaplica o volume interno (MPRIS) no stream a cada troca de
+    // faixa, então ele também precisa ser atualizado, não só o stream.
+    if (player && player.volumeSupported && player.canControl) player.volume = v
+    for (var i = 0; i < playerStreams.length; i++) playerStreams[i].audio.volume = v
   }
 
   function toggleMute() {
