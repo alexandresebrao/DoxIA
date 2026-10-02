@@ -10,7 +10,7 @@
           "format": "dddd HH:mm",
           "formatAlt": "d MMMM 'W'ww yyyy",
           "id": "omarchy.clock",
-          "verticalFormat": "HH\n—\nmm"
+          "verticalFormat": "HH\n\u2014\nmm"
         },
         {
           "id": "klab.screenshare"
@@ -34,6 +34,9 @@
         },
         {
           "id": "omarchy.indicators"
+        },
+        {
+          "id": "klab.painel"
         }
       ],
       "right": [
@@ -58,10 +61,11 @@
           }
         },
         {
-          "id": "omarchy.bluetooth"
-        },
-        {
-          "id": "omarchy.network"
+          "id": "omarchy.group",
+          "members": [
+            "omarchy.network",
+            "omarchy.bluetooth"
+          ]
         },
         {
           "id": "klab.javaservers"
@@ -70,13 +74,12 @@
           "id": "klab.fortivpn"
         },
         {
-          "id": "omarchy.audio"
-        },
-        {
-          "id": "omarchy.monitor"
-        },
-        {
-          "id": "omarchy.power"
+          "id": "omarchy.group",
+          "members": [
+            "omarchy.power",
+            "omarchy.monitor",
+            "omarchy.audio"
+          ]
         }
       ]
     },

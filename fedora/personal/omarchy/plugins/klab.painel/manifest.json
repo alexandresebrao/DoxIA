@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "klab.painel",
+  "name": "Painel Rápido",
+  "version": "1.0.0",
+  "author": "klab",
+  "license": "MIT",
+  "description": "Botão na barra que abre o Painel Rápido (chamado SRE etc.).",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Painel Rápido",
+    "description": "Clique: abre o painel. Botão direito: direto no chamado SRE.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

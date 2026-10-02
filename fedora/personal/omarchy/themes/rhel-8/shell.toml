@@ -15,7 +15,11 @@ active           = "#ee0000"
 # top/bottom bars; size-vertical is the width of left/right bars. With
 # scale-with-font enabled, these grow/shrink with [font] base-size.
 scale-with-font  = true
-size-horizontal  = 30
+size-horizontal  = 35
+# Ícones da barra um pouco maiores (padrão: slot 27, canvas 16, fonte 13).
+icon-slot        = 30
+icon-canvas      = 18
+icon-font        = 15
 size-vertical    = 28
 
 [hyprland]
