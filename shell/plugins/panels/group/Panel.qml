@@ -1,14 +1,18 @@
 import QtQuick
 import qs.Commons
+import qs.Ui
 
-// Several first-party panel widgets packed into one bar item. Each member
-// keeps its own icon (side by side, no gap) and its own popup; KeyboardPanel
-// sees `tabGroup` on the owner and draws a tab strip above the content, so
-// the popups read as tabs of a single panel anchored under the whole group.
+// Several first-party panel widgets packed into one bar icon. Members keep
+// their own popups (their bar buttons are hidden); KeyboardPanel sees
+// `tabGroup` on the owner and draws a tab strip above the content, so the
+// popups read as tabs of a single panel anchored under the group icon.
 //
 //   { "id": "omarchy.group", "members": ["omarchy.power", "omarchy.monitor",
 //     { "id": "omarchy.audio", "someSetting": true }],
-//     "titles": ["Bateria", "Tela", "Som"] }
+//     "titles": ["Bateria", "Tela", "Som"],
+//     "icon": "omarchy.audio",    // member id (its live glyph) or a glyph
+//     "wheel": "omarchy.audio",   // member that receives scroll on the icon
+//     "rightClick": "omarchy.audio" }  // member that receives right-click
 Item {
   id: root
 
@@ -70,6 +74,21 @@ Item {
 
   function indexOfTab(member) { return tabs.indexOf(member) }
 
+  function memberById(id) {
+    for (var i = 0; i < members.length; i++)
+      if (memberEntries[i] && memberEntries[i].id === id) return members[i]
+    return null
+  }
+
+  function buttonOf(member) {
+    if (!member) return null
+    for (var i = 0; i < member.children.length; i++) {
+      var c = member.children[i]
+      if (c && typeof c.triggerPress === "function" && c.text !== undefined) return c
+    }
+    return null
+  }
+
   function titleOf(member) {
     var i = members.indexOf(member)
     return i >= 0 && memberEntries[i] ? memberEntries[i].title : ""
@@ -78,16 +97,18 @@ Item {
   // The member's own bar glyph (its WidgetButton child), so tabs show live
   // battery/volume/signal icons.
   function glyphOf(member) {
-    if (!member) return ""
-    for (var i = 0; i < member.children.length; i++) {
-      var c = member.children[i]
-      if (c && typeof c.triggerPress === "function" && c.text !== undefined) {
-        var t = String(c.text)
-        var sp = t.lastIndexOf(" ")
-        return sp >= 0 ? t.substr(sp + 1) : t
-      }
-    }
-    return ""
+    var c = buttonOf(member)
+    if (!c) return ""
+    var t = String(c.text)
+    var sp = t.lastIndexOf(" ")
+    return sp >= 0 ? t.substr(sp + 1) : t
+  }
+
+  readonly property string iconSetting: settings && settings.icon ? String(settings.icon) : ""
+  readonly property string groupGlyph: {
+    if (iconSetting && !knownMembers[iconSetting]) return iconSetting
+    var m = iconSetting ? memberById(iconSetting) : tabs[0]
+    return glyphOf(m)
   }
 
   function selectTab(index) {
@@ -124,43 +145,44 @@ Item {
   }
   function toggle() { opened ? close() : open() }
 
-  implicitWidth: vertical ? row.implicitHeight : row.implicitWidth
-  implicitHeight: vertical ? row.implicitHeight : row.implicitHeight
+  implicitWidth: button.implicitWidth
+  implicitHeight: button.implicitHeight
 
-  // One shared hover/open plate behind all member icons.
-  HoverHandler { id: hover }
+  // Members fill the group invisibly: only their popups and IPC are used.
+  Repeater {
+    id: repeater
+    model: root.memberEntries
 
-  Rectangle {
-    anchors.fill: parent
-    anchors.topMargin: Math.round(parent.height * 0.12)
-    anchors.bottomMargin: Math.round(parent.height * 0.12)
-    radius: Style.cornerRadius
-    color: Color.foreground
-    opacity: root.opened ? 0.10 : (hover.hovered ? 0.06 : 0)
-    Behavior on opacity { NumberAnimation { duration: 120 } }
+    Loader {
+      required property var modelData
+      required property int index
+      anchors.fill: parent
+      source: modelData.source
+      onLoaded: {
+        item.tabGroup = root
+        item.bar = Qt.binding(function() { return root.bar })
+        item.settings = modelData.settings
+        var b = root.buttonOf(item)
+        if (b) { b.visible = false; b.enabled = false }
+        root.rebuildMembers()
+      }
+    }
   }
 
-  Grid {
-    id: row
-    anchors.centerIn: parent
-    columns: root.vertical ? 1 : Math.max(1, repeater.count)
-    spacing: 0
-
-    Repeater {
-      id: repeater
-      model: root.memberEntries
-
-      Loader {
-        required property var modelData
-        required property int index
-        source: modelData.source
-        onLoaded: {
-          item.tabGroup = root
-          item.bar = Qt.binding(function() { return root.bar })
-          item.settings = modelData.settings
-          root.rebuildMembers()
-        }
-      }
+  BarIconButton {
+    id: button
+    anchors.fill: parent
+    bar: root.bar
+    text: root.groupGlyph
+    tooltipText: ""
+    onPressed: function(b) {
+      var target = b === Qt.RightButton && root.settings ? root.buttonOf(root.memberById(root.settings.rightClick)) : null
+      if (target) target.pressed(b)
+      else if (b === Qt.LeftButton) root.toggle()
+    }
+    onWheelMoved: function(delta) {
+      var target = root.settings ? root.buttonOf(root.memberById(root.settings.wheel)) : null
+      if (target) target.wheelMoved(delta)
     }
   }
 
