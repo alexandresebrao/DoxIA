@@ -17,6 +17,8 @@ Item {
   property alias controller: panelController
   property bool popoutSwitching: false
   property bool popoutSwitchClosing: false
+  // Set by plugins/panels/group when this panel is one tab of a group.
+  property var tabGroup: null
 
   readonly property bool opened: panelController.open
   readonly property color barForeground: bar ? bar.barForeground : Color.foreground
@@ -30,6 +32,7 @@ Item {
   }
   function toggle() { opened ? close() : open() }
   function switchPanel(direction) {
+    if (tabGroup) return tabGroup.cycle(root, direction)
     if (bar && typeof bar.switchPanelFrom === "function") return bar.switchPanelFrom(root, direction)
     return false
   }
@@ -44,6 +47,8 @@ Item {
   PanelController {
     id: panelController
   }
+
+  onOpenedChanged: if (opened && tabGroup) tabGroup.noteOpened(root)
 
   IpcHandler {
     enabled: root.manageIpc && root.ipcTarget !== ""

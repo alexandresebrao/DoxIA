@@ -63,6 +63,16 @@ PanelWindow {
   default property alias contentItem: contentHolder.children
 
   readonly property var coordinatorKey: owner || root
+
+  // Tab groups (plugins/panels/group): when the owner is one tab of a group,
+  // draw the group's tab strip above the content and anchor the card under
+  // the whole group so it stays put while switching tabs.
+  readonly property var tabGroup: owner && owner.tabGroup ? owner.tabGroup : null
+  readonly property var groupTabs: tabGroup ? tabGroup.tabs : []
+  readonly property int tabStripHeight: groupTabs.length > 1
+    ? Style.spacing.controlHeight + Style.space(12) : 0
+  readonly property Item positionAnchor: tabGroup || anchorItem
+  readonly property int cardHeight: contentHeight + tabStripHeight
   readonly property var anchorWindow: anchorItem ? anchorItem.QsWindow.window : null
   readonly property string barPos: bar ? bar.position : "top"
 
@@ -133,7 +143,7 @@ PanelWindow {
   TransformWatcher {
     id: anchorWatcher
     a: anchorWindow ? anchorWindow.contentItem : null
-    b: anchorItem
+    b: root.positionAnchor
   }
 
   // Anchor item's position within the bar's content surface. For a
@@ -143,18 +153,18 @@ PanelWindow {
   // below uses `barH` for the perpendicular axis instead of this y.
   readonly property point anchorScreenPos: {
     anchorWatcher.transform  // reactive dependency
-    if (!anchorItem || !anchorWindow) return Qt.point(0, 0)
-    return anchorItem.mapToItem(anchorWindow.contentItem, 0, 0)
+    if (!positionAnchor || !anchorWindow) return Qt.point(0, 0)
+    return positionAnchor.mapToItem(anchorWindow.contentItem, 0, 0)
   }
-  readonly property real anchorW: anchorItem ? anchorItem.width : 0
-  readonly property real anchorH: anchorItem ? anchorItem.height : 0
+  readonly property real anchorW: positionAnchor ? positionAnchor.width : 0
+  readonly property real anchorH: positionAnchor ? positionAnchor.height : 0
   readonly property real screenW: screen ? screen.width : 0
   readonly property real screenH: screen ? screen.height : 0
   readonly property real availableCardWidth: screenW > 0
     ? Math.max(120, screenW - ((barPos === "left" || barPos === "right") ? barW + gap + margin : margin * 2))
     : 0
   readonly property real availableCardHeight: screenH > 0
-    ? Math.max(120, screenH - ((barPos === "top" || barPos === "bottom") ? barH + gap + margin : margin * 2))
+    ? Math.max(120, screenH - ((barPos === "top" || barPos === "bottom") ? barH + gap + margin : margin * 2) - tabStripHeight)
     : 0
   readonly property real verticalContentInset: padding * 2 + Border.top(borderSpec) + Border.bottom(borderSpec)
 
@@ -196,25 +206,25 @@ PanelWindow {
     var x = 0, y = 0
     if (centerOnBar && (barPos === "top" || barPos === "bottom")) {
       x = screenW / 2 - contentWidth / 2
-      y = barPos === "bottom" ? screenH - barH - contentHeight - gap : barH + gap
+      y = barPos === "bottom" ? screenH - barH - cardHeight - gap : barH + gap
     } else if (centerOnBar) {
       x = barPos === "left" ? barW + gap : screenW - barW - contentWidth - gap
-      y = screenH / 2 - contentHeight / 2
+      y = screenH / 2 - cardHeight / 2
     } else if (barPos === "bottom") {
       x = anchorScreenPos.x + anchorW / 2 - contentWidth / 2
-      y = screenH - barH - contentHeight - gap
+      y = screenH - barH - cardHeight - gap
     } else if (barPos === "left") {
       x = barW + gap
-      y = anchorScreenPos.y + anchorH / 2 - contentHeight / 2
+      y = anchorScreenPos.y + anchorH / 2 - cardHeight / 2
     } else if (barPos === "right") {
       x = screenW - barW - contentWidth - gap
-      y = anchorScreenPos.y + anchorH / 2 - contentHeight / 2
+      y = anchorScreenPos.y + anchorH / 2 - cardHeight / 2
     } else { // "top" (default)
       x = anchorScreenPos.x + anchorW / 2 - contentWidth / 2
       y = barH + gap
     }
     x = Math.max(margin, Math.min(x, screenW - contentWidth - margin))
-    y = Math.max(margin, Math.min(y, screenH - contentHeight - margin))
+    y = Math.max(margin, Math.min(y, screenH - cardHeight - margin))
     return Qt.point(Math.round(x), Math.round(y))
   }
 
@@ -381,7 +391,7 @@ PanelWindow {
     x: root.cardOrigin.x
     y: root.cardOrigin.y
     width: root.contentWidth
-    height: root.contentHeight
+    height: root.cardHeight
     color: Color.popups.background
     borderSpec: root.borderSpec
     padding: root.padding
@@ -400,10 +410,65 @@ PanelWindow {
       acceptedButtons: Qt.AllButtons
     }
 
+    Row {
+      id: tabStrip
+      visible: root.tabStripHeight > 0
+      x: card.contentLeftInset
+      y: card.contentTopInset
+      width: card.width - card.contentLeftInset - card.contentRightInset
+      height: Style.spacing.controlHeight
+      spacing: Style.space(4)
+
+      Repeater {
+        model: root.groupTabs
+
+        Rectangle {
+          id: tab
+          required property var modelData
+          required property int index
+          readonly property bool current: modelData === root.owner
+          width: (tabStrip.width - tabStrip.spacing * (root.groupTabs.length - 1)) / Math.max(1, root.groupTabs.length)
+          height: tabStrip.height
+          radius: Style.cornerRadius
+          readonly property color tint: current ? Color.accent : Color.popups.text
+          color: Qt.rgba(tint.r, tint.g, tint.b, current ? 0.28 : (tabMouse.containsMouse ? 0.10 : 0.04))
+
+          Row {
+            anchors.centerIn: parent
+            spacing: Style.space(6)
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.tabGroup ? root.tabGroup.glyphOf(tab.modelData) : ""
+              color: Color.popups.text
+              font.family: Style.font.family
+              font.pixelSize: Style.font.icon
+            }
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              text: root.tabGroup ? root.tabGroup.titleOf(tab.modelData) : ""
+              color: Color.popups.text
+              opacity: tab.current ? 1 : 0.7
+              font.family: Style.font.family
+              font.pixelSize: Style.font.body
+              font.bold: tab.current
+            }
+          }
+
+          MouseArea {
+            id: tabMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: if (!tab.current && root.tabGroup) root.tabGroup.selectTab(tab.index)
+          }
+        }
+      }
+    }
+
     Item {
       id: contentHolder
       anchors.fill: parent
-      anchors.topMargin: card.contentTopInset
+      anchors.topMargin: card.contentTopInset + root.tabStripHeight
       anchors.rightMargin: card.contentRightInset
       anchors.bottomMargin: card.contentBottomInset
       anchors.leftMargin: card.contentLeftInset
