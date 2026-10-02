@@ -67,10 +67,13 @@ if ! command -v ttfx >/dev/null; then
   cargo install --git https://github.com/omacom/ttfx --tag v0.5.0 --root "$HOME/.local"
 fi
 
-echo "==> Bar layout, menu extensions and default agent"
+echo "==> Bar layout, menu extensions, default agent and editor"
 seed omarchy/shell.json "$HOME/.config/omarchy/shell.json"
 seed omarchy/extensions/omarchy-menu.jsonc "$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"
+# Nano como editor padrão (omarchy-launch-editor / $EDITOR), no lugar do nvim.
+mkdir -p "$HOME/.local/state/omarchy/defaults"
+echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 
 echo "==> Hyprland window rules"
 if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua 2>/dev/null; then
