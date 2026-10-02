@@ -61,18 +61,18 @@
           }
         },
         {
+          "id": "klab.javaservers"
+        },
+        {
+          "id": "klab.fortivpn"
+        },
+        {
           "id": "omarchy.group",
           "members": [
             "omarchy.network",
             "omarchy.bluetooth"
           ],
           "icon": "omarchy.network"
-        },
-        {
-          "id": "klab.javaservers"
-        },
-        {
-          "id": "klab.fortivpn"
         },
         {
           "id": "omarchy.group",
