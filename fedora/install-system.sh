@@ -38,7 +38,7 @@ packages=(
   gtk4-layer-shell
 
   # Terminal + default apps
-  foot nautilus nautilus-python sushi gnome-disk-utility evince imv mpv mpv-mpris
+  foot nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
   gnome-keyring yaru-icon-theme yaru-theme
 
   # Wayland/desktop utilities used by omarchy-* commands
@@ -60,6 +60,12 @@ dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 # Fedora's own quickshell (0.2.x) and uwsm can win over the COPR builds on first
 # install; Omarchy 4 needs quickshell >= 0.3.1.
 dnf upgrade -y --refresh quickshell uwsm
+
+# Document viewer from Flathub instead of the RPM; evince-thumbnailer above keeps
+# PDF thumbnails in Nautilus.
+echo "==> Installing Flatpak apps"
+flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install -y --noninteractive flathub org.gnome.Evince
 
 # Fedora ships tuned-ppd (same D-Bus API as power-profiles-daemon, which conflicts
 # with it) but no powerprofilesctl, which Omarchy's power menu relies on.

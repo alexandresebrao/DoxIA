@@ -32,6 +32,11 @@ org.fcitx.fcitx5-config-qt
 org.fcitx.fcitx5-migrator
 org.fcitx.fcitx5-qt5-gui-wrapper
 org.fcitx.fcitx5-qt6-gui-wrapper
+org.libreoffice.LibreOffice
+org.libreoffice.LibreOffice.base
+org.libreoffice.LibreOffice.draw
+org.libreoffice.LibreOffice.math
+org.libreoffice.LibreOffice.xsltfilter
 qv4l2
 qvidcap
 uuctl
