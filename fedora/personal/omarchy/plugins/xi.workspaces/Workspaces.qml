@@ -63,7 +63,7 @@ BarWidget {
   }
 
   function workspaceIds() {
-    var ids = [1, 2, 3, 4, 5]
+    var ids = [1, 2, 3, 4, 5, 6]
     var values = Hyprland.workspaces.values
     for (var i = 0; i < values.length; i++) {
       var id = values[i].id
@@ -78,8 +78,9 @@ BarWidget {
     1: "\uf120", // terminais
     2: "\uf0ac", // navegador
     3: "\uf086", // chat
-    4: "\uf0e0", // email
-    5: "\uf1bc"  // Spotify
+    4: "\ue8e4", // IDE (WebStorm)
+    5: "\uf0e0", // email
+    6: "\uf1bc"  // Spotify
   })
 
   function workspaceLabel(id) {
