@@ -189,7 +189,7 @@ BarWidget {
 
     Rectangle {
       anchors.verticalCenter: parent.verticalCenter
-      width: Math.round(root.barSize * 1.9)
+      width: Math.round(root.barSize * 1.52)
       height: Math.max(3, Math.round(root.barSize * 0.16))
       radius: height / 2
       color: Qt.rgba(root.cMuted.r, root.cMuted.g, root.cMuted.b, 0.7)
