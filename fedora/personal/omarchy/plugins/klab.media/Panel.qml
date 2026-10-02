@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
+import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
@@ -24,6 +25,9 @@ Panel {
   readonly property string gRepeatOne: String.fromCodePoint(0xF0458)
   readonly property string gMusic: String.fromCodePoint(0xF075A)
   readonly property string gOpen: String.fromCodePoint(0xF03CC)
+  readonly property string gVolume: String.fromCodePoint(0xF057E)
+  readonly property string gVolumeLow: String.fromCodePoint(0xF057F)
+  readonly property string gMute: String.fromCodePoint(0xF075F)
 
   readonly property real maxLabelWidth: Math.max(60, parseInt(setting("maxLabelWidth", 180), 10) || 180)
 
@@ -73,6 +77,62 @@ Panel {
     if (!p) return ""
     var name = p.identity || p.desktopEntry || ""
     return name.charAt(0).toUpperCase() + name.slice(1)
+  }
+
+  // Volume do player: o stream dele no PipeWire (o mesmo que o painel de
+  // áudio mexe). O volume MPRIS do Spotify pode vir desatualizado, então só é
+  // usado quando não há stream encontrado.
+  readonly property var playbackStreams: {
+    var all = Pipewire.nodes ? Pipewire.nodes.values : []
+    var out = []
+    for (var i = 0; i < all.length; i++) {
+      var n = all[i]
+      if (n && n.isStream && n.isSink === true && n.audio) out.push(n)
+    }
+    return out
+  }
+  PwObjectTracker { objects: root.opened ? root.playbackStreams : [] }
+
+  function streamMatchesPlayer(node, p) {
+    if (!node || !node.ready || !node.properties || !p) return false
+    var props = node.properties
+    var keys = [String(p.identity || "").toLowerCase(), String(p.desktopEntry || "").toLowerCase()]
+    var names = [props["application.name"], props["application.process.binary"], props["node.name"]]
+    for (var k = 0; k < keys.length; k++) {
+      if (!keys[k]) continue
+      for (var j = 0; j < names.length; j++) {
+        var name = String(names[j] || "").toLowerCase()
+        if (name && (name.indexOf(keys[k]) !== -1 || keys[k].indexOf(name) !== -1)) return true
+      }
+    }
+    return false
+  }
+
+  readonly property var playerStreams: {
+    var out = []
+    for (var i = 0; i < playbackStreams.length; i++)
+      if (streamMatchesPlayer(playbackStreams[i], player)) out.push(playbackStreams[i])
+    return out
+  }
+  readonly property bool hasStreamVolume: playerStreams.length > 0
+  readonly property bool hasVolume: hasStreamVolume || (player !== null && player.volumeSupported)
+  readonly property real volume: hasStreamVolume ? playerStreams[0].audio.volume
+    : (player && player.volumeSupported ? player.volume : 0)
+  readonly property bool muted: hasStreamVolume && playerStreams[0].audio.muted
+
+  function setVolume(v) {
+    v = Math.max(0, Math.min(1, v))
+    if (hasStreamVolume) {
+      for (var i = 0; i < playerStreams.length; i++) playerStreams[i].audio.volume = v
+    } else if (player && player.volumeSupported && player.canControl) {
+      player.volume = v
+    }
+  }
+
+  function toggleMute() {
+    if (!hasStreamVolume) return
+    var m = !muted
+    for (var i = 0; i < playerStreams.length; i++) playerStreams[i].audio.muted = m
   }
 
   function playPause() { if (player && player.canTogglePlaying) player.togglePlaying() }
@@ -233,6 +293,9 @@ Panel {
         else if (t === "p") root.previous()
         else if (t === "s") root.toggleShuffle()
         else if (t === "r") root.cycleLoop()
+        else if (t === "+" || t === "=") root.setVolume(root.volume + 0.05)
+        else if (t === "-") root.setVolume(root.volume - 0.05)
+        else if (t === "m") root.toggleMute()
       }
 
       Column {
@@ -393,6 +456,56 @@ Panel {
             toggle: true
             lit: root.player !== null && root.player.loopState !== MprisLoopState.None
             onClicked: root.cycleLoop()
+          }
+        }
+
+        // Volume do player
+        RowLayout {
+          width: parent.width
+          spacing: Style.space(8)
+          // Fica no layout mesmo sem volume para a altura do popup não mudar.
+          opacity: root.hasVolume ? 1 : 0
+          enabled: root.hasVolume
+
+          Text {
+            textFormat: Text.PlainText
+            text: root.muted || root.volume <= 0 ? root.gMute : (root.volume < 0.5 ? root.gVolumeLow : root.gVolume)
+            color: root.muted ? root.dim : root.foreground
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.title
+            Layout.preferredWidth: Style.space(22)
+            horizontalAlignment: Text.AlignHCenter
+
+            MouseArea {
+              anchors.fill: parent
+              cursorShape: root.hasStreamVolume ? Qt.PointingHandCursor : Qt.ArrowCursor
+              onClicked: root.toggleMute()
+            }
+          }
+
+          PanelSlider {
+            id: volumeSlider
+            Layout.fillWidth: true
+            bar: root.bar
+            minimum: 0
+            maximum: 1
+            step: 0.05
+            value: root.volume
+            opacity: root.muted ? 0.5 : 1.0
+            onMoved: function(v) { root.setVolume(v) }
+            onReleased: function(v) { root.setVolume(v) }
+            onRightClicked: root.toggleMute()
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            text: Math.round((volumeSlider.dragging ? volumeSlider.liveValue : root.volume) * 100) + "%"
+            color: root.dim
+            font.family: root.fontFamily
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            Layout.preferredWidth: Style.space(36)
+            horizontalAlignment: Text.AlignRight
           }
         }
 
