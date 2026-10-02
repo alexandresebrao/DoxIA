@@ -73,6 +73,19 @@ BarWidget {
     return ids
   }
 
+  // Ícones (Nerd Font) dos espaços fixos; os demais mostram o número.
+  readonly property var workspaceIcons: ({
+    1: "\uf120", // terminais
+    2: "\uf0ac", // navegador
+    3: "\uf086", // chat
+    4: "\uf0e0", // email
+    5: "\uf1bc"  // Spotify
+  })
+
+  function workspaceLabel(id) {
+    return workspaceIcons[id] || (id === 10 ? "0" : String(id))
+  }
+
   function focusWorkspace(id) {
     if (!root.bar) return
     root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
@@ -204,9 +217,10 @@ BarWidget {
 
         Text {
           anchors.centerIn: parent
-          text: plate.modelData === 10 ? "0" : String(plate.modelData)
+          readonly property bool isIcon: root.workspaceIcons[plate.modelData] !== undefined
+          text: root.workspaceLabel(plate.modelData)
           font.family: root.fontFamily
-          font.pixelSize: Math.round(root.plateH * 0.58)
+          font.pixelSize: Math.round(root.plateH * (isIcon ? 0.52 : 0.58))
           font.bold: plate.focused || plate.occupied
           color: root.underline
             ? (plate.focused ? root.cBright : (plate.occupied ? root.cWhite : root.cDim))
