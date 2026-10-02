@@ -81,9 +81,8 @@
             "omarchy.monitor",
             "omarchy.audio"
           ],
-          "icon": "omarchy.audio",
-          "wheel": "omarchy.audio",
-          "rightClick": "omarchy.audio"
+          "icon": "omarchy.monitor",
+          "wheel": "omarchy.monitor"
         }
       ]
     },
