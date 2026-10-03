@@ -1,0 +1,55 @@
+# Builds the DoxIA installer ISO with fedora/iso/build.sh and keeps it as a
+# workflow artifact. The ISO installs the commit it was built from, so it is
+# rebuilt whenever the Fedora port changes; it can also be started by hand.
+name: DoxIA ISO
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fedora]
+    paths:
+      - "fedora/**"
+      - "default/sddm/**"
+      - "default/plymouth/**"
+      - ".github/workflows/doxia-iso.yml"
+
+concurrency:
+  group: doxia-iso
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:44
+      # lorax mounts /proc and /dev inside the image it builds
+      options: --privileged
+    steps:
+      - name: Install lorax
+        run: dnf install -y git lorax lorax-templates-generic xorriso
+
+      - uses: actions/checkout@v4
+        with:
+          # build.sh checks that the commit is on origin/fedora
+          fetch-depth: 0
+
+      - name: Build the ISO
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          bash fedora/iso/build.sh "$GITHUB_WORKSPACE/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DoxIA-ISO-${{ github.sha }}
+          path: out/*.iso
+          compression-level: 0
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lorax-logs-${{ github.sha }}
+          path: |
+            out/*.log
+            out/pkglists
+          retention-days: 7
