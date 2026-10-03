@@ -7,7 +7,7 @@ Saídas (rode da raiz do repositório depois de mudar a marca):
   fedora/personal/omarchy/branding/about.txt tela Sobre (fastfetch), igual ao icon.txt
   fedora/personal/omarchy/branding/logo.ansi omarchy-show-logo, em cores 24 bits
   fedora/personal/omarchy/branding/screensaver.txt  versão grande, 12 linhas
-  fedora/fedorai/brand.ansi                  saudação do terminal e /etc/motd, 6 linhas
+  fedora/fedorai/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
   default/plymouth/fedorai/watermark.png     marca no rodapé do boot splash
 
 Precisa do PIL e das fontes redhat-display-fonts.
@@ -112,7 +112,7 @@ def main():
     ansi_light, ansi_red = "\x1b[1;38;2;240;240;240m", "\x1b[1;38;2;238;0;0m"
     write("fedora/personal/omarchy/branding/logo.ansi", render(medium, ansi_light, ansi_red, "\x1b[0m"))
     write("fedora/personal/omarchy/branding/screensaver.txt", render(blocks(12), "", ""))
-    write("fedora/fedorai/brand.ansi", render(blocks(6), ansi_light, ansi_red, "\x1b[0m"))
+    write("fedora/fedorai/brand.ansi", render(blocks(8), ansi_light, ansi_red, "\x1b[0m"))
 
     # Boot splash: a altura (43 px) e o arranjo ícone + nome da marca do Fedora, com a
     # marca ocupando ~3/4 da altura como lá.
