@@ -82,7 +82,9 @@ else
 fi
 
 # Same mechanism as `omarchy dev link`: OMARCHY_PATH points at the checkout.
-echo "OMARCHY_PATH=$omarchy_path" > /etc/omarchy.conf
+# In the format omarchy dev link writes, which omarchy-plymouth-set checks before
+# trusting a user-owned checkout.
+printf 'export OMARCHY_PATH="%s"\n' "$omarchy_path" > /etc/omarchy.conf
 
 echo "==> FedorAI About screen (fastfetch) and MOTD"
 mkdir -p /etc/fastfetch

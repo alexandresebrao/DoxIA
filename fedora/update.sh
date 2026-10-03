@@ -114,6 +114,25 @@ else
   OMARCHY_THEME_HEADLESS=1 omarchy-theme-set rhel-8
 fi
 
+echo "==> Dev-link authorization for the checkout (sudo)"
+# omarchy-plymouth-set only trusts a user-owned checkout named this way, the format
+# omarchy dev link writes; older installs wrote a bare OMARCHY_PATH= line.
+expected_conf="export OMARCHY_PATH=\"$OMARCHY_PATH\""
+if [[ $(cat /etc/omarchy.conf 2>/dev/null) != "$expected_conf" ]]; then
+  printf '%s\n' "$expected_conf" | sudo tee /etc/omarchy.conf >/dev/null
+fi
+
+echo "==> Boot splash (Plymouth with the FEDORAI logo)"
+# omarchy-plymouth-set also writes the SDDM theme, which the system step below then
+# replaces with the FedorAI login screen. The initramfs rebuild is slow, so only
+# rerun it when the installed logo is not the current one.
+if omarchy-cmd-present plymouth-set-default-theme &&
+  ! cmp -s "$OMARCHY_PATH/default/plymouth/logo.png" /usr/share/plymouth/themes/omarchy/logo.png; then
+  omarchy-pkg-add plymouth-plugin-script
+  sudo install -d /usr/share/plymouth/themes/omarchy /usr/share/sddm/themes/omarchy
+  omarchy-plymouth-set '#151515' '#d2d2d2' "$OMARCHY_PATH/default/plymouth/logo.png"
+fi
+
 echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
 set -euo pipefail
@@ -123,9 +142,11 @@ chmod 644 /etc/motd
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" /usr/share/wayland-sessions/omarchy.desktop
-if [[ -d /usr/share/sddm/themes/omarchy ]]; then
-  install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
-fi
+install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
+install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
+install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
+install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
+restorecon -R /usr/share/sddm /usr/share/plymouth/themes /etc/sddm.conf.d 2>/dev/null || true
 ROOT
 
 if [[ -d $backup_dir ]]; then
