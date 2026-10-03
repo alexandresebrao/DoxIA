@@ -38,6 +38,19 @@ done
 # xdg-terminal-exec reads this only when XDG_CURRENT_DESKTOP=Hyprland.
 seed default/xdg-terminal-exec/hyprland-xdg-terminals.list "$HOME/.config/hyprland-xdg-terminals.list"
 
+# Hyper-V guests: hyperv_drm prefers 1024x768 and has no hardware cursor plane,
+# so the first login came up blurry (same check as default/sddm/hyprland.lua).
+if [[ $(</sys/class/dmi/id/sys_vendor) == "Microsoft Corporation" &&
+      $(</sys/class/dmi/id/product_name) == "Virtual Machine" ]] 2>/dev/null; then
+  echo "==> Hyper-V: 1280x720 at scale 1 and a software cursor"
+  sed -i -e 's/^local omarchy_gdk_scale = .*/local omarchy_gdk_scale = 1/' \
+    -e 's/^local omarchy_monitor_scale = .*/local omarchy_monitor_scale = 1/' \
+    -e 's/^\(hl.monitor({ output = "", mode = \)"preferred"/\1"1280x720@60"/' ~/.config/hypr/monitors.lua
+  if ! grep -q 'no_hardware_cursors' ~/.config/hypr/input.lua; then
+    printf '\n-- Hyper-V has no hardware cursor plane.\nhl.config({\n  cursor = {\n    no_hardware_cursors = 1,\n  },\n})\n' >> ~/.config/hypr/input.lua
+  fi
+fi
+
 echo "==> DoxIA branding (About and screensaver logos, terminal greeting)"
 mkdir -p ~/.config/omarchy/branding
 [[ -f ~/.config/omarchy/branding/about.txt ]] || cp "$OMARCHY_PATH/icon.txt" ~/.config/omarchy/branding/about.txt
