@@ -61,6 +61,26 @@ if ! fc-list | grep -q "JetBrainsMono Nerd Font"; then
 fi
 cp -f "$OMARCHY_PATH/default/fonts/omarchy/omarchy.ttf" "$font_dir/omarchy/"
 fc-cache -f "$font_dir" >/dev/null
+# The shell draws its text and Nerd Font icons with "monospace", which Fedora maps
+# to Noto Sans Mono; without this, Qt fills icons like the weather glyphs from other
+# fonts. Same file omarchy-font-set writes, minus its shell restart.
+if [[ ! -f ~/.config/fontconfig/fonts.conf ]]; then
+  mkdir -p ~/.config/fontconfig
+  cat > ~/.config/fontconfig/fonts.conf <<'XML'
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <match target="pattern">
+    <test name="family" qual="any">
+      <string>monospace</string>
+    </test>
+    <edit name="family" mode="prepend_first" binding="strong">
+      <string>JetBrainsMono Nerd Font</string>
+    </edit>
+  </match>
+</fontconfig>
+XML
+fi
 
 echo "==> Marking Omarchy first-run/provisioning as done (Arch-only steps)"
 # provision-user would reassign XDG Desktop/Templates, set Chromium as default
