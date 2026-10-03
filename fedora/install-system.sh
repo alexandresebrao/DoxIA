@@ -110,6 +110,8 @@ if [[ ! -s /var/lib/sddm/state.conf ]]; then
 fi
 # Replaces whichever display manager the Fedora spin enabled (Plasma Login, GDM).
 systemctl enable --force sddm.service
+# The ISO installs from @core, where Anaconda picks multi-user.target before SDDM exists.
+systemctl set-default graphical.target
 
 echo "==> Configuring lock screen PAM (Fedora variant of omarchy-apply-lock)"
 cat > /etc/pam.d/omarchy-lock-password <<'EOF'
