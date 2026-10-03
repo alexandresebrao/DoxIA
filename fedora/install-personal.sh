@@ -2,7 +2,7 @@
 
 # Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
 # Restores my plugins (FortiVPN, Java servers, Now Playing, screen share, Xi bar),
-# themes (Xi Gundam, RHEL 8), FedorAI branding, bar layout, menu extensions, default agent,
+# FedorAI branding, bar layout, menu extensions, default agent,
 # screen-share picker config and Hyprland window rules from fedora/personal. Existing files are backed up.
 # Can be re-run on its own to reapply them:
 #
@@ -36,11 +36,7 @@ for plugin in "$personal"/omarchy/plugins/*/; do
   seed "omarchy/plugins/$name" "$HOME/.config/omarchy/plugins/$name"
 done
 
-echo "==> Themes and branding"
-for theme in "$personal"/omarchy/themes/*/; do
-  name=$(basename "$theme")
-  seed "omarchy/themes/$name" "$HOME/.config/omarchy/themes/$name"
-done
+echo "==> Branding"
 seed omarchy/branding "$HOME/.config/omarchy/branding"
 for tpl in "$personal"/omarchy/themed/*.tpl; do
   seed "omarchy/themed/$(basename "$tpl")" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
@@ -97,7 +93,7 @@ echo "Add VPN profiles from the FortiVPN widget; credentials stay in /etc/openfo
 
 echo "==> Theme"
 # Pastas do Tela em vermelho sobre o Papirus-Dark (Papirus-Tela-Red, gerado no $HOME).
-bash "$HOME/.config/omarchy/themes/rhel-8/make-icons.sh"
+bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
 # GTK4/libadwaita (Nautilus) com as cores do tema, via themed/gtk.css.tpl.
 gtk_css="$HOME/.config/gtk-4.0/gtk.css"
 mkdir -p "$(dirname "$gtk_css")"
@@ -113,4 +109,4 @@ if ! grep -q 'nautilus-grid-view' "$gtk_css"; then
 }
 CSS
 fi
-omarchy-theme-set "$(cat "$personal/omarchy/theme.name")"
+omarchy-theme-set rhel-8

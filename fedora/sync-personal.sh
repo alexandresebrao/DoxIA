@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copies my current plugins, themes, branding, bar layout, menu extensions,
+# Copies my current plugins, branding, bar layout, menu extensions,
 # screen-share picker config and default agent from ~/.config back into fedora/personal so they can
 # be committed. Backups (*.bak*) are left out. Hyprland window rules live in
 # fedora/personal/hypr/window-rules.lua and are edited there by hand.
@@ -14,14 +14,6 @@ for plugin in "$HOME"/.config/omarchy/plugins/*/; do
   rm -rf "$personal/omarchy/plugins/$name"
   cp -a "$plugin" "$personal/omarchy/plugins/$name"
 done
-
-mkdir -p "$personal/omarchy/themes"
-for theme in "$HOME"/.config/omarchy/themes/*/; do
-  name=$(basename "$theme")
-  rm -rf "$personal/omarchy/themes/$name"
-  cp -a "$theme" "$personal/omarchy/themes/$name"
-done
-cp "$HOME/.local/state/omarchy/current/theme.name" "$personal/omarchy/theme.name"
 
 rm -rf "$personal/omarchy/branding"
 cp -a "$HOME/.config/omarchy/branding" "$personal/omarchy/branding"

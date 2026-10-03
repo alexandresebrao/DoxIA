@@ -2,7 +2,7 @@
 
 # omarchy:summary=Remove a user-installed theme
 # omarchy:args=[theme-name]
-# omarchy:examples=omarchy theme remove "Tokyo Night"
+# omarchy:examples=omarchy theme remove rhel-8
 
 if [[ -z $1 ]]; then
   mapfile -t extra_themes < <(find ~/.config/omarchy/themes -mindepth 1 -maxdepth 1 -type d ! -xtype l -printf '%f\n')

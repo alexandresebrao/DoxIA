@@ -436,11 +436,11 @@ assert_output_contains "theme preview shows selected text sample" "$preview_outp
 assert_output_contains "theme preview shows practical terminal samples" "$preview_output" "Terminal/UI samples"
 assert_output_contains "theme preview shows ANSI palette strips" "$preview_output" "ANSI palette strips"
 
-tokyo_fg=$(awk -F'"' '/^foreground =/ { print $2; exit }' "$ROOT/themes/tokyo-night/colors.toml")
-tokyo_light_fg=$(awk -F'"' '/^light_foreground =/ { print $2; exit }' "$ROOT/themes/tokyo-night/colors.toml")
-tokyo_bright_fg=$(awk -F'"' '/^bright_foreground =/ { print $2; exit }' "$ROOT/themes/tokyo-night/colors.toml")
-[[ $tokyo_fg == "#a9b1d6" && $tokyo_light_fg == "#b4bee6" && $tokyo_bright_fg == "#c0caf5" ]] || fail "tokyo night foreground ramp stays ordered"
-pass "tokyo night foreground ramp stays ordered"
+rhel_fg=$(awk -F'"' '/^foreground =/ { print $2; exit }' "$ROOT/themes/rhel-8/colors.toml")
+rhel_light_fg=$(awk -F'"' '/^light_foreground =/ { print $2; exit }' "$ROOT/themes/rhel-8/colors.toml")
+rhel_bright_fg=$(awk -F'"' '/^bright_foreground =/ { print $2; exit }' "$ROOT/themes/rhel-8/colors.toml")
+[[ $rhel_fg == "#d2d2d2" && $rhel_light_fg == "#f0f0f0" && $rhel_bright_fg == "#ffffff" ]] || fail "rhel 8 foreground ramp stays ordered"
+pass "rhel 8 foreground ramp stays ordered"
 
 if rg -q '^cursor\s*=' "$ROOT/themes" -g'colors.toml'; then
   fail "built-in colors.toml files omit cursor token"
@@ -511,9 +511,9 @@ jq -e '.theme == "custom:omarchy" and .model == "keep-me"' "$CLAUDE_TEST_CONFIG/
 pass "claude theme activation preserves configured settings"
 
 make_tmpdir THEME_TMPDIR
-OMARCHY_PATH="$ROOT" HOME="$THEME_TMPDIR" OMARCHY_THEME_HEADLESS=1 "$ROOT/bin/omarchy-theme-set" "Tokyo Night"
+OMARCHY_PATH="$ROOT" HOME="$THEME_TMPDIR" OMARCHY_THEME_HEADLESS=1 "$ROOT/bin/omarchy-theme-set" "rhel-8"
 background_path=$(readlink -f "$THEME_TMPDIR/.local/state/omarchy/current/background" 2>/dev/null || true)
-expected_background="$THEME_TMPDIR/.local/state/omarchy/current/theme/backgrounds/0-winding-road.jpg"
+expected_background="$THEME_TMPDIR/.local/state/omarchy/current/theme/backgrounds/1-rhel8-cinza.png"
 [[ $background_path == "$expected_background" ]] || fail "headless theme set creates current background symlink"
 [[ -f $background_path ]] || fail "headless theme background target exists"
 [[ ! -e $THEME_TMPDIR/.config/omarchy/current ]] || fail "headless theme set avoids config current state"
@@ -526,7 +526,7 @@ mkdir -p \
   "$MIGRATION_TMPDIR/.config/hypr" \
   "$MIGRATION_TMPDIR/.config/hyprland-preview-share-picker" \
   "$MIGRATION_TMPDIR/.config/btop/themes"
-printf 'tokyo-night\n' >"$MIGRATION_TMPDIR/.config/omarchy/current/theme.name"
+printf 'rhel-8\n' >"$MIGRATION_TMPDIR/.config/omarchy/current/theme.name"
 printf 'x\n' >"$MIGRATION_TMPDIR/.config/omarchy/current/theme/colors.toml"
 printf 'general.import = [ "~/.config/omarchy/current/theme/alacritty.toml" ]\n' >"$MIGRATION_TMPDIR/.config/alacritty/alacritty.toml"
 printf 'stylesheets: ["../omarchy/current/theme/hyprland-preview-share-picker.css"]\n' >"$MIGRATION_TMPDIR/.config/hyprland-preview-share-picker/config.yaml"

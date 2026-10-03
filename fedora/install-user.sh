@@ -68,10 +68,10 @@ for migration in "$OMARCHY_PATH"/migrations/*.sh; do
   [[ -f $migration ]] && touch ~/.local/state/omarchy/migrations/"$(basename "$migration")"
 done
 
-echo "==> Theme (Tokyo Night)"
+echo "==> Theme (RHEL 8, the FedorAI default)"
 mkdir -p ~/.config/omarchy/themes
 if [[ ! -s ~/.local/state/omarchy/current/theme.name ]]; then
-  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "Tokyo Night"
+  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "rhel-8"
 fi
 mkdir -p ~/.config/btop/themes
 ln -snf "$HOME/.local/state/omarchy/current/theme/btop.theme" ~/.config/btop/themes/current.theme
