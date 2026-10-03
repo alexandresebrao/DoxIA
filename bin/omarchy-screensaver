@@ -55,8 +55,8 @@ stops=($(awk -v cols="${cols:-120}" -v os_col=68 '
     return out
   }
   END {
-    s1[0]=0xf4; s1[1]=0xf6; s1[2]=0xfa; s2[0]=0x8a; s2[1]=0x93; s2[2]=0xa3
-    b1[0]=0x7f; b1[1]=0x98; b1[2]=0xff; b2[0]=0x32; b2[1]=0x48; b2[2]=0xb8
+    s1[0]=0xf0; s1[1]=0xf0; s1[2]=0xf0; s2[0]=0xf0; s2[1]=0xf0; s2[2]=0xf0
+    b1[0]=0xee; b1[1]=0x00; b1[2]=0x00; b2[0]=0xee; b2[1]=0x00; b2[2]=0x00
     off = int((cols - w) / 2)
     for (c = 0; c < cols; c++) {
       x = c - off
@@ -64,7 +64,7 @@ stops=($(awk -v cols="${cols:-120}" -v os_col=68 '
       else { t = (x - os_col) / (w - os_col); if (t > 1) t = 1; print mix(b1, b2, t) }
     }
   }' "$wordmark"))
-((${#stops[@]})) || stops=(f4f6fa c9ced8 8a93a3 7f98ff 3248b8)
+((${#stops[@]})) || stops=(f0f0f0 ee0000)
 
 while true; do
   effect=${effects[RANDOM % ${#effects[@]}]}

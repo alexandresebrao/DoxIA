@@ -122,15 +122,25 @@ if [[ $(cat /etc/omarchy.conf 2>/dev/null) != "$expected_conf" ]]; then
   printf '%s\n' "$expected_conf" | sudo tee /etc/omarchy.conf >/dev/null
 fi
 
-echo "==> Boot splash (Plymouth with the FEDORAI logo)"
-# omarchy-plymouth-set also writes the SDDM theme, which the system step below then
-# replaces with the FedorAI login screen. The initramfs rebuild is slow, so only
-# rerun it when the installed logo is not the current one.
+echo "==> Boot splash (Fedora's spinner with the FedorAI watermark)"
+# Fedora's BGRT theme (firmware logo and spinner) with the ∞ FEDORAI mark where it
+# shows the Fedora one. The initramfs rebuild is slow, so it only runs on a change.
+plymouth_theme=/usr/share/plymouth/themes/fedorai
 if omarchy-cmd-present plymouth-set-default-theme &&
-  ! cmp -s "$OMARCHY_PATH/default/plymouth/logo.png" /usr/share/plymouth/themes/omarchy/logo.png; then
-  omarchy-pkg-add plymouth-plugin-script
-  sudo install -d /usr/share/plymouth/themes/omarchy /usr/share/sddm/themes/omarchy
-  omarchy-plymouth-set '#151515' '#d2d2d2' "$OMARCHY_PATH/default/plymouth/logo.png"
+  { ! cmp -s "$OMARCHY_PATH/default/plymouth/fedorai/watermark.png" "$plymouth_theme/watermark.png" ||
+    ! cmp -s "$OMARCHY_PATH/default/plymouth/fedorai/fedorai.plymouth" "$plymouth_theme/fedorai.plymouth" ||
+    [[ $(plymouth-set-default-theme) != "fedorai" ]]; }; then
+  omarchy-pkg-add plymouth-theme-spinner
+  sudo bash -s "$OMARCHY_PATH" <<'ROOT'
+set -euo pipefail
+theme=/usr/share/plymouth/themes/fedorai
+install -d "$theme"
+cp /usr/share/plymouth/themes/spinner/*.png "$theme/"
+install -m644 "$1"/default/plymouth/fedorai/{fedorai.plymouth,watermark.png} "$theme/"
+restorecon -R "$theme" 2>/dev/null || true
+plymouth-set-default-theme fedorai
+dracut -f --regenerate-all
+ROOT
 fi
 
 echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
@@ -146,7 +156,7 @@ install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
 install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
 install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
-restorecon -R /usr/share/sddm /usr/share/plymouth/themes /etc/sddm.conf.d 2>/dev/null || true
+restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
 ROOT
 
 if [[ -d $backup_dir ]]; then

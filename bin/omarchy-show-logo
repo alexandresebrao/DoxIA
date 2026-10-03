@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Display the FedorAI wordmark in the terminal (silver FEDOR, Xi blue AI).
+# omarchy:summary=Display the FedorAI wordmark in the terminal (light gray FEDOR, red AI).
 
 # The colored wordmark is pre-rendered with 24-bit colors so it never depends on
 # the terminal palette (the old version painted logo.txt with ANSI green, \e[32m).
@@ -11,7 +11,7 @@ echo
 if [[ -r $LOGO_ANSI ]]; then
   cat <"$LOGO_ANSI"
 else
-  printf '\033[1;38;2;201;206;216m'
+  printf '\033[1;38;2;240;240;240m'
   cat <$OMARCHY_PATH/logo.txt
   printf '\033[0m'
 fi
