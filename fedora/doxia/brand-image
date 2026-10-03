@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Prints the DoxIA brand image to draw with the given protocol (term-graphics).
+# Sixel has no real alpha, and fastfetch paints the transparent parts black, so
+# for it the brand is flattened onto the theme's background (cached per color).
+
+omarchy_path=$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")
+brand=$omarchy_path/default/sddm/omarchy/brand.png
+
+if [[ ${1:-} != "sixel" ]]; then
+  echo "$brand"
+  exit 0
+fi
+
+colors=$HOME/.local/state/omarchy/current/theme/colors.toml
+background=$(sed -n 's/^background *= *"\(#[0-9a-fA-F]\{6\}\)".*/\1/p' "$colors" 2>/dev/null)
+[[ -n $background ]] || background="#000000"
+
+flat=${XDG_CACHE_HOME:-$HOME/.cache}/doxia/brand-${background#\#}.png
+if [[ ! -s $flat || $flat -ot $brand ]]; then
+  mkdir -p "$(dirname "$flat")"
+  magick "$brand" -background "$background" -flatten "$flat.tmp.png" && mv "$flat.tmp.png" "$flat" || exit 1
+fi
+echo "$flat"

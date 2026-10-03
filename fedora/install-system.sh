@@ -76,6 +76,9 @@ if [[ ! -x /usr/bin/powerprofilesctl ]]; then
   install -Dm755 "$omarchy_path/fedora/bin/powerprofilesctl" /usr/local/bin/powerprofilesctl
 fi
 
+# The DoxIA brand as an image instead of ASCII in terminals that draw images.
+ln -sfn "$omarchy_path/fedora/bin/fastfetch" /usr/local/bin/fastfetch
+
 echo "==> Linking Omarchy into /usr/share/omarchy"
 # Many Omarchy scripts reference /usr/share/omarchy directly (Arch package path).
 if [[ -e /usr/share/omarchy && ! -L /usr/share/omarchy ]]; then

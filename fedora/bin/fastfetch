@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# DoxIA: draws the brand image (∞ DoxIA) instead of the ASCII logo in terminals
+# that show images, keeping the ASCII everywhere else. install-system.sh links it
+# as /usr/local/bin/fastfetch, ahead of /usr/bin. An explicit logo option or a
+# personal ~/.config/fastfetch config is left alone.
+
+real=/usr/bin/fastfetch
+omarchy_path=$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")
+
+for arg; do
+  [[ $arg == @(-l|--logo*|-c|--config) ]] && exec "$real" "$@"
+done
+[[ -f $HOME/.config/fastfetch/config.jsonc ]] && exec "$real" "$@"
+
+if [[ -t 1 ]] && protocol=$("$omarchy_path/fedora/doxia/term-graphics") &&
+  brand=$("$omarchy_path/fedora/doxia/brand-image" "$protocol"); then
+  # As wide as the ASCII logo (46 columns), so omarchy-launch-about's window fit
+  # still holds; the image is about half its height, hence the extra top padding.
+  exec "$real" --logo "$brand" --logo-type "$protocol" --logo-width 46 \
+    --logo-padding-top 14 "$@"
+fi
+exec "$real" "$@"

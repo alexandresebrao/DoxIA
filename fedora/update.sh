@@ -163,6 +163,7 @@ omarchy_path=$1
 chmod 644 /etc/motd
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
+ln -sfn "$omarchy_path/fedora/bin/fastfetch" /usr/local/bin/fastfetch
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" /usr/share/wayland-sessions/omarchy.desktop
 install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
 install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
