@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+"""Protetor de tela: um cachorrinho salsicha marrom correndo, em pixel art 16 bits.
+
+Desenha num terminal em tela cheia usando meio-blocos (▀), então cada célula
+vale dois pixels quadrados. O cenário noturno rola em paralaxe atrás do
+cachorro. Sai com qualquer tecla ou quando a janela perde o foco, igual ao
+omarchy-screensaver original.
+
+    screensaver-salsicha            roda no terminal atual
+    screensaver-salsicha --preview DIR  salva quadros PNG em DIR (precisa do PIL)
+"""
+import json
+import math
+import os
+import random
+import select
+import signal
+import subprocess
+import sys
+import termios
+import time
+import tty
+
+FPS = 16
+
+# --- paleta (estilo SNES: poucos tons, sombras bem marcadas) -----------------
+PAL = {
+    "O": (42, 20, 10),     # contorno
+    "B": (138, 75, 32),    # pelo
+    "H": (184, 108, 52),   # luz no pelo
+    "D": (94, 48, 21),     # sombra / patas do outro lado
+    "E": (74, 36, 16),     # orelha
+    "L": (205, 140, 82),   # peito / focinho claro
+    "K": (17, 17, 17),     # olho / nariz
+    "W": (255, 255, 255),  # brilho do olho
+    "C": (238, 0, 0),      # coleira (vermelho do RHEL 8)
+    "G": (242, 201, 76),   # plaquinha
+    "T": (232, 112, 126),  # língua
+}
+
+SPRITE_W, SPRITE_H = 48, 20
+GROUND_Y = 18  # linha onde as patas tocam o chão, dentro do sprite
+
+# Ciclo de galope em 4 quadros: deslocamento x do pé em relação ao quadril
+# (traseira, dianteira), pulo do corpo e balanço da orelha/rabo.
+FRAMES = [
+    dict(rear=-4, front=4, bob=0, ear=1, tail=-1),   # esticado
+    dict(rear=-1, front=1, bob=-1, ear=0, tail=0),
+    dict(rear=3, front=-3, bob=0, ear=-1, tail=1),   # encolhido
+    dict(rear=1, front=-1, bob=-1, ear=0, tail=0),
+]
+
+
+def superellipse(cx, cy, a, b, n=4.0):
+    pts = []
+    for y in range(int(cy - b) - 1, int(cy + b) + 2):
+        for x in range(int(cx - a) - 1, int(cx + a) + 2):
+            if abs((x + 0.5 - cx) / a) ** n + abs((y + 0.5 - cy) / b) ** n <= 1:
+                pts.append((x, y))
+    return pts
+
+
+def thick_line(x0, y0, x1, y1, w):
+    pts = []
+    steps = max(abs(x1 - x0), abs(y1 - y0), 1)
+    for i in range(steps + 1):
+        t = i / steps
+        x = round(x0 + (x1 - x0) * t)
+        y = round(y0 + (y1 - y0) * t)
+        for dx in range(w):
+            pts.append((x + dx, y))
+    return pts
+
+
+def make_frame(f):
+    px = {}
+
+    def put(pts, c):
+        for p in pts:
+            if 0 <= p[0] < SPRITE_W and 0 <= p[1] < SPRITE_H:
+                px[p] = c
+
+    bob = f["bob"]
+
+    # patas do outro lado (mais escuras, fase invertida), desenhadas primeiro
+    for hx, dx in ((14, -f["rear"]), (31, -f["front"])):
+        put(thick_line(hx + 1, 11 + bob, hx + 1 + dx, GROUND_Y - 1, 3), "D")
+        put([(hx + 1 + dx + i, GROUND_Y) for i in range(-1, 3)], "D")
+
+    # rabo
+    tip = (4, 3 + f["tail"] * 2 + bob)
+    put(thick_line(10, 8 + bob, tip[0], tip[1], 2), "B")
+    put(thick_line(10, 7 + bob, tip[0] + 1, tip[1] - 1, 1), "H")
+
+    # corpo comprido
+    cy = 9 + bob
+    for x, y in superellipse(21.5, cy, 13, 3.8, 4):
+        rel = y + 0.5 - cy
+        put([(x, y)], "H" if rel < -2.3 else "D" if rel > 2.6 else "B")
+    # peito
+    for x, y in superellipse(32, 9.5 + bob, 3.2, 4.2, 2.2):
+        put([(x, y)], "L" if y >= 10 + bob else "B")
+
+    # patas da frente deste lado
+    for hx, dx in ((12, f["rear"]), (29, f["front"])):
+        put(thick_line(hx, 11 + bob, hx + dx, GROUND_Y - 1, 3), "B")
+        put([(hx + dx + i, GROUND_Y) for i in range(-1, 3)], "E")
+
+    # cabeça e focinho
+    hy = 5 + bob
+    for x, y in superellipse(37.5, hy + 0.5, 4.2, 3.6, 2.4):
+        put([(x, y)], "H" if y < hy - 1.5 else "B")
+    for x, y in superellipse(42.5, hy + 2.2, 3.4, 1.7, 2.0):
+        put([(x, y)], "L" if y > hy + 2 else "B")
+    put([(45, hy + 1), (45, hy + 2), (44, hy + 1)], "K")   # nariz
+    put([(41, hy + 3), (42, hy + 3)], "D")                  # boca
+    put([(41, hy + 4), (42, hy + 4), (41, hy + 5)], "T")    # língua de fora
+    put([(38, hy - 1), (39, hy - 1), (38, hy), (39, hy)], "K")  # olho
+    put([(38, hy - 1)], "W")
+
+    # orelha caída, balançando com o galope
+    for y in range(hy - 2, hy + 6):
+        sway = f["ear"] if y > hy + 1 else 0
+        w = 3 if y < hy + 5 else 2
+        put([(34 + sway + i, y) for i in range(w)], "E")
+
+    # coleira com plaquinha
+    put([(32, y) for y in range(hy + 1, hy + 7)], "C")
+    put([(33, y) for y in range(hy + 1, hy + 7)], "C")
+    put([(32, hy + 7), (33, hy + 7)], "G")
+
+    # contorno automático
+    outline = {}
+    for (x, y) in px:
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if (nx, ny) not in px and 0 <= nx < SPRITE_W and 0 <= ny < SPRITE_H:
+                outline[(nx, ny)] = "O"
+    px.update(outline)
+    return {p: PAL[c] for p, c in px.items()}
+
+
+DOG = [make_frame(f) for f in FRAMES]
+
+
+# --- cenário -----------------------------------------------------------------
+def lerp(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3))
+
+
+class Scene:
+    def __init__(self, w, h):
+        self.w, self.h = w, h
+        rnd = random.Random(7)
+        self.ground = h - max(10, h // 6)
+        # céu em faixas (gradiente "de 16 cores", sem suavizar)
+        top, bottom = (10, 14, 40), (52, 60, 120)
+        bands = 10
+        self.sky = [lerp(top, bottom, min(bands - 1, int(y / self.ground * bands)) / (bands - 1))
+                    for y in range(h)]
+        self.stars = [(rnd.randrange(w * 3), rnd.randrange(max(1, self.ground - 12)), rnd.random())
+                      for _ in range(max(20, w * h // 220))]
+        self.moon = (int(w * 0.8), max(6, h // 6), max(4, h // 14))
+        self.clouds = [(rnd.randrange(w * 2), rnd.randrange(4, max(5, self.ground // 2)), rnd.randrange(8, 18))
+                       for _ in range(max(3, w // 40))]
+        self.dust = []
+
+    def hill(self, x, scroll, base, amp, freqs):
+        X = x + scroll
+        return base - amp * sum(math.sin(X * f + p) for f, p in freqs) / len(freqs)
+
+    def render(self, t, frame):
+        w, h, g = self.w, self.h, self.ground
+        buf = [[self.sky[y]] * w for y in range(h)]
+
+        # estrelas piscando (rolam bem devagar)
+        for sx, sy, ph in self.stars:
+            x = int(sx - t * 0.5) % (w * 3)
+            if x < w and math.sin(t * 2 + ph * 20) > -0.3:
+                buf[sy][x] = (255, 255, 230) if ph > 0.2 else (150, 170, 255)
+
+        # lua com crateras
+        mx, my, mr = self.moon
+        for y in range(my - mr, my + mr + 1):
+            for x in range(mx - mr, mx + mr + 1):
+                if 0 <= y < h and 0 <= x < w and (x - mx) ** 2 + (y - my) ** 2 <= mr * mr:
+                    shade = (x - mx) + (y - my) > mr * 0.6
+                    buf[y][x] = (210, 205, 170) if shade else (244, 240, 208)
+        for cx, cy in ((-mr // 3, -mr // 4), (mr // 3, mr // 3)):
+            if 0 <= my + cy < h and 0 <= mx + cx < w:
+                buf[my + cy][mx + cx] = (200, 195, 160)
+
+        # nuvens em pixel
+        for cx, cy, cw in self.clouds:
+            x0 = int(cx - t * 3) % (w * 2) - cw
+            for dy, (inset, col) in enumerate(((3, (120, 130, 180)), (0, (90, 100, 160)), (1, (70, 80, 140)))):
+                y = cy + dy
+                for x in range(x0 + inset, x0 + cw - inset):
+                    if 0 <= x < w and 0 <= y < h:
+                        buf[y][x] = col
+
+        # morros: longe (lento) e perto (médio)
+        layers = (
+            (t * 4, g - 6, max(4, h // 10), ((0.031, 0), (0.07, 2)), (28, 40, 82), (36, 52, 100)),
+            (t * 10, g - 1, max(3, h // 16), ((0.05, 1), (0.11, 4)), (22, 62, 58), (30, 82, 70)),
+        )
+        for scroll, base, amp, freqs, col, top in layers:
+            for x in range(w):
+                y0 = int(self.hill(x, scroll, base, amp, freqs))
+                for y in range(max(0, y0), g):
+                    buf[y][x] = top if y == y0 else col
+
+        # chão: grama com tufos e terra com pedrinhas, rolando na velocidade da corrida
+        gs = int(t * 34)
+        for x in range(w):
+            X = x + gs
+            for y in range(g, h):
+                d = y - g
+                if d == 0:
+                    c = (112, 200, 80) if X % 7 in (0, 1) else (76, 175, 80)
+                elif d == 1:
+                    c = (46, 125, 50)
+                elif d == 2:
+                    c = (46, 125, 50) if X % 5 == 0 else (107, 68, 35)
+                else:
+                    c = (92, 58, 30) if (X * 7 + d * 13) % 23 == 0 else (107, 68, 35)
+                buf[y][x] = c
+        for x in range(w):
+            if (x + gs) % 19 == 0 and g - 1 >= 0:
+                buf[g - 1][x] = (112, 200, 80)
+
+        # cachorro: fixo na horizontal, o mundo é que corre
+        scale = max(1, min(w // 110, (h - (h - g)) // 30))
+        dog = DOG[frame % len(DOG)]
+        ox = int(w * 0.38) - SPRITE_W * scale // 2 + int(math.sin(t * 0.7) * w * 0.05)
+        oy = g - (GROUND_Y + 1) * scale + 1
+
+        # sombra no chão
+        for x in range(ox + 8 * scale, ox + 36 * scale):
+            if 0 <= x < w and g < h:
+                r, gg, b = buf[g][x]
+                buf[g][x] = (r * 2 // 3, gg * 2 // 3, b * 2 // 3)
+
+        # poeirinha saindo das patas traseiras
+        if frame % len(DOG) == 0:
+            self.dust.append([ox + 10 * scale, g - 1, 0])
+        for p in self.dust:
+            p[0] -= 3
+            p[2] += 1
+            if p[2] % 3 == 0:
+                p[1] -= 1
+        self.dust = [p for p in self.dust if p[2] < 10]
+        for x, y, age in self.dust:
+            c = lerp((200, 180, 150), self.sky[max(0, y)], age / 10)
+            for dx, dy in ((0, 0), (1, 0), (0, -1)):
+                if 0 <= x + dx < w and 0 <= y + dy < h:
+                    buf[y + dy][x + dx] = c
+
+        for (x, y), c in dog.items():
+            for sy in range(scale):
+                for sx in range(scale):
+                    X, Y = ox + x * scale + sx, oy + y * scale + sy
+                    if 0 <= X < w and 0 <= Y < h:
+                        buf[Y][X] = c
+        return buf
+
+
+def to_ansi(buf):
+    out = ["\x1b[H"]
+    for r in range(0, len(buf) - 1, 2):
+        top, bot = buf[r], buf[r + 1]
+        last = None
+        for x in range(len(top)):
+            pair = (top[x], bot[x])
+            if pair != last:
+                out.append("\x1b[38;2;%d;%d;%dm\x1b[48;2;%d;%d;%dm" % (*pair[0], *pair[1]))
+                last = pair
+            out.append("▀")
+        if r + 2 < len(buf) - 1:
+            out.append("\r\n")
+    return "".join(out)
+
+
+# --- integração com o Hyprland / Omarchy --------------------------------------
+def hypr(*args):
+    return subprocess.run(["hyprctl", *args], capture_output=True, text=True)
+
+
+def cursor_invisible(on):
+    v = "true" if on else "false"
+    if hypr("eval", f"hl.config({{ cursor = {{ invisible = {v} }} }})").returncode != 0:
+        hypr("keyword", "cursor:invisible", v)
+
+
+def in_focus():
+    try:
+        return json.loads(hypr("activewindow", "-j").stdout).get("class") == "org.omarchy.screensaver"
+    except Exception:
+        return True
+
+
+def preview():
+    from PIL import Image
+    w, h = 160, 84
+    scene = Scene(w, h)
+    for i in range(4):
+        buf = scene.render(i / FPS, i)
+        img = Image.new("RGB", (w, h))
+        img.putdata([c for row in buf for c in row])
+        path = os.path.join(sys.argv[-1], f"salsicha-{i}.png")
+        img.resize((w * 6, h * 6), Image.NEAREST).save(path)
+        print(path)
+
+
+def main():
+    if "--preview" in sys.argv:
+        return preview()
+
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+
+    def finish(*_):
+        sys.stdout.write("\x1b[0m\x1b[?25h\x1b[2J")
+        sys.stdout.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+        cursor_invisible(False)
+        subprocess.run(["pkill", "-f", "[o]rg.omarchy.screensaver"])
+        os._exit(0)
+
+    for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT):
+        signal.signal(s, finish)
+
+    tty.setcbreak(fd)
+    sys.stdout.write("\x1b]11;rgb:00/00/00\x07\x1b[?25l\x1b[2J")
+    cursor_invisible(True)
+
+    # o pty nasce 80x24 e só cresce quando o compositor redimensiona a janela
+    deadline = time.time() + 2
+    while time.time() < deadline and os.get_terminal_size() == os.terminal_size((80, 24)):
+        time.sleep(0.02)
+
+    scene, size = None, None
+    start = last_focus = time.time()
+    frame = 0
+    while True:
+        cols, rows = os.get_terminal_size()
+        if (cols, rows) != size:
+            size = (cols, rows)
+            scene = Scene(cols, rows * 2)
+            sys.stdout.write("\x1b[2J")
+        t = time.time() - start
+        sys.stdout.write(to_ansi(scene.render(t, frame // 2)))
+        sys.stdout.flush()
+        frame += 1
+
+        if select.select([fd], [], [], 1 / FPS)[0]:
+            os.read(fd, 64)
+            finish()
+        if time.time() - last_focus > 1:
+            last_focus = time.time()
+            if not in_focus():
+                finish()
+
+
+if __name__ == "__main__":
+    main()

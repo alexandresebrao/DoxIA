@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Brings this machine up to date with the FedorAI repo: pulls it, then reapplies the
-# RHEL 8 theme (the FedorAI default), branding, the icon font, menu extensions, default
+# RHEL 8 theme (the FedorAI default), branding, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
 # name and the SDDM theme. The top bar is left alone: ~/.config/omarchy/shell.json and
 # the bar plugins/panels in ~/.config/omarchy/plugins are never touched.
@@ -43,6 +43,14 @@ place() {
   mkdir -p "$(dirname "$dest")"
   cp -a "$src" "$dest"
 }
+
+# The old salsicha hook patched bin/omarchy-screensaver in place. The repo now runs
+# fedora/fedorai/screensaver-salsicha itself, so drop that patch (before the pull, so
+# it can't clash with it) and retire the hook.
+sed -i '/screensaver-salsicha  # salsicha$/,+1d' "$OMARCHY_PATH/bin/omarchy-screensaver"
+if [[ -e $HOME/.config/omarchy/hooks/post-update.d/screensaver-salsicha ]]; then
+  backup "$HOME/.config/omarchy/hooks/post-update.d/screensaver-salsicha"
+fi
 
 if [[ ${1:-} != "--no-pull" ]]; then
   echo "==> git pull"
