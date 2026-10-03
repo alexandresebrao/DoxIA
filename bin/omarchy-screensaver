@@ -35,22 +35,22 @@ wait_for_terminal_resize() {
 
 wait_for_terminal_resize
 
-# FedorAI: the dachshund running through the night (fedora/fedorai/screensaver-salsicha)
+# DoxIA: the dachshund running through the night (fedora/doxia/screensaver-salsicha)
 # instead of the TTE effects below, which stay so upstream changes keep merging.
-exec python3 "$OMARCHY_PATH/fedora/fedorai/screensaver-salsicha"
+exec python3 "$OMARCHY_PATH/fedora/doxia/screensaver-salsicha"
 
-# FedorAI palette: every effect settles on light gray (FEDOR) and RHEL 8 red
-# (AI) instead of its own default colors. Effects that animate in strong green
+# DoxIA palette: every effect settles on light gray (DOX) and RHEL 8 red
+# (IA) instead of its own default colors. Effects that animate in strong green
 # (matrix, binarypath, decrypt, vhstape, errorcorrect, swarm, colorshift) are left out;
 # synthgrid has no final gradient to recolor.
 effects=($(ttfx --help | awk '/^Commands:/{f=1;next} /^Options:/{f=0} f && $1!="help" {print $1}' | grep -vxE 'matrix|binarypath|decrypt|vhstape|errorcorrect|swarm|colorshift|synthgrid'))
 
 # The final gradient spans the whole canvas, not the text, so build one stop per
-# terminal column: light gray across FEDOR, red across AI (which starts at column
-# 68 of the 94-column wordmark).
+# terminal column: light gray across DOX, red across IA (which starts at column
+# 54 of the 70-column wordmark).
 wordmark=~/.config/omarchy/branding/screensaver.txt
 cols=$(stty size 2>/dev/null | cut -d' ' -f2)
-stops=($(awk -v cols="${cols:-120}" -v os_col=68 '
+stops=($(awk -v cols="${cols:-120}" -v os_col=54 '
   { if (length($0) > w) w = length($0) }
   function mix(a, b, t,   i, out) {
     out = ""

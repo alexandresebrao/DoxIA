@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Gera a marca do FedorAI: o ∞ do tema RHEL 8 com "FedorAI" ao lado, em Red Hat Display
-(a fonte da marca do RHEL), "Fedor" em cinza-claro e "AI" em vermelho com a extrusão 3D
+"""Gera a marca do DoxIA: o ∞ do tema RHEL 8 com "DoxIA" ao lado, em Red Hat Display
+(a fonte da marca do RHEL), "Dox" em cinza-claro e "IA" em vermelho com a extrusão 3D
 do ∞ (nos terminais, chapado).
 
 Saídas (rode da raiz do repositório depois de mudar a marca):
@@ -8,8 +8,8 @@ Saídas (rode da raiz do repositório depois de mudar a marca):
   fedora/personal/omarchy/branding/about.txt tela Sobre (fastfetch), igual ao icon.txt
   fedora/personal/omarchy/branding/logo.ansi omarchy-show-logo, em cores 24 bits
   fedora/personal/omarchy/branding/screensaver.txt  versão grande, 12 linhas
-  fedora/fedorai/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
-  default/plymouth/fedorai/watermark.png     marca no rodapé do boot splash
+  fedora/doxia/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
+  default/plymouth/doxia/watermark.png     marca no rodapé do boot splash
   default/sddm/omarchy/brand.png             marca no rodapé da tela de login
 
 Precisa do PIL e das fontes redhat-display-fonts.
@@ -50,8 +50,8 @@ def extrude(mask, depth):
 
 
 def brand(height, smooth):
-    """∞ + FedorAI numa tela de `height` px. Devolve (RGBA colorida, máscara do vermelho).
-    Na versão lisa (imagens) o AI ganha a extrusão do ∞; nos blocos do terminal fica chapado."""
+    """∞ + DoxIA numa tela de `height` px. Devolve (RGBA colorida, máscara do vermelho).
+    Na versão lisa (imagens) o IA ganha a extrusão do ∞; nos blocos do terminal fica chapado."""
     if smooth:
         # Desenha 4x maior para a extrusão sair sem serrilhado e reduz no fim.
         big, red = brand_canvas(height * 4, smooth=True)
@@ -62,29 +62,29 @@ def brand(height, smooth):
 
 def brand_canvas(height, smooth):
     font = ImageFont.truetype(FONT, int(height * 1.32))
-    box = font.getbbox("FedorAI")
-    cap = font.getbbox("F")
+    box = font.getbbox("DoxIA")
+    cap = font.getbbox("D")
     inf = infinity(int(height * 0.78))
-    fedor = font.getlength("Fedor")
+    dox = font.getlength("Dox")
     gap = int(height * 0.45)
     x_text = inf.width + gap
     # Mesma proporção do ∞: extrusão de ~42% da espessura do traço, que é ~20% da caixa-alta.
     depth = int((cap[3] - cap[1]) * 0.084) if smooth else 0
-    width = x_text + int(fedor + font.getlength("AI")) + 4 + depth
+    width = x_text + int(dox + font.getlength("IA")) + 4 + depth
     canvas_h = height + depth
     y = -box[1] + (height - (box[3] - box[1])) // 2
 
     img = Image.new("RGBA", (width, canvas_h), (0, 0, 0, 0))
     red = Image.new("L", (width, canvas_h), 0)
-    ImageDraw.Draw(img).text((x_text, y), "Fedor", font=font, fill=LIGHT + (255,))
-    ai = Image.new("L", (width, canvas_h), 0)
-    ImageDraw.Draw(ai).text((x_text + fedor, y), "AI", font=font, fill=255)
+    ImageDraw.Draw(img).text((x_text, y), "Dox", font=font, fill=LIGHT + (255,))
+    ia = Image.new("L", (width, canvas_h), 0)
+    ImageDraw.Draw(ia).text((x_text + dox, y), "IA", font=font, fill=255)
     if depth:
-        side = extrude(ai, depth)
+        side = extrude(ia, depth)
         img.paste(SIDE + (255,), (0, 0), side)
         red = ImageChops.lighter(red, side)
-    img.paste(RED + (255,), (0, 0), ai)
-    red = ImageChops.lighter(red, ai)
+    img.paste(RED + (255,), (0, 0), ia)
+    red = ImageChops.lighter(red, ia)
 
     inf_y = (height - inf.height) // 2
     if smooth:
@@ -143,7 +143,7 @@ def main():
     ansi_light, ansi_red = "\x1b[1;38;2;240;240;240m", "\x1b[1;38;2;238;0;0m"
     write("fedora/personal/omarchy/branding/logo.ansi", render(medium, ansi_light, ansi_red, "\x1b[0m"))
     write("fedora/personal/omarchy/branding/screensaver.txt", render(blocks(12), "", ""))
-    write("fedora/fedorai/brand.ansi", render(blocks(8), ansi_light, ansi_red, "\x1b[0m"))
+    write("fedora/doxia/brand.ansi", render(blocks(8), ansi_light, ansi_red, "\x1b[0m"))
 
     # Boot splash: a altura (43 px) e o arranjo ícone + nome da marca do Fedora, com a
     # marca ocupando ~3/4 da altura como lá.
@@ -151,8 +151,8 @@ def main():
     watermark = watermark.crop(watermark.getbbox())
     canvas = Image.new("RGBA", (watermark.width, 43), (0, 0, 0, 0))
     canvas.alpha_composite(watermark, (0, (43 - watermark.height) // 2))
-    canvas.save(ROOT / "default/plymouth/fedorai/watermark.png", optimize=True)
-    print("wrote default/plymouth/fedorai/watermark.png")
+    canvas.save(ROOT / "default/plymouth/doxia/watermark.png", optimize=True)
+    print("wrote default/plymouth/doxia/watermark.png")
 
     login, _ = brand(110, smooth=True)
     login.crop(login.getbbox()).save(ROOT / "default/sddm/omarchy/brand.png", optimize=True)

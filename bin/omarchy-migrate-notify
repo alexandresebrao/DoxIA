@@ -40,7 +40,7 @@ fi
 
 # The shell keeps the click command with the toast, so this oneshot can hand the
 # invitation over and exit instead of staying activated until it is answered.
-omarchy-notification-send -u critical -g  "Migrações do FedorAI pendentes" "$message" \
+omarchy-notification-send -u critical -g  "Migrações do DoxIA pendentes" "$message" \
   --exec omarchy-launch-floating-terminal-with-presentation omarchy-migrate && exit 0
 
 # Reached when the notification could not be handed off, so fall back to telling

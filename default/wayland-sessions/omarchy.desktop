@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=FedorAI (Hyprland uwsm)
-Comment=FedorAI Hyprland session managed by uwsm
+Name=DoxIA (Hyprland uwsm)
+Comment=DoxIA Hyprland session managed by uwsm
 Exec=uwsm start -g -1 -e -D Hyprland hyprland.desktop
 TryExec=uwsm
 Type=Application

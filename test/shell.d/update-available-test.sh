@@ -163,7 +163,7 @@ else
   status=$?
 fi
 [[ $status -eq 1 ]] || fail "update checker exits non-zero when no updates are available"
-grep -q '^FedorAI is up to date$' "$stdout" || fail "update checker prints up-to-date message"
+grep -q '^DoxIA is up to date$' "$stdout" || fail "update checker prints up-to-date message"
 pass "update checker reports up-to-date Omarchy packages"
 
 : >"$git_log"
@@ -193,7 +193,7 @@ else
   status=$?
 fi
 [[ $status -eq 1 ]] || fail "update checker exits non-zero when the dev checkout is current"
-grep -q '^FedorAI is up to date$' "$stdout" || fail "update checker reports a current dev checkout"
+grep -q '^DoxIA is up to date$' "$stdout" || fail "update checker reports a current dev checkout"
 pass "update checker ignores a current dev checkout"
 
 if capture_checker "$stdout" "$stderr" \

@@ -99,4 +99,4 @@ done 3< <(migration_entries)
 # Clear a login-time notification the user left sitting there and then resolved
 # by running migrations some other way. The substring matches both the current
 # and legacy notification titles.
-omarchy-notification-dismiss "Migrações do FedorAI" >/dev/null 2>&1 || true
+omarchy-notification-dismiss "Migrações do DoxIA" >/dev/null 2>&1 || true

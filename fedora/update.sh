@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Brings this machine up to date with the FedorAI repo: pulls it, then reapplies the
-# RHEL 8 theme (the FedorAI default), branding, the salsicha screensaver, the icon font, menu extensions, default
+# Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
+# RHEL 8 theme (the DoxIA default), branding, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
 # name and the SDDM theme. The top bar is left alone: ~/.config/omarchy/shell.json and
 # the bar plugins/panels in ~/.config/omarchy/plugins are never touched.
 #
-# Everything it replaces or moves aside goes to ~/.local/state/omarchy/fedorai-backup-<date>/.
+# Everything it replaces or moves aside goes to ~/.local/state/omarchy/doxia-backup-<date>/.
 #
 #   bash ~/.local/share/omarchy/fedora/update.sh            # git pull + apply
 #   bash ~/.local/share/omarchy/fedora/update.sh --no-pull  # apply only
@@ -21,7 +21,7 @@ fi
 export OMARCHY_PATH="$HOME/.local/share/omarchy"
 export PATH="$OMARCHY_PATH/bin:$PATH"
 personal="$OMARCHY_PATH/fedora/personal"
-backup_dir="$HOME/.local/state/omarchy/fedorai-backup-$(date +%Y%m%d%H%M%S)"
+backup_dir="$HOME/.local/state/omarchy/doxia-backup-$(date +%Y%m%d%H%M%S)"
 
 # Moves a path into the backup dir, keeping its place relative to $HOME.
 backup() {
@@ -45,7 +45,7 @@ place() {
 }
 
 # The old salsicha hook patched bin/omarchy-screensaver in place. The repo now runs
-# fedora/fedorai/screensaver-salsicha itself, so drop that patch (before the pull, so
+# fedora/doxia/screensaver-salsicha itself, so drop that patch (before the pull, so
 # it can't clash with it) and retire the hook.
 sed -i '/screensaver-salsicha  # salsicha$/,+1d' "$OMARCHY_PATH/bin/omarchy-screensaver"
 if [[ -e $HOME/.config/omarchy/hooks/post-update.d/screensaver-salsicha ]]; then
@@ -74,7 +74,9 @@ for file in about.txt screensaver.txt logo.ansi; do
   place "$personal/omarchy/branding/$file" "$HOME/.config/omarchy/branding/$file"
 done
 mkdir -p "$HOME/.bashrc.d"
-ln -sfn "$OMARCHY_PATH/fedora/fedorai/greeting.sh" "$HOME/.bashrc.d/fedorai.sh"
+# The greeting used to be linked as fedorai.sh, before the FedorAI → DoxIA rename.
+rm -f "$HOME/.bashrc.d/fedorai.sh"
+ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" "$HOME/.bashrc.d/doxia.sh"
 if ! grep -q 'bashrc.d' "$HOME/.bashrc" 2>/dev/null; then
   printf '\nfor rc in ~/.bashrc.d/*; do [[ -f $rc ]] && . "$rc"; done; unset rc\n' >> "$HOME/.bashrc"
 fi
@@ -94,7 +96,7 @@ if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null
   { echo; cat "$personal/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
 
-echo "==> Theme (RHEL 8, the FedorAI default)"
+echo "==> Theme (RHEL 8, the DoxIA default)"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
 # Copies under ~/.config/omarchy/themes shadow the themes shipped in the repo, so move
 # them all aside and let the repo's rhel-8 be the one in use.
@@ -130,23 +132,25 @@ if [[ $(cat /etc/omarchy.conf 2>/dev/null) != "$expected_conf" ]]; then
   printf '%s\n' "$expected_conf" | sudo tee /etc/omarchy.conf >/dev/null
 fi
 
-echo "==> Boot splash (Fedora's spinner with the FedorAI watermark)"
-# Fedora's BGRT theme (firmware logo and spinner) with the ∞ FEDORAI mark where it
+echo "==> Boot splash (Fedora's spinner with the DoxIA watermark)"
+# Fedora's BGRT theme (firmware logo and spinner) with the ∞ DOXIA mark where it
 # shows the Fedora one. The initramfs rebuild is slow, so it only runs on a change.
-plymouth_theme=/usr/share/plymouth/themes/fedorai
+plymouth_theme=/usr/share/plymouth/themes/doxia
 if omarchy-cmd-present plymouth-set-default-theme &&
-  { ! cmp -s "$OMARCHY_PATH/default/plymouth/fedorai/watermark.png" "$plymouth_theme/watermark.png" ||
-    ! cmp -s "$OMARCHY_PATH/default/plymouth/fedorai/fedorai.plymouth" "$plymouth_theme/fedorai.plymouth" ||
-    [[ $(plymouth-set-default-theme) != "fedorai" ]]; }; then
+  { ! cmp -s "$OMARCHY_PATH/default/plymouth/doxia/watermark.png" "$plymouth_theme/watermark.png" ||
+    ! cmp -s "$OMARCHY_PATH/default/plymouth/doxia/doxia.plymouth" "$plymouth_theme/doxia.plymouth" ||
+    [[ $(plymouth-set-default-theme) != "doxia" ]]; }; then
   omarchy-pkg-add plymouth-theme-spinner
   sudo bash -s "$OMARCHY_PATH" <<'ROOT'
 set -euo pipefail
-theme=/usr/share/plymouth/themes/fedorai
+theme=/usr/share/plymouth/themes/doxia
 install -d "$theme"
 cp /usr/share/plymouth/themes/spinner/*.png "$theme/"
-install -m644 "$1"/default/plymouth/fedorai/{fedorai.plymouth,watermark.png} "$theme/"
+install -m644 "$1"/default/plymouth/doxia/{doxia.plymouth,watermark.png} "$theme/"
 restorecon -R "$theme" 2>/dev/null || true
-plymouth-set-default-theme fedorai
+plymouth-set-default-theme doxia
+# The theme used to be installed as fedorai, before the FedorAI → DoxIA rename.
+rm -rf /usr/share/plymouth/themes/fedorai
 dracut -f --regenerate-all
 ROOT
 fi
@@ -155,7 +159,7 @@ echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
 set -euo pipefail
 omarchy_path=$1
-{ echo; sed 's/^/  /' "$omarchy_path/fedora/fedorai/brand.ansi"; echo; sed "s/@FEDORA@/$2/" "$omarchy_path/fedora/fedorai/motd"; } > /etc/motd
+{ echo; sed 's/^/  /' "$omarchy_path/fedora/doxia/brand.ansi"; echo; sed "s/@FEDORA@/$2/" "$omarchy_path/fedora/doxia/motd"; } > /etc/motd
 chmod 644 /etc/motd
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc

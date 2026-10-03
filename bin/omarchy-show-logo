@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Display the FedorAI wordmark in the terminal (light gray FEDOR, red AI).
+# omarchy:summary=Display the DoxIA wordmark in the terminal (light gray DOX, red IA).
 
 # The colored wordmark is pre-rendered with 24-bit colors so it never depends on
 # the terminal palette (the old version painted logo.txt with ANSI green, \e[32m).

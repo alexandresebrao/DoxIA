@@ -77,7 +77,7 @@
       "type": "command",
       "key": "\ue900 OS",
       "keyColor": "#ee0000",
-      "text": "version=$(omarchy-version) && echo \"FedorAI $version\""
+      "text": "version=$(omarchy-version) && echo \"DoxIA $version\""
     },
     {
       "type": "command",

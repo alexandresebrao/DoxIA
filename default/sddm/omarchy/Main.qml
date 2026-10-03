@@ -1,9 +1,9 @@
 import QtQuick 2.0
 import SddmComponents 2.0
 
-// FedorAI login screen, modeled on the RHEL 8 GDM greeter: black top bar with the
+// DoxIA login screen, modeled on the RHEL 8 GDM greeter: black top bar with the
 // clock and power menu, the user list in the middle, a password step with Cancel /
-// Sign in and a gear for the session, and the ∞ FedorAI brand at the bottom where RHEL
+// Sign in and a gear for the session, and the ∞ DoxIA brand at the bottom where RHEL
 // puts its logo.
 //
 // omarchy-plymouth-set recolors #1a1b26 and #ffffff in this file to the theme's
@@ -500,7 +500,7 @@ Rectangle {
     }
   }
 
-  // Bottom: the ∞ FedorAI brand (fedora/fedorai/make-brand.py), where RHEL 8 shows its logo.
+  // Bottom: the ∞ DoxIA brand (fedora/doxia/make-brand.py), where RHEL 8 shows its logo.
   Image {
     source: "brand.png"
     height: 50

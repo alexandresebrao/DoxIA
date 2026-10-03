@@ -1,10 +1,10 @@
-# FedorAI
+# DoxIA
 
-> **FedorAI is an unofficial Fedora port of [Omarchy](https://github.com/basecamp/omarchy)**,
+> **DoxIA is an unofficial Fedora port of [Omarchy](https://github.com/basecamp/omarchy)**,
 > maintained by [@alexandresebrao](https://github.com/alexandresebrao). It is not
 > affiliated with or supported by Basecamp. Report issues here, not upstream.
 
-Omarchy normally ships as an Arch Linux distribution. FedorAI (Fedora + AI, and the
+Omarchy normally ships as an Arch Linux distribution. DoxIA (Dox + IA, and the
 ∞ in the logo is an 8 lying down) runs the Omarchy Hyprland + Quickshell desktop on **Fedora**,
 installed alongside an existing desktop such as KDE Plasma without touching it. The UI
 is translated to **Brazilian Portuguese**.
@@ -20,7 +20,7 @@ Commands, paths and config files keep their Omarchy names (`omarchy-*`,
 - `tuned-ppd` with a small `powerprofilesctl` shim for the power menu
 - Lock screen PAM config adapted to Fedora
 - Menus, panels, notifications and OSD messages in pt-BR
-- FedorAI branding: login session name, login, About and screensaver logos, terminal greeting and MOTD
+- DoxIA branding: login session name, login, About and screensaver logos, terminal greeting and MOTD
 
 ### Install
 
@@ -30,7 +30,7 @@ sudo bash ~/.local/share/omarchy/fedora/install-system.sh
 bash ~/.local/share/omarchy/fedora/install-user.sh
 ```
 
-Then log out and pick **FedorAI (Hyprland uwsm)** on the login screen.
+Then log out and pick **DoxIA (Hyprland uwsm)** on the login screen.
 
 To bring an existing install up to date (git pull, then theme, branding, icon font,
 menu, MOTD and login screen) without touching the top bar layout or its plugins, run

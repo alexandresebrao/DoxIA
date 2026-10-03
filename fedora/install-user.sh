@@ -34,12 +34,12 @@ done
 # xdg-terminal-exec reads this only when XDG_CURRENT_DESKTOP=Hyprland.
 seed default/xdg-terminal-exec/hyprland-xdg-terminals.list "$HOME/.config/hyprland-xdg-terminals.list"
 
-echo "==> FedorAI branding (About and screensaver logos, terminal greeting)"
+echo "==> DoxIA branding (About and screensaver logos, terminal greeting)"
 mkdir -p ~/.config/omarchy/branding
 [[ -f ~/.config/omarchy/branding/about.txt ]] || cp "$OMARCHY_PATH/icon.txt" ~/.config/omarchy/branding/about.txt
 [[ -f ~/.config/omarchy/branding/screensaver.txt ]] || cp "$OMARCHY_PATH/logo.txt" ~/.config/omarchy/branding/screensaver.txt
 mkdir -p ~/.bashrc.d
-ln -sfn "$OMARCHY_PATH/fedora/fedorai/greeting.sh" ~/.bashrc.d/fedorai.sh
+ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" ~/.bashrc.d/doxia.sh
 
 echo "==> uwsm session environment"
 mkdir -p ~/.config/uwsm/env.d
@@ -68,7 +68,7 @@ for migration in "$OMARCHY_PATH"/migrations/*.sh; do
   [[ -f $migration ]] && touch ~/.local/state/omarchy/migrations/"$(basename "$migration")"
 done
 
-echo "==> Theme (RHEL 8, the FedorAI default)"
+echo "==> Theme (RHEL 8, the DoxIA default)"
 mkdir -p ~/.config/omarchy/themes
 if [[ ! -s ~/.local/state/omarchy/current/theme.name ]]; then
   OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "rhel-8"
@@ -103,5 +103,5 @@ echo "==> Personal setup (plugins, bar layout, window rules)"
 bash "$OMARCHY_PATH/fedora/install-personal.sh"
 
 echo
-echo "Done. Log out of KDE and pick \"FedorAI (Hyprland uwsm)\" on the login screen."
+echo "Done. Log out of KDE and pick \"DoxIA (Hyprland uwsm)\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the menu."

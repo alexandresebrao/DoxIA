@@ -1,12 +1,12 @@
 [Plymouth Theme]
-Name=FedorAI
-Description=Fedora's BGRT spinner with the FedorAI watermark
+Name=DoxIA
+Description=Fedora's BGRT spinner with the DoxIA watermark
 ModuleName=two-step
 
 [two-step]
 Font=Cantarell 12
 TitleFont=Cantarell Light 30
-ImageDir=/usr/share/plymouth/themes/fedorai
+ImageDir=/usr/share/plymouth/themes/doxia
 DialogHorizontalAlignment=.5
 DialogVerticalAlignment=.382
 TitleHorizontalAlignment=.5
