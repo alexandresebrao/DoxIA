@@ -90,6 +90,12 @@ assertDeepEqual(
   'network parses bar status'
 )
 assertEqual(network.connectionIcon('wifi', 80), network.wifiIconFor(80), 'network maps wifi icon from signal')
+assertEqual(network.connectionIconFont('ethernet', 'mono'), 'omarchy', 'network draws the wired icon from the omarchy font')
+assertEqual(network.connectionIconFont('wifi', 'mono'), 'mono', 'network keeps wifi icons in the bar font')
+assertEqual(network.trafficLit(0, 0), false, 'network keeps a screen dark without traffic')
+assertEqual(network.trafficLit(100, 0.2), true, 'network lights a screen for a little traffic sometimes')
+assertEqual(network.trafficLit(100, 0.6), false, 'network leaves a screen dark for a little traffic other times')
+assertEqual(network.trafficLit(10000000, 0.85), true, 'network keeps a screen lit almost always under heavy traffic')
 assertEqual(network.formatHeaderSpeed('1000'), '1gbit', 'network formats gigabit speed')
 assertEqual(network.formatHeaderSpeed('2500'), '2.5gbit', 'network formats fractional gigabit speed')
 assertEqual(network.formatHeaderFreq('2462'), '2.4ghz', 'network formats 2.4GHz wifi band')

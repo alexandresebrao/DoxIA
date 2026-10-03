@@ -104,12 +104,22 @@ Item {
     return sp >= 0 ? t.substr(sp + 1) : t
   }
 
+  // The font that glyph is drawn in: a member may use another one (the
+  // network's wired icon lives in the omarchy icon font).
+  function fontOf(member) {
+    var c = buttonOf(member)
+    return c && c.fontFamily ? c.fontFamily : Style.font.family
+  }
+
   readonly property string iconSetting: settings && settings.icon ? String(settings.icon) : ""
   readonly property string groupGlyph: {
     if (iconSetting && !knownMembers[iconSetting]) return iconSetting
     var m = iconSetting ? memberById(iconSetting) : tabs[0]
     return glyphOf(m)
   }
+  readonly property var groupIconButton: iconSetting && !knownMembers[iconSetting]
+    ? null
+    : buttonOf(iconSetting ? memberById(iconSetting) : tabs[0])
 
   function selectTab(index) {
     var t = tabs
@@ -174,6 +184,8 @@ Item {
     anchors.fill: parent
     bar: root.bar
     text: root.groupGlyph
+    fontFamily: root.groupIconButton ? root.groupIconButton.fontFamily : Style.font.family
+    iconComponent: root.groupIconButton ? root.groupIconButton.iconComponent : null
     tooltipText: ""
     onPressed: function(b) {
       var target = b === Qt.RightButton && root.settings ? root.buttonOf(root.memberById(root.settings.rightClick)) : null

@@ -16,8 +16,23 @@ function wifiIconFor(strength) {
 
 function connectionIcon(kind, signalStrength) {
   if (kind === "wifi") return wifiIconFor(signalStrength)
-  if (kind === "ethernet") return "󰈀"
+  // Two computers, after the Windows 98 network icon; drawn in the omarchy
+  // icon font (see connectionIconFont).
+  if (kind === "ethernet") return ""
   return "󰤮"
+}
+
+function connectionIconFont(kind, barFont) {
+  return kind === "ethernet" ? "omarchy" : barFont
+}
+
+// Whether one of the wired icon's screens lights up for a tick that moved
+// `bytes`, the way Windows 98 flashed its two little monitors: idle chatter
+// flickers now and then, a busy link flickers almost constantly.
+function trafficLit(bytes, random) {
+  if (!(bytes > 0)) return false
+  var chance = Math.min(0.9, 0.25 + Math.log(bytes) / Math.LN10 / 8)
+  return random < chance
 }
 
 function formatHeaderSpeed(mbps) {
@@ -352,6 +367,8 @@ if (typeof module !== "undefined") {
     parseNetworkStatus: parseNetworkStatus,
     wifiIconFor: wifiIconFor,
     connectionIcon: connectionIcon,
+    connectionIconFont: connectionIconFont,
+    trafficLit: trafficLit,
     formatHeaderSpeed: formatHeaderSpeed,
     formatHeaderFreq: formatHeaderFreq,
     headerDetail: headerDetail,

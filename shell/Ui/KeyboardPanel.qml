@@ -440,7 +440,7 @@ PanelWindow {
               anchors.verticalCenter: parent.verticalCenter
               text: root.tabGroup ? root.tabGroup.glyphOf(tab.modelData) : ""
               color: Color.popups.text
-              font.family: Style.font.family
+              font.family: root.tabGroup ? root.tabGroup.fontOf(tab.modelData) : Style.font.family
               font.pixelSize: Style.font.icon
             }
             Text {

@@ -451,6 +451,101 @@ Panel {
   }
 
   readonly property string icon: Model.connectionIcon(kind, signalStrength)
+  readonly property string iconFontFamily: Model.connectionIconFont(kind, bar ? bar.fontFamily : Style.font.family)
+
+  // Wired traffic for the bar icon: the back screen flashes on upload, the
+  // front one on download, sampled from the interface's byte counters.
+  property bool sendLit: false
+  property bool receiveLit: false
+  property real lastTxBytes: -1
+  property real lastRxBytes: -1
+  readonly property string wiredInterface: kind === "ethernet" && wiredDevice ? (wiredDevice.name || "") : ""
+
+  FileView {
+    id: txBytesFile
+    path: root.wiredInterface ? "/sys/class/net/" + root.wiredInterface + "/statistics/tx_bytes" : ""
+    blockLoading: true
+    printErrors: false
+  }
+
+  FileView {
+    id: rxBytesFile
+    path: root.wiredInterface ? "/sys/class/net/" + root.wiredInterface + "/statistics/rx_bytes" : ""
+    blockLoading: true
+    printErrors: false
+  }
+
+  function sampleTraffic() {
+    txBytesFile.reload()
+    rxBytesFile.reload()
+    var tx = parseFloat(txBytesFile.text())
+    var rx = parseFloat(rxBytesFile.text())
+    root.sendLit = root.lastTxBytes >= 0 && Model.trafficLit(tx - root.lastTxBytes, Math.random())
+    root.receiveLit = root.lastRxBytes >= 0 && Model.trafficLit(rx - root.lastRxBytes, Math.random())
+    root.lastTxBytes = isNaN(tx) ? -1 : tx
+    root.lastRxBytes = isNaN(rx) ? -1 : rx
+  }
+
+  Timer {
+    interval: 150
+    repeat: true
+    running: root.wiredInterface !== ""
+    onRunningChanged: {
+      root.lastTxBytes = -1
+      root.lastRxBytes = -1
+      root.sendLit = false
+      root.receiveLit = false
+    }
+    onTriggered: root.sampleTraffic()
+  }
+
+  // Two computers after the Windows 98 network icon, drawn here rather than
+  // from the font glyph so each screen can light up on its own.
+  Component {
+    id: wiredIcon
+
+    Item {
+      id: icon
+      readonly property real unit: Math.min(width, height) / 16
+      readonly property color ink: root.bar ? root.bar.foreground : Color.popups.text
+
+      component Computer: Item {
+        property bool lit: false
+        property real frameWidth: 9
+        property real frameHeight: 7
+        property real baseWidth: 5
+        width: frameWidth * icon.unit
+        height: (frameHeight + 2) * icon.unit
+
+        Rectangle {
+          width: parent.width
+          height: parent.frameHeight * icon.unit
+          color: parent.lit ? Qt.rgba(icon.ink.r, icon.ink.g, icon.ink.b, 0.6) : "transparent"
+          border.color: icon.ink
+          border.width: 2 * icon.unit
+        }
+        Rectangle {
+          x: (parent.width - width) / 2
+          y: parent.frameHeight * icon.unit
+          width: 2 * icon.unit
+          height: icon.unit
+          color: icon.ink
+        }
+        Rectangle {
+          x: (parent.width - width) / 2
+          y: (parent.frameHeight + 1) * icon.unit
+          width: parent.baseWidth * icon.unit
+          height: icon.unit
+          color: icon.ink
+        }
+      }
+
+      // The smaller one sits behind, top right; the bigger one in front,
+      // bottom left.
+      Computer { x: 8 * icon.unit; frameWidth: 8; frameHeight: 6; baseWidth: 4; lit: root.sendLit }
+      Computer { y: 7 * icon.unit; frameWidth: 10; frameHeight: 7; baseWidth: 6; lit: root.receiveLit }
+    }
+  }
 
   // The share card is its own panel plugin (omarchy.wifiqr) so a replacement
   // design can take it over; summon() routes to whichever implementation is
@@ -958,6 +1053,8 @@ Panel {
     anchors.fill: parent
     bar: root.bar
     text: root.icon
+    fontFamily: root.iconFontFamily
+    iconComponent: root.kind === "ethernet" ? wiredIcon : null
 
     onPressed: function(b) {
       if (root.opened) root.close()
@@ -1093,7 +1190,7 @@ Panel {
           textFormat: Text.PlainText
           text: root.icon
           color: root.bar.foreground
-          font.family: root.bar.fontFamily
+          font.family: root.iconFontFamily
           font.pixelSize: Style.font.display
           opacity: root.networkManagerAvailable ? 1.0 : 0.5
           anchors.left: parent.left
