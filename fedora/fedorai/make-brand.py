@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Gera a marca do FedorAI: o ∞ do tema RHEL 8 com "FedorAI" ao lado, em Red Hat Display
-(a fonte da marca do RHEL), "Fedor" em cinza-claro e "AI" em vermelho, sem degradê.
+(a fonte da marca do RHEL), "Fedor" em cinza-claro e "AI" em vermelho com a extrusão 3D
+do ∞ (nos terminais, chapado).
 
 Saídas (rode da raiz do repositório depois de mudar a marca):
   logo.txt, icon.txt                         terminal, 8 linhas (icon.txt com $1/$2 de cor)
@@ -9,18 +10,20 @@ Saídas (rode da raiz do repositório depois de mudar a marca):
   fedora/personal/omarchy/branding/screensaver.txt  versão grande, 12 linhas
   fedora/fedorai/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
   default/plymouth/fedorai/watermark.png     marca no rodapé do boot splash
+  default/sddm/omarchy/brand.png             marca no rodapé da tela de login
 
 Precisa do PIL e das fontes redhat-display-fonts.
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 FONT = "/usr/share/fonts/redhat/RedHatDisplay-Bold.otf"
 INFINITY = ROOT / "themes/rhel-8/infinito.png"
 LIGHT = (240, 240, 240)
 RED = (238, 0, 0)
+SIDE = (163, 0, 0)  # lateral 3D, a mesma do ∞
 
 # Quadrantes: cada célula do terminal vale 2x2 pixels (cima-esq, cima-dir, baixo-esq, baixo-dir).
 QUADRANTS = {
@@ -37,23 +40,51 @@ def infinity(height):
     return img.resize((round(img.width * height / img.height), height), Image.LANCZOS)
 
 
+def extrude(mask, depth):
+    """A lateral 3D: o contorno deslocado passo a passo para baixo e à direita, na mesma
+    direção e proporção do ∞ (themes/rhel-8/infinito/infinito_flat3d.py)."""
+    out = Image.new("L", mask.size, 0)
+    for i in range(1, int(depth) + 1):
+        out = ImageChops.lighter(out, ImageChops.offset(mask, int(0.55 * i), int(0.85 * i)))
+    return out
+
+
 def brand(height, smooth):
-    """∞ + FedorAI numa tela de `height` px. Devolve (RGBA colorida, máscara do vermelho)."""
+    """∞ + FedorAI numa tela de `height` px. Devolve (RGBA colorida, máscara do vermelho).
+    Na versão lisa (imagens) o AI ganha a extrusão do ∞; nos blocos do terminal fica chapado."""
+    if smooth:
+        # Desenha 4x maior para a extrusão sair sem serrilhado e reduz no fim.
+        big, red = brand_canvas(height * 4, smooth=True)
+        size = (big.width // 4, big.height // 4)
+        return big.resize(size, Image.LANCZOS), red.resize(size, Image.LANCZOS)
+    return brand_canvas(height, smooth=False)
+
+
+def brand_canvas(height, smooth):
     font = ImageFont.truetype(FONT, int(height * 1.32))
     box = font.getbbox("FedorAI")
+    cap = font.getbbox("F")
     inf = infinity(int(height * 0.78))
     fedor = font.getlength("Fedor")
     gap = int(height * 0.45)
     x_text = inf.width + gap
-    width = x_text + int(fedor + font.getlength("AI")) + 4
+    # Mesma proporção do ∞: extrusão de ~42% da espessura do traço, que é ~20% da caixa-alta.
+    depth = int((cap[3] - cap[1]) * 0.084) if smooth else 0
+    width = x_text + int(fedor + font.getlength("AI")) + 4 + depth
+    canvas_h = height + depth
     y = -box[1] + (height - (box[3] - box[1])) // 2
 
-    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    red = Image.new("L", (width, height), 0)
-    d = ImageDraw.Draw(img)
-    d.text((x_text, y), "Fedor", font=font, fill=LIGHT + (255,))
-    d.text((x_text + fedor, y), "AI", font=font, fill=RED + (255,))
-    ImageDraw.Draw(red).text((x_text + fedor, y), "AI", font=font, fill=255)
+    img = Image.new("RGBA", (width, canvas_h), (0, 0, 0, 0))
+    red = Image.new("L", (width, canvas_h), 0)
+    ImageDraw.Draw(img).text((x_text, y), "Fedor", font=font, fill=LIGHT + (255,))
+    ai = Image.new("L", (width, canvas_h), 0)
+    ImageDraw.Draw(ai).text((x_text + fedor, y), "AI", font=font, fill=255)
+    if depth:
+        side = extrude(ai, depth)
+        img.paste(SIDE + (255,), (0, 0), side)
+        red = ImageChops.lighter(red, side)
+    img.paste(RED + (255,), (0, 0), ai)
+    red = ImageChops.lighter(red, ai)
 
     inf_y = (height - inf.height) // 2
     if smooth:
@@ -122,6 +153,10 @@ def main():
     canvas.alpha_composite(watermark, (0, (43 - watermark.height) // 2))
     canvas.save(ROOT / "default/plymouth/fedorai/watermark.png", optimize=True)
     print("wrote default/plymouth/fedorai/watermark.png")
+
+    login, _ = brand(110, smooth=True)
+    login.crop(login.getbbox()).save(ROOT / "default/sddm/omarchy/brand.png", optimize=True)
+    print("wrote default/sddm/omarchy/brand.png")
 
 
 if __name__ == "__main__":

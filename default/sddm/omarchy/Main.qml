@@ -500,32 +500,17 @@ Rectangle {
     }
   }
 
-  // Bottom: the ∞ and the brand beside it, where RHEL 8 shows its logo.
-  Row {
-    spacing: 16
+  // Bottom: the ∞ FedorAI brand (fedora/fedorai/make-brand.py), where RHEL 8 shows its logo.
+  Image {
+    source: "brand.png"
+    height: 50
+    width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
+    fillMode: Image.PreserveAspectFit
+    smooth: true
+    mipmap: true
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.bottom: parent.bottom
     anchors.bottomMargin: 44
-
-    Image {
-      source: "infinito.png"
-      height: 46
-      width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
-      fillMode: Image.PreserveAspectFit
-      smooth: true
-      mipmap: true
-      anchors.verticalCenter: parent.verticalCenter
-    }
-
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      textFormat: Text.StyledText
-      text: "Fedor<font color=\"#ee0000\">AI</font>"
-      color: "#f0f0f0"
-      font.family: "Red Hat Display"
-      font.pixelSize: 42
-      font.bold: true
-    }
   }
 
   component Field: Rectangle {
