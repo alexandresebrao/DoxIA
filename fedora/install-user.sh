@@ -45,6 +45,18 @@ mkdir -p ~/.config/omarchy/branding
 mkdir -p ~/.bashrc.d
 ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" ~/.bashrc.d/doxia.sh
 
+echo "==> DoxIA bar (the theme's ∞ emblem as the menu button, Now Playing before the clock)"
+for plugin in xi.emblem alexandre.media; do
+  seed "fedora/personal/omarchy/plugins/$plugin" ~/.config/omarchy/plugins/$plugin
+done
+shell_json=~/.config/omarchy/shell.json
+jq '.bar.layout |= (
+    .left |= map(if .id == "omarchy.menu" then {id: "xi.emblem"} else . end)
+  | .center |= (if any(.[]; .id == "alexandre.media") then . else
+      (map(.id) | index("omarchy.clock")) as $i | .[:$i] + [{id: "alexandre.media"}] + .[$i:] end)
+  )' "$shell_json" > "$shell_json.tmp"
+mv "$shell_json.tmp" "$shell_json"
+
 echo "==> uwsm session environment"
 mkdir -p ~/.config/uwsm/env.d
 ln -sfn "$OMARCHY_PATH/default/uwsm/env.d/10-omarchy" ~/.config/uwsm/env.d/10-omarchy
