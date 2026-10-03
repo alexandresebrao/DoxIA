@@ -84,22 +84,23 @@ fi
 # Same mechanism as `omarchy dev link`: OMARCHY_PATH points at the checkout.
 echo "OMARCHY_PATH=$omarchy_path" > /etc/omarchy.conf
 
-echo "==> ChapeuOS About screen (fastfetch)"
+echo "==> FedorAI About screen (fastfetch) and MOTD"
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
+sed "s/@FEDORA@/$(rpm -E %fedora)/" "$omarchy_path/fedora/fedorai/motd" > /etc/motd
 
 echo "==> Installing Omarchy session entry"
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" \
   /usr/share/wayland-sessions/omarchy.desktop
 
-echo "==> Login screen (SDDM with the ChapeuOS theme on a Hyprland greeter)"
+echo "==> Login screen (SDDM with the FedorAI theme on a Hyprland greeter)"
 install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
 install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
 install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
 restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
 # The theme preselects SDDM's last user and session, which a fresh SDDM doesn't
-# have yet (the Arch ISO seeds it): start on the ChapeuOS session.
+# have yet (the Arch ISO seeds it): start on the FedorAI session.
 if [[ ! -s /var/lib/sddm/state.conf ]]; then
   install -d -o sddm -g sddm /var/lib/sddm
   printf '[Last]\nUser=%s\nSession=/usr/share/wayland-sessions/omarchy.desktop\n' "$target_user" > /var/lib/sddm/state.conf

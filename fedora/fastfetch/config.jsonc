@@ -81,7 +81,7 @@
       "type": "command",
       "key": "\ue900 OS",
       "keyColor": "#7f98ff",
-      "text": "version=$(omarchy-version) && echo \"ChapeuOS $version\""
+      "text": "version=$(omarchy-version) && echo \"FedorAI $version\""
     },
     {
       "type": "command",

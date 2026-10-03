@@ -2,7 +2,7 @@
 
 # Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
 # Restores my plugins (FortiVPN, Java servers, Now Playing, screen share, Xi bar),
-# themes (Xi Gundam, RHEL 8), ChapeuOS branding, bar layout, menu extensions, default agent,
+# themes (Xi Gundam, RHEL 8), FedorAI branding, bar layout, menu extensions, default agent,
 # screen-share picker config and Hyprland window rules from fedora/personal. Existing files are backed up.
 # Can be re-run on its own to reapply them:
 #

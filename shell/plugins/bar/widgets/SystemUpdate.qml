@@ -59,7 +59,7 @@ BarWidget {
     text: "\uf021"
     slotSize: Style.bar.statusSlot
     fontSize: Style.font.caption
-    tooltipText: "Atualizações do ChapeuOS pendentes"
+    tooltipText: "Atualizações do FedorAI pendentes"
     onPressed: root.runUpdate()
   }
 }

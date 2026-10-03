@@ -34,10 +34,12 @@ done
 # xdg-terminal-exec reads this only when XDG_CURRENT_DESKTOP=Hyprland.
 seed default/xdg-terminal-exec/hyprland-xdg-terminals.list "$HOME/.config/hyprland-xdg-terminals.list"
 
-echo "==> ChapeuOS branding (About and screensaver logos)"
+echo "==> FedorAI branding (About and screensaver logos, terminal greeting)"
 mkdir -p ~/.config/omarchy/branding
 [[ -f ~/.config/omarchy/branding/about.txt ]] || cp "$OMARCHY_PATH/icon.txt" ~/.config/omarchy/branding/about.txt
 [[ -f ~/.config/omarchy/branding/screensaver.txt ]] || cp "$OMARCHY_PATH/logo.txt" ~/.config/omarchy/branding/screensaver.txt
+mkdir -p ~/.bashrc.d
+ln -sfn "$OMARCHY_PATH/fedora/fedorai/greeting.sh" ~/.bashrc.d/fedorai.sh
 
 echo "==> uwsm session environment"
 mkdir -p ~/.config/uwsm/env.d
@@ -101,5 +103,5 @@ echo "==> Personal setup (plugins, bar layout, window rules)"
 bash "$OMARCHY_PATH/fedora/install-personal.sh"
 
 echo
-echo "Done. Log out of KDE and pick \"ChapeuOS (Hyprland uwsm)\" on the login screen."
+echo "Done. Log out of KDE and pick \"FedorAI (Hyprland uwsm)\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the menu."

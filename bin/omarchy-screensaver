@@ -35,18 +35,18 @@ wait_for_terminal_resize() {
 
 wait_for_terminal_resize
 
-# ChapeuOS palette: every effect settles on silver (CHAPEU) fading into Xi blue
-# (OS) instead of its own default colors. Effects that animate in strong green
+# FedorAI palette: every effect settles on silver (FEDOR) fading into Xi blue
+# (AI) instead of its own default colors. Effects that animate in strong green
 # (matrix, binarypath, decrypt, vhstape, errorcorrect, swarm, colorshift) are left out;
 # synthgrid has no final gradient to recolor.
 effects=($(ttfx --help | awk '/^Commands:/{f=1;next} /^Options:/{f=0} f && $1!="help" {print $1}' | grep -vxE 'matrix|binarypath|decrypt|vhstape|errorcorrect|swarm|colorshift|synthgrid'))
 
 # The final gradient spans the whole canvas, not the text, so build one stop per
-# terminal column: silver across CHAPEU, blue across OS (which starts at column
-# 84 of the 111-column wordmark).
+# terminal column: silver across FEDOR, blue across AI (which starts at column
+# 68 of the 94-column wordmark).
 wordmark=~/.config/omarchy/branding/screensaver.txt
 cols=$(stty size 2>/dev/null | cut -d' ' -f2)
-stops=($(awk -v cols="${cols:-120}" -v os_col=84 '
+stops=($(awk -v cols="${cols:-120}" -v os_col=68 '
   { if (length($0) > w) w = length($0) }
   function mix(a, b, t,   i, out) {
     out = ""

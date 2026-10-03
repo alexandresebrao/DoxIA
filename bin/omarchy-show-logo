@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Display the ChapeuOS wordmark in the terminal (silver CHAPEU, Xi blue OS).
+# omarchy:summary=Display the FedorAI wordmark in the terminal (silver FEDOR, Xi blue AI).
 
 # The colored wordmark is pre-rendered with 24-bit colors so it never depends on
 # the terminal palette (the old version painted logo.txt with ANSI green, \e[32m).
