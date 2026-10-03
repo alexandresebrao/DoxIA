@@ -1,5 +1,5 @@
 # FedorAI greeting for interactive bash shells. Linked from ~/.bashrc.d/fedorai.sh
-# by fedora/install-branding.sh, so a git pull updates it.
+# by fedora/update.sh, so a git pull updates it.
 [[ $- == *i* ]] || return 0
 
 _fedorai_tips=(

@@ -32,8 +32,9 @@ bash ~/.local/share/omarchy/fedora/install-user.sh
 
 Then log out and pick **FedorAI (Hyprland uwsm)** on the login screen.
 
-To rebrand an existing install after a `git pull` without touching the bar layout,
-plugins or themes, run `bash ~/.local/share/omarchy/fedora/install-branding.sh`.
+To bring an existing install up to date (git pull, then theme, branding, icon font,
+menu, MOTD and login screen) without touching the top bar layout or its plugins, run
+`bash ~/.local/share/omarchy/fedora/update.sh`.
 `Super + K` shows the keybindings and `Super + Space` opens the Omarchy menu.
 
 ### Personal setup
