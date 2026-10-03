@@ -37,6 +37,23 @@ menu, MOTD and login screen) without touching the top bar layout or its plugins,
 `bash ~/.local/share/omarchy/fedora/update.sh`.
 `Super + K` shows the keybindings and `Super + Space` opens the Omarchy menu.
 
+### Installer ISO
+
+`fedora/iso/build.sh` builds a DoxIA installer: Fedora's netinstall (Anaconda) rebuilt
+with lorax under the DoxIA name, with the generic logos instead of Fedora's and an
+installer theme in the login screen's colors. Its kickstart sets pt-BR, the Brazilian
+keyboard and São Paulo time, leaves the disk, network and user account to the
+installer, and clones this repository at the commit the ISO was built from to run
+the install scripts above (without the personal setup). Installing needs internet.
+
+```bash
+sudo dnf install lorax lorax-templates-generic
+sudo bash ~/.local/share/omarchy/fedora/iso/build.sh ~/doxia-iso
+```
+
+Create a user account in the installer: the desktop is set up for that user.
+`fedora/iso/make-installer-art.py` regenerates the installer images.
+
 ### Personal setup
 
 `fedora/personal/` holds my own Omarchy customizations. `install-user.sh` installs

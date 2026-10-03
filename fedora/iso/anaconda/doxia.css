@@ -1,0 +1,43 @@
+/* Anaconda GTK style for the DoxIA installer: the login screen's charcoal and
+ * red instead of Fedora's blue. Images come from make-installer-art.py. */
+
+@define-color doxia #1d1f22;
+@define-color doxia_red #ee0000;
+@define-color doxia_red_dark #a30000;
+
+.logo-sidebar {
+    background-image: url('/usr/share/anaconda/pixmaps/doxia/sidebar-bg.png');
+    background-color: @doxia;
+    background-repeat: no-repeat;
+}
+
+.logo {
+    background-image: url('/usr/share/anaconda/pixmaps/doxia/sidebar-logo.png');
+    background-position: 50% 24px;
+    background-repeat: no-repeat;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+AnacondaSpokeWindow #nav-box {
+    background-color: @doxia;
+    background-image: url('/usr/share/anaconda/pixmaps/doxia/topbar-bg.png');
+    background-repeat: repeat;
+    border-bottom: 3px solid @doxia_red;
+    color: white;
+}
+
+button.suggested-action {
+    background-image: none;
+    background-color: @doxia_red;
+    border-color: @doxia_red_dark;
+    color: white;
+}
+
+button.suggested-action:hover {
+    background-color: #ff1a1a;
+}
