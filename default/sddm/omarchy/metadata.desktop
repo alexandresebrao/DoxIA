@@ -1,6 +1,6 @@
 [SddmGreeterTheme]
 Name=FedorAI
-Description=Minimal terminal-style login theme matching the Limine bootloader aesthetic
+Description=FedorAI login screen modeled on the RHEL 8 GDM greeter
 Author=Omarchy
 Type=sddm-theme
 Version=1.0
