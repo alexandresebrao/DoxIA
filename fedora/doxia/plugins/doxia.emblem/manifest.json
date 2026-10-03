@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "doxia.emblem",
+  "name": "DoxIA Emblem",
+  "version": "1.0.0",
+  "author": "alexandre",
+  "license": "MIT",
+  "description": "Botão do menu Omarchy com o emblema do tema (o ∞ do DoxIA).",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Emblem.qml" },
+  "barWidget": {
+    "displayName": "DoxIA Emblem",
+    "description": "Emblema do tema. Clique abre o menu, botão direito abre o terminal.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

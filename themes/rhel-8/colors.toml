@@ -4,14 +4,6 @@
 mode = "dark"
 
 accent = "#ee0000"
-# Usado pelos plugins xi.* da barra no lugar do amarelo (V-fin).
-highlight = "#f0f0f0"
-# Visual dos workspaces no plugin xi.workspaces: "plates" (Xi) ou "underline".
-workspace_style = "underline"
-# Visual do uso de CPU/memória no plugin xi.reactor: "hud" (Xi) ou "cockpit".
-reactor_style = "cockpit"
-# Cor das barras de uso (no lugar do azul do PatternFly).
-usage_fill = "#ee0000"
 selection = "#3c3f42"
 muted = "#4f5255"
 

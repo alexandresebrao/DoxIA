@@ -88,12 +88,12 @@ mkdir -p "$HOME/.local/state/omarchy/defaults"
 echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 
 echo "==> Screen share picker and Hyprland window rules"
-place "$personal/hypr/xdph.conf" "$HOME/.config/hypr/xdph.conf"
+place "$OMARCHY_PATH/fedora/doxia/hypr/xdph.conf" "$HOME/.config/hypr/xdph.conf"
 if ! grep -q "xwaylandvideobridge" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
   { echo; cat "$personal/hypr/window-rules.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
 if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
-  { echo; cat "$personal/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
+  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
 
 echo "==> Theme (RHEL 8, the DoxIA default)"

@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
-# Restores my plugins (FortiVPN, Java servers, Now Playing, screen share, Xi bar),
-# DoxIA branding, bar layout, menu extensions, default agent,
-# screen-share picker config and Hyprland window rules from fedora/personal. Existing files are backed up.
+# Restores my plugins (FortiVPN, Java servers, panel), DoxIA branding, bar layout,
+# menu extensions, default agent and Hyprland window rules from fedora/personal. Existing files are backed up.
 # Can be re-run on its own to reapply them:
 #
 #   bash ~/.local/share/omarchy/fedora/install-personal.sh
@@ -40,10 +39,6 @@ echo "==> Branding"
 seed omarchy/branding "$HOME/.config/omarchy/branding"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts
 
-echo "==> Screen share (Hyprland picker, stop button in the bar)"
-seed hypr/xdph.conf "$HOME/.config/hypr/xdph.conf"
-omarchy-pkg-add wtype jq
-systemctl --user try-restart xdg-desktop-portal-hyprland || true
 
 echo "==> Screensaver effects (ttfx, no Fedora package)"
 if ! command -v ttfx >/dev/null; then
@@ -51,20 +46,14 @@ if ! command -v ttfx >/dev/null; then
   cargo install --git https://github.com/omacom/ttfx --tag v0.5.0 --root "$HOME/.local"
 fi
 
-echo "==> Bar layout, menu extensions, default agent and editor"
+echo "==> Bar layout, menu extensions and default agent"
 seed omarchy/shell.json "$HOME/.config/omarchy/shell.json"
 seed omarchy/extensions/omarchy-menu.jsonc "$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"
-# Nano como editor padrão (omarchy-launch-editor / $EDITOR), no lugar do nvim.
-mkdir -p "$HOME/.local/state/omarchy/defaults"
-echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 
 echo "==> Hyprland window rules"
 if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua 2>/dev/null; then
   { echo; cat "$personal/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
-fi
-if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua 2>/dev/null; then
-  { echo; cat "$personal/hypr/screenshare-rule.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 
 echo "==> FortiVPN (openfortivpn + polkit helper)"
