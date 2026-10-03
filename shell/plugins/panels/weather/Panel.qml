@@ -497,7 +497,11 @@ Panel {
     open: root.opened
     centerOnBar: true
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(480))
+    // Grows past 480 when the hero row needs it (the pt-BR stat labels are
+    // wider than the English ones), so the temperature never runs under them.
+    // contentWidth includes the card's padding on both sides.
+    contentWidth: panel.fittedContentWidth(Math.max(Style.space(480),
+      heroLeft.implicitWidth + heroRight.width + Style.space(16 + 20 + 24) + panel.padding * 2))
     contentHeight: panel.fittedContentHeight(weatherColumn.implicitHeight)
 
     PanelKeyCatcher {
