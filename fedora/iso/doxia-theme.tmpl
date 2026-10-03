@@ -1,7 +1,12 @@
-## lorax template file: DoxIA theme for the installer runtime (build.sh passes
-## themedir=fedora/iso/anaconda). Runs after runtime-install.tmpl has installed
-## anaconda, so the profile directory exists.
-<%page args="root, themedir"/>
+## lorax template file: DoxIA wizard and theme for the installer runtime (build.sh
+## passes themedir=fedora/iso/anaconda, wizarddir=fedora/iso/wizard and the login
+## screen's brand image). Runs after runtime-install.tmpl has installed anaconda,
+## so the profile directory exists.
+<%page args="root, themedir, wizarddir, brand"/>
+
+mkdir usr/libexec/doxia-installer
+runcmd install -m755 ${wizarddir}/doxia-installer-start ${wizarddir}/doxia-installer.py ${root}/usr/libexec/doxia-installer/
+runcmd install -m644 ${wizarddir}/doxia-installer.css ${brand} ${root}/usr/libexec/doxia-installer/
 
 mkdir usr/share/anaconda/pixmaps/doxia
 runcmd cp ${themedir}/doxia.css ${themedir}/sidebar-bg.png ${themedir}/sidebar-logo.png ${root}/usr/share/anaconda/pixmaps/doxia/

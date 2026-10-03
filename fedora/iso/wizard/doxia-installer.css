@@ -1,0 +1,294 @@
+/* DoxIA installer wizard: Windows 98 setup in the login screen's charcoal and red.
+ * Loaded at user priority over Adwaita, so it repaints every widget it uses. */
+
+@define-color red #ee0000;
+@define-color red_dark #a30000;
+@define-color face #2b2d31;          /* window and button face */
+@define-color field #161719;         /* entries and lists */
+@define-color hilight #5c6066;       /* bevel: outer light edge */
+@define-color light #3d4045;         /* bevel: inner light edge */
+@define-color shadow #121314;        /* bevel: inner dark edge */
+@define-color dkshadow #050505;      /* bevel: outer dark edge */
+@define-color text #e8e8e8;
+@define-color dim #9b9ea3;
+
+* {
+    -gtk-outline-radius: 0;
+    outline-color: alpha(@text, 0.55);
+    outline-style: dotted;
+    outline-offset: -4px;
+    outline-width: 1px;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+    transition: none;
+    animation: none;
+}
+
+window, .desktop, dialog, messagedialog, messagedialog .dialog-action-box {
+    background-color: @face;
+    background-image: none;
+    color: @text;
+    font-family: "Red Hat Text", Cantarell, sans-serif;
+}
+label { color: @text; }
+label.dim { color: @dim; }
+label.error { color: #ff5a5a; }
+label.warn { color: @text; font-weight: bold; }
+label:disabled { color: alpha(@text, 0.4); }
+
+/* Sidebar */
+
+.sidebar {
+    background-color: #141516;
+    background-image: linear-gradient(to bottom, #101112, #1d1f22);
+    border-right: 3px solid @red;
+    padding: 34px 18px 26px 22px;
+}
+.sidebar .logo { margin-bottom: 52px; margin-left: 2px; }
+.sidebar label { color: @dim; font-size: 10.5pt; }
+.sidebar .steps .done label { color: @dim; }
+.sidebar .steps .current label { color: white; font-weight: bold; }
+.sidebar .steps .current label:first-child { color: @red; }
+.sidebar .steps .todo label { color: #c9cbce; }
+.sidebar .eta label { color: #c9cbce; font-size: 10pt; }
+.sidebar .eta .eta-value { color: white; font-weight: bold; }
+.sidebar .eta separator { background-color: #2c2e32; min-height: 1px; margin-bottom: 14px; }
+.brand { font-size: 28pt; font-weight: bold; color: white; }
+
+/* The setup window */
+
+.stage { background-color: #232528; }
+
+.win {
+    background-color: @face;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    padding: 2px;
+}
+
+.titlebar98 {
+    background-image: linear-gradient(to right, @red_dark, @red);
+    padding: 3px 4px 3px 8px;
+    min-height: 24px;
+}
+.titlebar98 > label { color: white; font-weight: bold; font-size: 10pt; }
+.titlebar98 button.caption {
+    min-width: 16px;
+    min-height: 14px;
+    padding: 0 3px;
+    font-weight: bold;
+    font-size: 9pt;
+}
+
+.win-body { padding: 18px 18px 14px 18px; }
+.win-body > separator {
+    background-color: @shadow;
+    border-bottom: 1px solid @hilight;
+    min-height: 1px;
+    margin: 10px 0 12px 0;
+}
+.page label { font-size: 10pt; }
+.page label.heading {
+    font-family: "Red Hat Display", "Red Hat Text", sans-serif;
+    font-size: 15pt;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+/* Buttons: raised bevel, pressed in when clicked */
+
+button {
+    background-color: @face;
+    background-image: none;
+    color: @text;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    padding: 5px 12px;
+    min-height: 20px;
+}
+button label { color: @text; font-size: 10pt; }
+button:hover { background-color: #34363b; }
+button:active, button:checked {
+    background-color: #232528;
+    border-color: @dkshadow @hilight @hilight @dkshadow;
+    box-shadow: inset 1px 1px @shadow, inset -1px -1px @light;
+    padding: 6px 11px 4px 13px;
+}
+button:disabled {
+    background-color: @face;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+}
+button:disabled label { color: alpha(@text, 0.3); }
+
+button.default {
+    background-color: @red;
+    border-color: #ff6a6a @dkshadow @dkshadow #ff6a6a;
+    box-shadow: inset 1px 1px #ff3b3b, inset -1px -1px @red_dark;
+}
+button.default label { color: white; font-weight: bold; }
+button.default:hover { background-color: #ff1a1a; }
+button.default:active {
+    background-color: #c80000;
+    border-color: @dkshadow #ff6a6a #ff6a6a @dkshadow;
+    box-shadow: inset 1px 1px @red_dark, inset -1px -1px #ff3b3b;
+}
+button.default:disabled {
+    background-color: #5a1010;
+    border-color: #7a2020 @dkshadow @dkshadow #7a2020;
+    box-shadow: none;
+}
+button.default:disabled label { color: alpha(white, 0.4); }
+
+/* Entries */
+
+entry {
+    background-color: @field;
+    background-image: none;
+    color: @text;
+    caret-color: @text;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow, inset -1px -1px @light;
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 10pt;
+}
+entry:focus { border-color: @red @hilight @hilight @red; }
+entry selection { background-color: @red; color: white; }
+entry placeholder { color: alpha(@text, 0.35); }
+
+/* Lists */
+
+scrolledwindow.well {
+    background-color: @field;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow;
+    padding: 2px;
+}
+treeview.view {
+    background-color: @field;
+    color: @text;
+    font-size: 10pt;
+    -GtkTreeView-vertical-separator: 6;
+}
+treeview.view:hover { background-color: #222326; }
+treeview.view:selected, treeview.view:selected:focus { background-color: @red; color: white; }
+treeview.view header button {
+    background-color: @face;
+    color: @text;
+    font-weight: bold;
+    padding: 4px 6px;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+}
+treeview.view header button label { font-weight: bold; }
+scrolledwindow undershoot, scrolledwindow overshoot { background: none; }
+scrollbar { background-color: @face; }
+scrollbar slider {
+    background-color: @light;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+/* Combo box */
+
+combobox button.combo, combobox box button {
+    background-color: @field;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow;
+    padding: 3px 8px;
+}
+combobox arrow { color: @text; }
+cellview { color: @text; }
+menu, .menu, menu.background {
+    background-color: @face;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    padding: 2px;
+}
+menuitem { color: @text; padding: 4px 10px; }
+menuitem label { color: @text; }
+menuitem:hover { background-color: @red; }
+menuitem:hover label { color: white; }
+menu arrow { color: @text; }
+
+/* Check boxes */
+
+check {
+    background-color: @field;
+    background-image: none;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow;
+    color: @red;
+    min-width: 14px;
+    min-height: 14px;
+    margin-right: 8px;
+}
+check:checked { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); color: white; background-color: @red; }
+checkbutton label { font-size: 10pt; }
+
+/* Group box ("Configurações escolhidas") */
+
+frame.group > border {
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    border-radius: 0;
+    box-shadow: inset 1px 1px @hilight, inset -1px -1px @shadow;
+}
+frame.group > label { color: @dim; font-size: 9.5pt; }
+frame.group grid label { font-size: 10pt; }
+
+/* Progress bar: the Win98 row of blocks */
+
+progressbar.blocks trough {
+    background-color: @field;
+    background-image: none;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    min-height: 22px;
+}
+progressbar.blocks progress {
+    border: none;
+    border-radius: 0;
+    margin: 3px;
+    background-color: transparent;
+    background-image: linear-gradient(to right, @red 0, @red 9px, transparent 9px);
+    background-size: 12px 100%;
+    background-repeat: repeat-x;
+    min-height: 16px;
+}
+
+.tip {
+    background-color: @field;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    padding: 12px;
+}
+.tip label.tip-title { font-weight: bold; }
+
+/* Dialogs (Cancel, Help) */
+
+messagedialog .titlebar, messagedialog headerbar {
+    background-image: linear-gradient(to right, @red_dark, @red);
+    color: white;
+    border-radius: 0;
+}
+messagedialog label { color: @text; }
+messagedialog .dialog-action-area button { min-width: 90px; }
+dialog, messagedialog {
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+}
+decoration { border-radius: 0; box-shadow: 0 0 0 1px @dkshadow; }

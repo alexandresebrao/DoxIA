@@ -1,13 +1,22 @@
 # DoxIA installer kickstart (build.sh fills in @COMMIT@ and embeds it in the ISO).
 #
-# Only language, keyboard, time zone, sources and packages are set here: the
-# installer still asks for the disk, network, the user account and root.
-# The %post clones this repository at the commit the ISO was built from and
-# runs the same scripts as a manual install, minus the personal setup.
+# The DoxIA wizard (wizard/doxia-installer.py) runs from %pre and asks for the
+# language, keyboard, disk, account and computer name; it writes them to
+# /tmp/doxia/answers.ks, included below. Anaconda then installs without its own
+# interface (cmdline) while the wizard shows the progress. The %post clones this
+# repository at the commit the ISO was built from and runs the same scripts as a
+# manual install, minus the personal setup.
 
-lang pt_BR.UTF-8
-keyboard --vckeymap=br-abnt2 --xlayouts=br
-timezone America/Sao_Paulo --utc
+cmdline
+# Without it, cmdline mode ends at "Press ENTER to quit" on tty1 and never reboots.
+# The last %post holds Anaconda until the wizard's Restart button is clicked.
+reboot --eject
+
+%pre --erroronfail --log=/tmp/doxia-pre.log
+/usr/libexec/doxia-installer/doxia-installer-start
+%end
+
+%include /tmp/doxia/answers.ks
 
 url --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=fedora-$releasever&arch=$basearch
 repo --name=updates --mirrorlist=https://mirrors.fedoraproject.org/mirrorlist?repo=updates-released-f$releasever&arch=$basearch
@@ -62,4 +71,22 @@ cp /usr/share/plymouth/themes/spinner/*.png "$theme/"
 install -m644 "$checkout"/default/plymouth/doxia/{doxia.plymouth,watermark.png} "$theme/"
 plymouth-set-default-theme doxia
 dracut -f --regenerate-all
+%end
+
+# Last: tell the wizard the installation is done, then hold Anaconda (which reboots
+# as soon as it finishes, see reboot above) until the Restart button is clicked.
+%post --nochroot
+# Keep the network joined in the wizard (Wi-Fi password included) on the installed system
+target=/mnt/sysroot/etc/NetworkManager/system-connections
+mkdir -p "$target"
+for connection in /etc/NetworkManager/system-connections/*.nmconnection; do
+  [[ -e $connection ]] || continue
+  cp -n "$connection" "$target/"
+  chmod 600 "$target/$(basename "$connection")"
+done
+
+touch /tmp/doxia/installed
+while [[ ! -e /tmp/doxia/reboot ]]; do
+  sleep 1
+done
 %end

@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Builds the DoxIA installer ISO: Fedora's netinstall (Anaconda) rebuilt with lorax
-# as "DoxIA", with the generic logos instead of Fedora's, the DoxIA installer theme
-# and doxia.ks embedded. Installing needs internet: packages come from Fedora's
-# mirrors and %post clones this repository at the commit the ISO was built from.
+# as "DoxIA", with the generic logos instead of Fedora's, the DoxIA setup wizard
+# (wizard/) in front of Anaconda and doxia.ks embedded. Installing needs internet:
+# packages come from Fedora's mirrors and %post clones this repository at the
+# commit the ISO was built from.
 #
 #   sudo bash ~/.local/share/omarchy/fedora/iso/build.sh [output dir]
 #
@@ -45,8 +46,11 @@ lorax \
   --source "$mirror/releases/$release/Everything/$arch/os/" \
   --source "$mirror/updates/$release/Everything/$arch/" \
   --skip-branding --installpkgs generic-logos --installpkgs fedora-release \
+  --installpkgs redhat-display-fonts --installpkgs redhat-text-fonts \
   --add-template "$iso_dir/doxia-theme.tmpl" \
   --add-template-var "themedir=$iso_dir/anaconda" \
+  --add-template-var "wizarddir=$iso_dir/wizard" \
+  --add-template-var "brand=$omarchy_path/default/sddm/omarchy/brand.png" \
   --logfile "$out/lorax.log" --tmp "$work" \
   "$work/lorax"
 

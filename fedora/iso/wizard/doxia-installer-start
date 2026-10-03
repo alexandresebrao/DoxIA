@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Opens the DoxIA installer wizard on VT6 and waits for its answers. doxia.ks runs
+# it from %pre, before Anaconda reads the rest of the kickstart, so the answers
+# it writes to /tmp/doxia/answers.ks reach the installation through %include.
+# The compositor is started the way Anaconda starts its own (pyanaconda/display.py).
+
+set -u
+
+dir=$(dirname "$(readlink -f "$0")")
+state=/tmp/doxia
+socket=wl-doxia-0
+
+mkdir -p "$state"
+export XDG_RUNTIME_DIR=/run/user/0
+export XDG_DATA_DIRS=/usr/share/anaconda/window-manager:/usr/share
+export XDG_CONFIG_DIRS=/usr/share/anaconda
+export XDG_SESSION_TYPE=wayland
+export NO_AT_BRIDGE=1
+mkdir -p -m 700 "$XDG_RUNTIME_DIR"
+
+# Type with ABNT2 until the wizard's keyboard choice changes it (gnome-kiosk follows localed)
+localectl --no-convert set-x11-keymap br >/dev/null 2>&1
+
+kiosk=(gnome-kiosk --wayland --wayland-display "$socket")
+if gnome-kiosk --help 2>&1 | grep -q -- --enable-vt-switch; then
+  kiosk+=(--enable-vt-switch)
+fi
+
+# In the background with no pipe back to %pre (Anaconda waits for the script's
+# output to close); run-in-new-session starts its own process session.
+/usr/libexec/anaconda/run-in-new-session \
+  --user root --service anaconda --session-type wayland --session-class user --vt 6 \
+  "${kiosk[@]}" </dev/null >>"$state/kiosk.log" 2>&1 &
+disown
+
+for (( i = 0; i < 600; i++ )); do
+  [[ -S $XDG_RUNTIME_DIR/$socket ]] && break
+  sleep 0.1
+done
+if [[ ! -S $XDG_RUNTIME_DIR/$socket ]]; then
+  echo "DoxIA: the graphical session did not start (see $state/kiosk.log and journalctl)." >&2
+  exit 1
+fi
+
+WAYLAND_DISPLAY=$socket GDK_BACKEND=wayland \
+  python3 "$dir/doxia-installer.py" </dev/null >>"$state/wizard.log" 2>&1 &
+wizard=$!
+disown
+
+while [[ ! -e $state/answers.ks ]]; do
+  if ! kill -0 "$wizard" 2>/dev/null; then
+    echo "DoxIA: the installer wizard closed without finishing (see $state/wizard.log)." >&2
+    cat "$state/wizard.log" >&2
+    exit 1
+  fi
+  sleep 1
+done
