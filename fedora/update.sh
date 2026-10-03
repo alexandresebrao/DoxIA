@@ -155,7 +155,7 @@ echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
 set -euo pipefail
 omarchy_path=$1
-sed "s/@FEDORA@/$2/" "$omarchy_path/fedora/fedorai/motd" > /etc/motd
+{ echo; sed 's/^/  /' "$omarchy_path/fedora/fedorai/brand.ansi"; echo; sed "s/@FEDORA@/$2/" "$omarchy_path/fedora/fedorai/motd"; } > /etc/motd
 chmod 644 /etc/motd
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc

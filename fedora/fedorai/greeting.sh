@@ -13,7 +13,9 @@ _fedorai_tips=(
   "8 ou 80? Não, ∞."
 )
 
-printf '\n  \e[1;38;2;238;0;0m∞ \e[38;2;240;240;240mBem-vindo ao Fedor\e[38;2;238;0;0mAI\e[38;2;240;240;240m %s (Oito Deitado)\e[0m\n' "$(rpm -E %fedora)"
+echo
+sed 's/^/  /' "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/brand.ansi"
+printf '\n  \e[38;2;240;240;240mBem-vindo ao Fedor\e[38;2;238;0;0mAI\e[38;2;240;240;240m %s (Oito Deitado)\e[0m\n' "$(rpm -E %fedora)"
 printf '  \e[2mUptime: %s: mais tempo deitado que o próprio 8.\e[0m\n' "$(uptime -p | sed 's/^up //')"
 printf '  \e[38;2;210;210;210m💡 %s\e[0m\n\n' "${_fedorai_tips[RANDOM % ${#_fedorai_tips[@]}]}"
 unset _fedorai_tips

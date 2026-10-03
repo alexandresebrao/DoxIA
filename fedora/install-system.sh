@@ -89,7 +89,7 @@ printf 'export OMARCHY_PATH="%s"\n' "$omarchy_path" > /etc/omarchy.conf
 echo "==> FedorAI About screen (fastfetch) and MOTD"
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
-sed "s/@FEDORA@/$(rpm -E %fedora)/" "$omarchy_path/fedora/fedorai/motd" > /etc/motd
+{ echo; sed 's/^/  /' "$omarchy_path/fedora/fedorai/brand.ansi"; echo; sed "s/@FEDORA@/$(rpm -E %fedora)/" "$omarchy_path/fedora/fedorai/motd"; } > /etc/motd
 
 echo "==> Installing Omarchy session entry"
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" \

@@ -3,7 +3,8 @@ import SddmComponents 2.0
 
 // FedorAI login screen, modeled on the RHEL 8 GDM greeter: black top bar with the
 // clock and power menu, the user list in the middle, a password step with Cancel /
-// Sign in and a gear for the session, and the ∞ at the bottom where RHEL puts its logo.
+// Sign in and a gear for the session, and the ∞ FedorAI brand at the bottom where RHEL
+// puts its logo.
 //
 // omarchy-plymouth-set recolors #1a1b26 and #ffffff in this file to the theme's
 // colors, so neither appears here: this screen keeps its RHEL 8 palette.
@@ -499,17 +500,32 @@ Rectangle {
     }
   }
 
-  // Bottom: the ∞, where RHEL 8 shows its logo.
-  Image {
-    source: "infinito.png"
-    height: 64
-    width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
-    fillMode: Image.PreserveAspectFit
-    smooth: true
-    mipmap: true
+  // Bottom: the ∞ and the brand beside it, where RHEL 8 shows its logo.
+  Row {
+    spacing: 16
     anchors.horizontalCenter: parent.horizontalCenter
     anchors.bottom: parent.bottom
-    anchors.bottomMargin: 48
+    anchors.bottomMargin: 44
+
+    Image {
+      source: "infinito.png"
+      height: 46
+      width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
+      fillMode: Image.PreserveAspectFit
+      smooth: true
+      mipmap: true
+      anchors.verticalCenter: parent.verticalCenter
+    }
+
+    Text {
+      anchors.verticalCenter: parent.verticalCenter
+      textFormat: Text.StyledText
+      text: "Fedor<font color=\"#ee0000\">AI</font>"
+      color: "#f0f0f0"
+      font.family: "Red Hat Display"
+      font.pixelSize: 42
+      font.bold: true
+    }
   }
 
   component Field: Rectangle {

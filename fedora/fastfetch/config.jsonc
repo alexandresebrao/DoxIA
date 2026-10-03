@@ -5,11 +5,7 @@
     "source": "~/.config/omarchy/branding/about.txt",
     "color": {
       "1": "#f0f0f0",
-      "2": "#f0f0f0",
-      "3": "#f0f0f0",
-      "4": "#ee0000",
-      "5": "#ee0000",
-      "6": "#ee0000"
+      "2": "#ee0000"
     },
     "padding": {
       "top": 12,
