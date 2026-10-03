@@ -3,6 +3,8 @@
 # Fedora port of Omarchy: per-user setup (run as your user, after install-system.sh).
 # Seeds ~/.config the way Omarchy's /etc/skel would, but only with configs that
 # don't change the KDE session. Existing files are backed up, never clobbered.
+# The installer ISO runs it from its kickstart with --no-personal, before the
+# user's first login.
 
 set -euo pipefail
 
@@ -14,6 +16,8 @@ fi
 export OMARCHY_PATH="$HOME/.local/share/omarchy"
 export PATH="$OMARCHY_PATH/bin:$PATH"
 backup_suffix=".bak-omarchy-$(date +%Y%m%d%H%M%S)"
+personal=true
+[[ ${1:-} == "--no-personal" ]] && personal=false
 
 seed() {
   local src="$OMARCHY_PATH/$1" dest="$2"
@@ -89,7 +93,10 @@ sed -e "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" \
     -e '/^\[Install\]/,$d' \
   "$OMARCHY_PATH/default/systemd/user/omarchy-sleep-lock.service" \
   > ~/.config/systemd/user/omarchy-sleep-lock.service
-systemctl --user daemon-reload
+# No user manager yet when the installer runs this; it reads the unit on first login.
+if [[ -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
+  systemctl --user daemon-reload
+fi
 
 if ! grep -q omarchy-sleep-lock ~/.config/hypr/autostart.lua; then
   cat >> ~/.config/hypr/autostart.lua <<'EOF'
@@ -99,8 +106,10 @@ o.exec_on_start("systemctl --user start omarchy-sleep-lock.service")
 EOF
 fi
 
-echo "==> Personal setup (plugins, bar layout, window rules)"
-bash "$OMARCHY_PATH/fedora/install-personal.sh"
+if $personal; then
+  echo "==> Personal setup (plugins, bar layout, window rules)"
+  bash "$OMARCHY_PATH/fedora/install-personal.sh"
+fi
 
 echo
 echo "Done. Log out of KDE and pick \"DoxIA (Hyprland uwsm)\" on the login screen."
