@@ -3,7 +3,7 @@
 tela de login (default/sddm/omarchy/brand.png e infinity.png).
 
   fedora/iso/anaconda/sidebar-bg.png    fundo da barra lateral (boas-vindas e resumo)
-  fedora/iso/anaconda/sidebar-logo.png  ∞ DoxIA no topo da barra lateral
+  fedora/iso/anaconda/sidebar-logo.png  ∞ DoxIA deitado, de baixo para cima, no pé da barra lateral
   fedora/iso/anaconda/topbar-bg.png     faixa do topo de cada tela de configuração
 
 Rode de novo para regenerar: python3 fedora/iso/make-installer-art.py
@@ -31,21 +31,20 @@ def gradient(width, height, top, bottom):
 
 
 def sidebar_bg():
-    img = gradient(406, 1080, TOP, BOTTOM).convert("RGBA")
-    # O ∞ bem apagado, cortado pela borda de baixo, como na tela de login.
-    inf = Image.open(SDDM / "infinity.png").convert("RGBA")
-    inf = inf.resize((520, round(520 * inf.height / inf.width)), Image.LANCZOS)
-    alpha = inf.getchannel("A").point(lambda a: round(a * 0.07))
-    inf.putalpha(alpha)
-    img.alpha_composite(inf, (-60, 1080 - round(inf.height * 0.62)))
-    img.convert("RGB").save(OUT / "sidebar-bg.png", optimize=True)
+    gradient(406, 1080, TOP, BOTTOM).save(OUT / "sidebar-bg.png", optimize=True)
 
 
 def sidebar_logo():
+    # A barra lateral tem 15% da largura da janela (154 px a 1024x768), estreita demais
+    # para a marca na horizontal: ela vai girada, lida de baixo para cima, com o ∞ embaixo.
+    # O CSS a prende no rodapé (background-position: 50% 100%); a margem já vem na imagem.
     brand = Image.open(SDDM / "brand.png").convert("RGBA")
-    width = 170
-    brand.resize((width, round(width * brand.height / brand.width)), Image.LANCZOS) \
-        .save(OUT / "sidebar-logo.png", optimize=True)
+    thickness, margin = 60, 56
+    length = round(thickness * brand.width / brand.height)
+    brand = brand.resize((length, thickness), Image.LANCZOS).transpose(Image.Transpose.ROTATE_90)
+    img = Image.new("RGBA", (thickness, length + margin))
+    img.alpha_composite(brand, (0, 0))
+    img.save(OUT / "sidebar-logo.png", optimize=True)
 
 
 def topbar_bg():

@@ -13,7 +13,7 @@
 
 .logo {
     background-image: url('/usr/share/anaconda/pixmaps/doxia/sidebar-logo.png');
-    background-position: 50% 24px;
+    background-position: 50% 100%;
     background-repeat: no-repeat;
     background-color: transparent;
 }
