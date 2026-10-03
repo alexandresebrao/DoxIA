@@ -1,34 +1,36 @@
 import QtQuick 2.0
 import SddmComponents 2.0
 
-// DoxIA login screen, modeled on the RHEL 8 GDM greeter: black top bar with the
-// clock and power menu, the user list in the middle, a password step with Cancel /
-// Sign in and a gear for the session, and the ∞ DoxIA brand at the bottom where RHEL
-// puts its logo.
+// DoxIA login screen: a split layout with the brand, a large clock and the date on
+// the left, the sign-in card on the right (pick an account, then type the password
+// with the session chip under it), the power actions in the bottom right corner and
+// the ∞ as a faint watermark bleeding off the bottom edge.
 //
 // omarchy-plymouth-set recolors #1a1b26 and #ffffff in this file to the theme's
-// colors, so neither appears here: this screen keeps its RHEL 8 palette.
+// colors, so neither appears here: this screen keeps its own palette.
 Rectangle {
   id: root
   width: 1280
   height: 800
 
   property string fontFamily: "Red Hat Text"
+  property string displayFamily: "Red Hat Display"
   property color textColor: "#f2f2f2"
   property color dimColor: "#a9abae"
   property color accent: "#ee0000"
   property color accentHover: "#ff1a1a"
-  property color fieldColor: "#1c1d1f"
-  property color fieldBorder: "#55585c"
-  property color buttonColor: "#3a3d41"
-  property color buttonHover: "#46494e"
+  property color cardColor: "#1a1c1f"
+  property color cardBorder: "#33363a"
+  property color fieldColor: "#121315"
+  property color fieldBorder: "#4a4d51"
+  property color chipColor: "#26292d"
+  property color chipHover: "#30343a"
   property color errorColor: "#ff6c6c"
 
   property bool choosingUser: true
   property bool manualUser: false
   property bool loginFailed: false
   property bool sessionMenuOpen: false
-  property bool powerMenuOpen: false
   property int userIndex: userModel.lastIndex >= 0 ? userModel.lastIndex : 0
   property int sessionIndex: sessionModel.lastIndex >= 0 ? sessionModel.lastIndex : 0
   property Item selectedUser: users.count > 0 ? users.itemAt(userIndex) : null
@@ -37,8 +39,10 @@ Rectangle {
   property string shownName: manualUser ? manualName.text : (selectedUser ? selectedUser.displayName : "")
 
   gradient: Gradient {
-    GradientStop { position: 0.0; color: "#303338" }
-    GradientStop { position: 1.0; color: "#1b1d20" }
+    orientation: Gradient.Horizontal
+    GradientStop { position: 0.0; color: "#101112" }
+    GradientStop { position: 0.55; color: "#1d1f22" }
+    GradientStop { position: 1.0; color: "#26292d" }
   }
 
   function chooseUser(index) {
@@ -98,122 +102,113 @@ Rectangle {
     }
   }
 
-  // Clicking anywhere else closes an open menu.
-  MouseArea {
-    anchors.fill: parent
-    enabled: root.sessionMenuOpen || root.powerMenuOpen
-    onClicked: {
-      root.sessionMenuOpen = false
-      root.powerMenuOpen = false
-    }
+  // The ∞ watermark, cut by the bottom edge under the clock.
+  Image {
+    source: "infinity.png"
+    width: root.width * 0.62
+    height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
+    x: -width * 0.12
+    y: root.height - height * 0.62
+    opacity: 0.06
+    smooth: true
+    mipmap: true
   }
 
-  // Top bar: clock in the middle, power menu on the right.
-  Rectangle {
-    id: topBar
-    z: 5
-    anchors.top: parent.top
+  // Clicking anywhere else closes the session menu.
+  MouseArea {
+    anchors.fill: parent
+    enabled: root.sessionMenuOpen
+    onClicked: root.sessionMenuOpen = false
+  }
+
+  // Left: brand on top, then the clock and the date.
+  Image {
+    id: brand
+    source: "brand.png"
+    height: 38
+    width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
+    fillMode: Image.PreserveAspectFit
+    smooth: true
+    mipmap: true
     anchors.left: parent.left
-    anchors.right: parent.right
-    height: 34
-    color: "#000000"
+    anchors.leftMargin: root.width * 0.07
+    anchors.top: parent.top
+    anchors.topMargin: 48
+  }
+
+  Column {
+    anchors.left: brand.left
+    anchors.verticalCenter: parent.verticalCenter
+    spacing: 6
 
     Text {
       id: clock
-      anchors.centerIn: parent
       color: root.textColor
-      font.family: root.fontFamily
-      font.pixelSize: 15
-      font.bold: true
-
-      function update() {
-        var label = new Date().toLocaleString(Qt.locale("pt_BR"), "ddd d 'de' MMM  HH:mm")
-        text = label.replace(/\./g, "")
-      }
-
-      Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: clock.update()
-      }
+      font.family: root.displayFamily
+      font.pixelSize: Math.round(root.height * 0.15)
+      font.weight: Font.Light
     }
 
     Rectangle {
-      id: powerButton
-      anchors.right: parent.right
-      anchors.rightMargin: 8
-      anchors.verticalCenter: parent.verticalCenter
-      width: powerRow.width + 20
-      height: 26
-      radius: 13
-      color: powerMouse.containsMouse || root.powerMenuOpen ? "#2a2a2a" : "transparent"
+      width: 56
+      height: 4
+      radius: 2
+      color: root.accent
+    }
 
-      Row {
-        id: powerRow
-        anchors.centerIn: parent
-        spacing: 6
+    Item { width: 1; height: 6 }
 
-        Image {
-          source: "power.png"
-          width: 18
-          height: 18
-          smooth: true
-          mipmap: true
-          anchors.verticalCenter: parent.verticalCenter
-        }
-        Text {
-          text: "▾"
-          color: root.textColor
-          font.pixelSize: 11
-          anchors.verticalCenter: parent.verticalCenter
-        }
-      }
+    Text {
+      id: date
+      color: root.dimColor
+      font.family: root.displayFamily
+      font.pixelSize: 22
+    }
 
-      MouseArea {
-        id: powerMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-          root.sessionMenuOpen = false
-          root.powerMenuOpen = !root.powerMenuOpen
-        }
+    Timer {
+      interval: 1000
+      running: true
+      repeat: true
+      triggeredOnStart: true
+      onTriggered: {
+        var now = new Date()
+        clock.text = now.toLocaleString(Qt.locale("pt_BR"), "HH:mm")
+        date.text = now.toLocaleString(Qt.locale("pt_BR"), "dddd, d 'de' MMMM")
       }
     }
   }
 
-  Popup {
-    id: powerMenu
-    visible: root.powerMenuOpen
-    anchors.top: topBar.bottom
-    anchors.topMargin: 6
-    anchors.right: parent.right
-    anchors.rightMargin: 8
-    width: 220
-    entries: [
-      { label: "Suspender", enabled: sddm.canSuspend, action: function () { sddm.suspend() } },
-      { label: "Reiniciar", enabled: sddm.canReboot, action: function () { sddm.reboot() } },
-      { label: "Desligar", enabled: sddm.canPowerOff, action: function () { sddm.powerOff() } }
-    ]
-    onPicked: root.powerMenuOpen = false
+  Text {
+    anchors.left: brand.left
+    anchors.bottom: parent.bottom
+    anchors.bottomMargin: 36
+    text: sddm.hostName
+    color: root.dimColor
+    opacity: 0.7
+    font.family: root.fontFamily
+    font.pixelSize: 13
   }
 
-  // Middle: user list, then the password step.
-  Item {
-    id: center
-    width: 380
-    height: root.choosingUser ? userList.height : passwordStep.height
-    anchors.horizontalCenter: parent.horizontalCenter
+  // Right: the sign-in card.
+  Rectangle {
+    id: card
+    width: 400
+    height: (root.choosingUser ? userList.height : passwordStep.height) + 56
+    anchors.right: parent.right
+    anchors.rightMargin: root.width * 0.09
     anchors.verticalCenter: parent.verticalCenter
-    anchors.verticalCenterOffset: -20
+    radius: 18
+    color: root.cardColor
+    border.color: root.cardBorder
+    border.width: 1
 
-    // Step 1: pick a user.
+    // Step 1: pick an account.
     FocusScope {
       id: userList
       visible: root.choosingUser
-      width: parent.width
+      x: 28
+      y: 28
+      width: parent.width - 56
       height: userColumn.height
       focus: root.choosingUser
 
@@ -225,7 +220,24 @@ Rectangle {
       Column {
         id: userColumn
         width: parent.width
-        spacing: 4
+        spacing: 6
+
+        Text {
+          text: "Bem-vindo"
+          color: root.textColor
+          font.family: root.displayFamily
+          font.pixelSize: 26
+          font.bold: true
+        }
+
+        Text {
+          text: "Escolha uma conta para entrar"
+          color: root.dimColor
+          font.family: root.fontFamily
+          font.pixelSize: 14
+        }
+
+        Item { width: 1; height: 12 }
 
         Repeater {
           id: users
@@ -242,18 +254,19 @@ Rectangle {
             property bool current: index === root.userIndex
 
             width: userColumn.width
-            height: 84
+            height: 64
 
             Rectangle {
               anchors.fill: parent
-              radius: 10
-              color: root.textColor
-              opacity: userRow.current ? 0.10 : (rowMouse.containsMouse ? 0.05 : 0)
+              radius: 12
+              color: userRow.current || rowMouse.containsMouse ? root.chipHover : root.chipColor
+              border.width: userRow.current ? 1 : 0
+              border.color: root.accent
             }
 
             Avatar {
               id: rowAvatar
-              size: 64
+              size: 44
               anchors.left: parent.left
               anchors.leftMargin: 12
               anchors.verticalCenter: parent.verticalCenter
@@ -263,16 +276,27 @@ Rectangle {
 
             Text {
               anchors.left: rowAvatar.right
-              anchors.leftMargin: 18
-              anchors.right: parent.right
-              anchors.rightMargin: 12
+              anchors.leftMargin: 14
+              anchors.right: arrow.left
+              anchors.rightMargin: 8
               anchors.verticalCenter: parent.verticalCenter
               text: userRow.displayName
               color: root.textColor
               elide: Text.ElideRight
               font.family: root.fontFamily
-              font.pixelSize: 19
+              font.pixelSize: 17
               font.bold: true
+            }
+
+            Text {
+              id: arrow
+              anchors.right: parent.right
+              anchors.rightMargin: 16
+              anchors.verticalCenter: parent.verticalCenter
+              text: "→"
+              color: userRow.current ? root.accent : root.dimColor
+              font.family: root.fontFamily
+              font.pixelSize: 18
             }
 
             MouseArea {
@@ -285,15 +309,14 @@ Rectangle {
           }
         }
 
-        Item { width: 1; height: 14 }
+        Item { width: 1; height: 8 }
 
         Text {
-          text: "Não está na lista?"
+          text: "Outro usuário…"
           color: notListedMouse.containsMouse ? root.textColor : root.dimColor
           font.family: root.fontFamily
           font.pixelSize: 14
           font.underline: notListedMouse.containsMouse
-          anchors.horizontalCenter: parent.horizontalCenter
 
           MouseArea {
             id: notListedMouse
@@ -311,49 +334,65 @@ Rectangle {
     Column {
       id: passwordStep
       visible: !root.choosingUser
-      width: parent.width
-      spacing: 14
+      x: 28
+      y: 28
+      width: parent.width - 56
+      spacing: 12
 
-      Row {
-        visible: !root.manualUser
-        spacing: 18
+      Item {
+        width: parent.width
+        height: 32
 
-        Avatar {
-          size: 64
-          anchors.verticalCenter: parent.verticalCenter
-          source: root.selectedUser ? root.selectedUser.avatar : ""
-          initial: root.shownName
+        RoundButton {
+          id: back
+          label: "←"
+          anchors.left: parent.left
+          onClicked: root.backToUsers()
         }
 
         Text {
+          anchors.left: back.right
+          anchors.leftMargin: 12
           anchors.verticalCenter: parent.verticalCenter
-          text: root.shownName
-          color: root.textColor
+          text: root.manualUser ? "Outro usuário" : "Trocar de conta"
+          color: root.dimColor
           font.family: root.fontFamily
-          font.pixelSize: 19
-          font.bold: true
+          font.pixelSize: 13
         }
       }
 
-      Item { width: 1; height: 6 }
+      Avatar {
+        visible: !root.manualUser
+        size: 88
+        anchors.horizontalCenter: parent.horizontalCenter
+        source: root.selectedUser ? root.selectedUser.avatar : ""
+        initial: root.shownName
+      }
 
       Text {
-        visible: root.manualUser
-        text: "Nome de usuário"
+        visible: !root.manualUser
+        width: parent.width
+        horizontalAlignment: Text.AlignHCenter
+        text: root.shownName
         color: root.textColor
-        font.family: root.fontFamily
-        font.pixelSize: 14
+        elide: Text.ElideRight
+        font.family: root.displayFamily
+        font.pixelSize: 22
+        font.bold: true
       }
+
+      Item { width: 1; height: 4 }
 
       Field {
         visible: root.manualUser
         input: manualName
+        placeholder: "Nome de usuário"
 
         TextInput {
           id: manualName
           anchors.fill: parent
-          anchors.leftMargin: 12
-          anchors.rightMargin: 12
+          anchors.leftMargin: 16
+          anchors.rightMargin: 16
           verticalAlignment: TextInput.AlignVCenter
           color: root.textColor
           selectionColor: root.accent
@@ -367,22 +406,16 @@ Rectangle {
         }
       }
 
-      Text {
-        text: "Senha"
-        color: root.textColor
-        font.family: root.fontFamily
-        font.pixelSize: 14
-      }
-
       Field {
         input: password
         failed: root.loginFailed
+        placeholder: "Senha"
 
         TextInput {
           id: password
           anchors.fill: parent
-          anchors.leftMargin: 12
-          anchors.rightMargin: 12
+          anchors.leftMargin: 16
+          anchors.rightMargin: 56
           verticalAlignment: TextInput.AlignVCenter
           echoMode: TextInput.Password
           passwordCharacter: "●"
@@ -418,46 +451,31 @@ Rectangle {
             }
           }
         }
-      }
 
-      Text {
-        width: parent.width
-        height: 20
-        text: root.loginFailed ? "Desculpe, isso não funcionou. Tente novamente." : ""
-        color: root.errorColor
-        font.family: root.fontFamily
-        font.pixelSize: 14
-      }
-
-      Item {
-        width: parent.width
-        height: 36
-
-        Button {
-          anchors.left: parent.left
-          label: "Cancelar"
-          onClicked: root.backToUsers()
-        }
-
-        Row {
+        // Submit, inside the field's right end.
+        Rectangle {
           anchors.right: parent.right
-          spacing: 10
+          anchors.rightMargin: 6
+          anchors.verticalCenter: parent.verticalCenter
+          width: 36
+          height: 36
+          radius: 18
+          color: submitMouse.containsMouse ? root.accentHover : root.accent
 
-          Button {
-            id: gear
-            icon: "gear.png"
-            fixedWidth: 40
-            highlighted: root.sessionMenuOpen
-            onClicked: {
-              root.powerMenuOpen = false
-              root.sessionMenuOpen = !root.sessionMenuOpen
-              password.forceActiveFocus()
-            }
+          Text {
+            anchors.centerIn: parent
+            text: "→"
+            color: root.textColor
+            font.family: root.fontFamily
+            font.pixelSize: 18
+            font.bold: true
           }
 
-          Button {
-            label: "Entrar"
-            primary: true
+          MouseArea {
+            id: submitMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
             onClicked: root.login()
           }
         }
@@ -465,22 +483,69 @@ Rectangle {
 
       Text {
         width: parent.width
-        horizontalAlignment: Text.AlignRight
-        text: root.selectedSession ? root.selectedSession.sessionName : ""
-        color: root.dimColor
+        height: 18
+        text: root.loginFailed ? "Senha incorreta. Tente novamente." : ""
+        color: root.errorColor
         font.family: root.fontFamily
-        font.pixelSize: 12
+        font.pixelSize: 13
+      }
+
+      // Session chip: opens the session menu under it.
+      Rectangle {
+        id: sessionChip
+        width: Math.min(parent.width, sessionRow.width + 28)
+        height: 32
+        radius: 16
+        color: sessionMouse.containsMouse || root.sessionMenuOpen ? root.chipHover : root.chipColor
+
+        Row {
+          id: sessionRow
+          anchors.centerIn: parent
+          spacing: 8
+
+          Text {
+            text: "Sessão"
+            color: root.dimColor
+            font.family: root.fontFamily
+            font.pixelSize: 12
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Text {
+            text: root.selectedSession ? root.selectedSession.sessionName : ""
+            color: root.textColor
+            font.family: root.fontFamily
+            font.pixelSize: 12
+            font.bold: true
+            anchors.verticalCenter: parent.verticalCenter
+          }
+          Text {
+            text: "▾"
+            color: root.dimColor
+            font.pixelSize: 11
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        MouseArea {
+          id: sessionMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: Qt.PointingHandCursor
+          onClicked: {
+            root.sessionMenuOpen = !root.sessionMenuOpen
+            password.forceActiveFocus()
+          }
+        }
       }
     }
   }
 
-  // Session menu, opening under the gear.
   Popup {
     id: sessionMenu
     visible: root.sessionMenuOpen && !root.choosingUser
-    x: center.x + center.width - width
-    y: center.y + passwordStep.height + 6
-    width: 280
+    x: card.x + 28
+    y: card.y + card.height - 20
+    width: 300
     entries: {
       var list = []
       for (var i = 0; i < sessionNames.count; i++) {
@@ -500,73 +565,111 @@ Rectangle {
     }
   }
 
-  // Bottom: the ∞ DoxIA brand (fedora/doxia/make-brand.py), where RHEL 8 shows its logo.
-  Image {
-    source: "brand.png"
-    height: 50
-    width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
-    fillMode: Image.PreserveAspectFit
-    smooth: true
-    mipmap: true
-    anchors.horizontalCenter: parent.horizontalCenter
+  // Bottom right: power actions, always visible.
+  Row {
+    anchors.right: card.right
     anchors.bottom: parent.bottom
-    anchors.bottomMargin: 44
+    anchors.bottomMargin: 28
+    spacing: 8
+
+    PowerButton { label: "Suspender"; visible: sddm.canSuspend; onClicked: sddm.suspend() }
+    PowerButton { label: "Reiniciar"; visible: sddm.canReboot; onClicked: sddm.reboot() }
+    PowerButton { label: "Desligar"; icon: "power.png"; visible: sddm.canPowerOff; onClicked: sddm.powerOff() }
   }
 
   component Field: Rectangle {
     property Item input
     property bool failed: false
+    property string placeholder: ""
 
-    width: parent ? parent.width : 380
-    height: 40
-    radius: 6
+    width: parent ? parent.width : 344
+    height: 48
+    radius: 24
     color: root.fieldColor
     border.width: input && input.activeFocus ? 2 : 1
     border.color: failed ? root.errorColor : (input && input.activeFocus ? root.accent : root.fieldBorder)
-  }
-
-  component Button: Rectangle {
-    id: button
-    property string label: ""
-    property string icon: ""
-    property int labelSize: 14
-    property int fixedWidth: 0
-    property bool primary: false
-    property bool highlighted: false
-    signal clicked()
-
-    width: fixedWidth > 0 ? fixedWidth : buttonText.implicitWidth + 36
-    height: 36
-    radius: 6
-    color: primary ? (buttonMouse.containsMouse ? root.accentHover : root.accent)
-                   : (buttonMouse.containsMouse || highlighted ? root.buttonHover : root.buttonColor)
-
-    Image {
-      visible: button.icon !== ""
-      source: button.icon
-      width: 20
-      height: 20
-      smooth: true
-      mipmap: true
-      anchors.centerIn: parent
-    }
 
     Text {
-      id: buttonText
+      anchors.left: parent.left
+      anchors.leftMargin: 16
+      anchors.verticalCenter: parent.verticalCenter
+      visible: parent.input && parent.input.text.length === 0
+      text: parent.placeholder
+      color: root.dimColor
+      font.family: root.fontFamily
+      font.pixelSize: 14
+    }
+  }
+
+  component RoundButton: Rectangle {
+    id: roundButton
+    property string label: ""
+    signal clicked()
+
+    width: 32
+    height: 32
+    radius: 16
+    color: roundMouse.containsMouse ? root.chipHover : root.chipColor
+
+    Text {
       anchors.centerIn: parent
-      text: button.label
+      text: roundButton.label
       color: root.textColor
       font.family: root.fontFamily
-      font.pixelSize: button.labelSize
-      font.bold: button.primary
+      font.pixelSize: 16
     }
 
     MouseArea {
-      id: buttonMouse
+      id: roundMouse
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onClicked: button.clicked()
+      onClicked: roundButton.clicked()
+    }
+  }
+
+  component PowerButton: Rectangle {
+    id: powerButton
+    property string label: ""
+    property string icon: ""
+    signal clicked()
+
+    width: powerRow.width + 24
+    height: 32
+    radius: 16
+    color: powerMouse.containsMouse ? root.chipHover : "transparent"
+    border.color: root.cardBorder
+    border.width: 1
+
+    Row {
+      id: powerRow
+      anchors.centerIn: parent
+      spacing: 6
+
+      Image {
+        visible: powerButton.icon !== ""
+        source: powerButton.icon
+        width: 16
+        height: 16
+        smooth: true
+        mipmap: true
+        anchors.verticalCenter: parent.verticalCenter
+      }
+      Text {
+        text: powerButton.label
+        color: powerMouse.containsMouse ? root.textColor : root.dimColor
+        font.family: root.fontFamily
+        font.pixelSize: 13
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    MouseArea {
+      id: powerMouse
+      anchors.fill: parent
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: powerButton.clicked()
     }
   }
 
@@ -577,8 +680,8 @@ Rectangle {
 
     z: 20
     height: popupColumn.height + 12
-    radius: 10
-    color: "#262729"
+    radius: 12
+    color: "#232528"
     border.color: "#3e4044"
     border.width: 1
 
@@ -597,7 +700,7 @@ Rectangle {
 
           Rectangle {
             anchors.fill: parent
-            radius: 6
+            radius: 8
             color: root.textColor
             opacity: entryMouse.containsMouse && modelData.enabled ? 0.08 : 0
           }

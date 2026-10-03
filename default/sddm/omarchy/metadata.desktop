@@ -1,6 +1,6 @@
 [SddmGreeterTheme]
 Name=DoxIA
-Description=DoxIA login screen modeled on the RHEL 8 GDM greeter
+Description=DoxIA login screen: clock on the left, sign-in card on the right
 Author=Omarchy
 Type=sddm-theme
 Version=1.0
