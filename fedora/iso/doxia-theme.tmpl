@@ -4,5 +4,9 @@
 <%page args="root, themedir"/>
 
 mkdir usr/share/anaconda/pixmaps/doxia
-runcmd cp ${themedir}/doxia.css ${themedir}/sidebar-bg.png ${themedir}/sidebar-logo.png ${themedir}/topbar-bg.png ${root}/usr/share/anaconda/pixmaps/doxia/
+runcmd cp ${themedir}/doxia.css ${themedir}/sidebar-bg.png ${themedir}/sidebar-logo.png ${root}/usr/share/anaconda/pixmaps/doxia/
 runcmd cp ${themedir}/doxia.conf ${root}/etc/anaconda/profile.d/doxia.conf
+
+## Link-style buttons hardcode pure blue in their markup, which CSS can't reach and
+## which is unreadable on the dark theme: repaint them in the theme's light red.
+runcmd sed -i 's/#00000000ffff/#ffff6b6b6b6b/' ${root}/usr/share/anaconda/ui/spokes/storage.glade ${root}/usr/share/anaconda/ui/spokes/custom_storage.glade ${root}/usr/share/anaconda/ui/spokes/advanced_storage.glade ${root}/usr/share/anaconda/ui/spokes/blivet_gui.glade

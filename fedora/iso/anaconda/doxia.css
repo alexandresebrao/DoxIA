@@ -1,14 +1,58 @@
-/* Anaconda GTK style for the DoxIA installer: the login screen's charcoal and
- * red instead of Fedora's blue. Images come from make-installer-art.py. */
+/* Anaconda GTK style for the DoxIA installer: Windows 98 in the login screen's
+ * charcoal and red. Beveled gray-on-charcoal widgets, square corners, and a red
+ * title-bar gradient across the top of every screen. Images come from
+ * make-installer-art.py. Anaconda loads this above Adwaita, so it repaints the
+ * light theme widget by widget. */
 
 @define-color doxia #1d1f22;
 @define-color doxia_red #ee0000;
 @define-color doxia_red_dark #a30000;
 
+@define-color face #2b2d31;          /* window and button face */
+@define-color field #18191b;         /* entries, lists, wells */
+@define-color hilight #5c6066;       /* bevel: outer light edge */
+@define-color light #3d4045;         /* bevel: inner light edge */
+@define-color shadow #121314;        /* bevel: inner dark edge */
+@define-color dkshadow #050505;      /* bevel: outer dark edge */
+@define-color text #e8e8e8;
+@define-color dim #9b9ea3;
+
+/* Base */
+
+* {
+    outline-color: alpha(@text, 0.6);
+    outline-style: dotted;
+    outline-width: 1px;
+    outline-offset: -3px;
+    -gtk-outline-radius: 0;
+}
+
+window, dialog, .background, messagedialog .dialog-action-box {
+    background-color: @face;
+    background-image: none;
+    color: @text;
+}
+
+label { color: @text; }
+label.dim-label, .dim-label { color: @dim; opacity: 1; }
+label:disabled, label:backdrop:disabled { color: alpha(@text, 0.4); }
+label selection { background-color: @doxia_red; color: white; }
+
+link, *:link, label link, label link:link,
+button.link label, button.link:link label, button.link:link > label, button:link > label {
+    color: #ff6b6b;
+}
+*:link:visited, label link:visited, button.link:visited label, button:visited > label { color: #ff9b9b; }
+
+separator { background-color: @shadow; border-bottom: 1px solid @hilight; min-height: 1px; min-width: 1px; }
+
+/* Sidebar (welcome, summary and progress) */
+
 .logo-sidebar {
     background-image: url('/usr/share/anaconda/pixmaps/doxia/sidebar-bg.png');
     background-color: @doxia;
     background-repeat: no-repeat;
+    border-right: 3px solid @doxia_red;
 }
 
 .logo {
@@ -23,21 +67,332 @@
     background-color: transparent;
 }
 
-AnacondaSpokeWindow #nav-box {
-    background-color: @doxia;
-    background-image: url('/usr/share/anaconda/pixmaps/doxia/topbar-bg.png');
-    background-repeat: repeat;
-    border-bottom: 3px solid @doxia_red;
+/* Title bar: the strip at the top of every screen */
+
+#nav-box {
+    background-color: @doxia_red_dark;
+    background-image: linear-gradient(to right, @doxia_red_dark, @doxia_red);
+    border-bottom: 2px solid @dkshadow;
+    box-shadow: inset 0 -1px alpha(white, 0.15);
     color: white;
 }
+
+#nav-box label { color: white; }
+#anaconda-name-label { font-weight: bold; }
+#anaconda-distro-label { color: alpha(white, 0.85); }
+
+AnacondaLayoutIndicator {
+    background-color: @field;
+    color: @text;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+}
+AnacondaLayoutIndicator label { color: @text; }
+
+/* Buttons: raised bevel, pressed in when clicked */
+
+button {
+    background-color: @face;
+    background-image: none;
+    color: @text;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    padding: 4px 14px;
+    min-height: 22px;
+}
+button label { color: @text; }
+
+button:hover {
+    background-color: shade(@face, 1.12);
+}
+
+button:active, button:checked {
+    background-color: shade(@face, 0.85);
+    border-color: @dkshadow @hilight @hilight @dkshadow;
+    box-shadow: inset 1px 1px @shadow, inset -1px -1px @light;
+    padding: 5px 13px 3px 15px;
+}
+
+button:disabled {
+    background-color: @face;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+}
+button:disabled label { color: alpha(@text, 0.35); text-shadow: 1px 1px @dkshadow; }
 
 button.suggested-action {
-    background-image: none;
     background-color: @doxia_red;
-    border-color: @doxia_red_dark;
-    color: white;
+    border-color: #ff6a6a @dkshadow @dkshadow #ff6a6a;
+    box-shadow: inset 1px 1px #ff3b3b, inset -1px -1px @doxia_red_dark;
+    font-weight: bold;
+}
+button.suggested-action label { color: white; }
+button.suggested-action:hover { background-color: #ff1a1a; }
+button.suggested-action:active {
+    background-color: #c80000;
+    border-color: @dkshadow #ff6a6a #ff6a6a @dkshadow;
+    box-shadow: inset 1px 1px @doxia_red_dark, inset -1px -1px #ff3b3b;
+}
+button.suggested-action:disabled {
+    background-color: shade(@doxia_red, 0.5);
+    border-color: shade(@doxia_red, 0.75) @dkshadow @dkshadow shade(@doxia_red, 0.75);
+    box-shadow: none;
+}
+button.suggested-action:disabled label { color: alpha(white, 0.45); text-shadow: none; }
+
+button.destructive-action { background-color: @doxia_red_dark; }
+button.destructive-action label { color: white; }
+
+/* The title bar's "Done" button: plain gray, like a Win98 title-bar button */
+#nav-box button,
+#nav-box button.suggested-action {
+    background-color: @face;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    font-weight: bold;
+}
+#nav-box button:hover { background-color: shade(@face, 1.12); }
+#nav-box button:active {
+    background-color: shade(@face, 0.85);
+    border-color: @dkshadow @hilight @hilight @dkshadow;
+    box-shadow: inset 1px 1px @shadow, inset -1px -1px @light;
 }
 
-button.suggested-action:hover {
-    background-color: #ff1a1a;
+button.flat, button.image-button.flat, .titlebar button.flat {
+    border-color: transparent;
+    box-shadow: none;
+    background-color: transparent;
 }
+button.flat:hover { border-color: @hilight @dkshadow @dkshadow @hilight; background-color: @face; }
+
+/* Text entries and spin buttons: sunken white-on-charcoal wells */
+
+entry, spinbutton:not(.vertical), spinbutton.vertical entry, textview text, .view, iconview {
+    background-color: @field;
+    background-image: none;
+    color: @text;
+    caret-color: @text;
+}
+
+entry, spinbutton:not(.vertical) {
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow, inset -1px -1px @light;
+    min-height: 26px;
+}
+entry:focus, spinbutton:focus { border-color: @doxia_red @hilight @hilight @doxia_red; }
+entry:disabled { background-color: @face; color: alpha(@text, 0.4); }
+entry image { color: @dim; }
+entry selection, .view:selected, .view text selection, textview text selection {
+    background-color: @doxia_red;
+    color: white;
+}
+entry placeholder, entry.search placeholder { color: alpha(@text, 0.4); }
+entry progress { border-color: @doxia_red; background-image: none; background-color: transparent; }
+entry.warning { color: #ffb347; }
+entry.error { color: #ff6b6b; }
+
+spinbutton button { border-radius: 0; padding: 0 6px; }
+
+/* Lists, trees and frames */
+
+scrolledwindow.frame, frame > border, .frame, viewport.frame {
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: none;
+}
+scrolledwindow undershoot, scrolledwindow overshoot { background: none; }
+
+treeview.view { border-color: @face; }
+treeview.view:hover { background-color: shade(@field, 1.4); }
+treeview.view:selected, treeview.view:selected:focus, row:selected, list row:selected {
+    background-color: @doxia_red;
+    color: white;
+}
+treeview.view header button, list header button {
+    background-color: @face;
+    color: @text;
+    font-weight: bold;
+    padding: 3px 6px;
+    border-radius: 0;
+}
+treeview.view.dim-label, .view .dim-label { color: @dim; }
+
+list, listbox, list row { background-color: @field; color: @text; }
+list row:hover { background-color: shade(@field, 1.4); }
+
+/* Check and radio buttons: sunken square and round wells */
+
+check, radio {
+    background-color: @field;
+    background-image: none;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow;
+    color: @doxia_red;
+    -gtk-icon-shadow: none;
+    min-width: 14px;
+    min-height: 14px;
+    margin: 0 6px 0 0;
+}
+check { border-radius: 0; }
+radio { border-radius: 100%; }
+check:checked { -gtk-icon-source: -gtk-icontheme('object-select-symbolic'); color: @doxia_red; }
+radio:checked { -gtk-icon-source: -gtk-icontheme('radio-checked-symbolic'); color: @doxia_red; }
+check:indeterminate { color: @doxia_red; }
+check:disabled, radio:disabled { background-color: @face; color: alpha(@text, 0.4); }
+checkbutton label, radiobutton label { color: @text; }
+checkbutton:disabled label, radiobutton:disabled label { color: alpha(@text, 0.4); }
+
+/* Progress bars: the Win98 row of blocks */
+
+progressbar trough, levelbar trough {
+    background-color: @field;
+    background-image: none;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: none;
+    min-height: 20px;
+}
+progressbar progress {
+    border-radius: 0;
+    border: none;
+    margin: 2px;
+    background-color: transparent;
+    background-image: linear-gradient(to right, @doxia_red 0, @doxia_red 12px, transparent 12px);
+    background-size: 15px 100%;
+    background-repeat: repeat-x;
+    min-height: 16px;
+}
+progressbar text { color: @text; }
+
+levelbar block {
+    border-radius: 0;
+    border-color: @shadow;
+    background-color: @face;
+    min-height: 6px;
+}
+
+/* Combo boxes, menus and popovers */
+
+combobox button.combo, combobox box button { padding: 2px 8px; }
+combobox arrow, menuitem arrow { color: @text; }
+cellview { color: @text; }
+
+menu, .menu, .context-menu, popover, popover.background {
+    background-color: @face;
+    background-image: none;
+    color: @text;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    padding: 2px;
+}
+menuitem, modelbutton { color: @text; border-radius: 0; }
+menuitem:hover, modelbutton:hover { background-color: @doxia_red; color: white; }
+menuitem:hover label, modelbutton:hover label { color: white; }
+popover label, popover modelbutton { color: @text; }
+
+/* Notebook tabs */
+
+notebook > header { background-color: @face; border-color: @hilight; }
+notebook > header tab { color: @dim; border-radius: 0; }
+notebook > header tab:checked { color: @text; box-shadow: inset 0 -3px @doxia_red; }
+notebook > stack:not(:only-child) { background-color: @face; }
+
+/* Toolbars: the +/- strips under the partition, layout and network lists */
+
+toolbar, toolbar.inline-toolbar, .inline-toolbar {
+    background-color: @face;
+    background-image: none;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    border-radius: 0;
+    padding: 2px;
+}
+toolbar button, toolbar toolbutton > button { padding: 2px 6px; }
+toolbar button image, toolbar toolbutton image { color: @text; }
+
+/* Scrollbars */
+
+scrollbar { background-color: @face; border-color: @shadow; }
+scrollbar slider {
+    background-color: @light;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    min-width: 8px;
+    min-height: 8px;
+}
+scrollbar slider:hover { background-color: @hilight; }
+scrollbar slider:active { background-color: @doxia_red; }
+
+/* Switches and scales */
+
+switch {
+    background-color: @field;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    color: @text;
+}
+switch:checked { background-color: @doxia_red; color: white; }
+switch slider {
+    background-color: @face;
+    background-image: none;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+}
+
+scale trough { background-color: @field; border-radius: 0; border-color: @shadow; }
+scale highlight { background-color: @doxia_red; border-radius: 0; }
+scale slider {
+    background-color: @face;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+}
+
+/* Tooltips */
+
+tooltip, tooltip.background {
+    background-color: #ffffe1;
+    border-radius: 0;
+    border: 1px solid black;
+    box-shadow: none;
+}
+tooltip label { color: black; }
+
+/* Anaconda's own widgets */
+
+/* Spoke selectors on the summary screen: incomplete spokes stay red-highlighted */
+AnacondaSpokeSelector label { color: @text; }
+AnacondaSpokeSelector:hover { background-color: shade(@face, 1.12); }
+AnacondaSpokeSelector image { color: @text; }
+
+/* The info bar warning across the bottom of the summary and spokes */
+infobar.warning box, infobar.warning > revealer > box {
+    background-color: @doxia_red_dark;
+    border-top: 1px solid @doxia_red;
+}
+infobar.warning label { color: white; }
+infobar.info box { background-color: #3a3c40; }
+infobar.info label { color: @text; }
+infobar.error box { background-color: @doxia_red; }
+infobar.error label { color: white; }
+
+/* Storage disk overviews and selectors */
+AnacondaDiskOverview, AnacondaMountpointSelector { color: @text; }
+AnacondaDiskOverview:checked, AnacondaMountpointSelector:selected { background-color: shade(@face, 1.2); }
+
+#subscriptions_listbox_row { background-color: @field; border-color: @shadow; }

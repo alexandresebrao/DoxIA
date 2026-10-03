@@ -4,7 +4,6 @@ tela de login (default/sddm/omarchy/brand.png e infinity.png).
 
   fedora/iso/anaconda/sidebar-bg.png    fundo da barra lateral (boas-vindas e resumo)
   fedora/iso/anaconda/sidebar-logo.png  ∞ DoxIA deitado, de baixo para cima, no pé da barra lateral
-  fedora/iso/anaconda/topbar-bg.png     faixa do topo de cada tela de configuração
 
 Rode de novo para regenerar: python3 fedora/iso/make-installer-art.py
 """
@@ -47,15 +46,9 @@ def sidebar_logo():
     img.save(OUT / "sidebar-logo.png", optimize=True)
 
 
-def topbar_bg():
-    # Repetido pelo Anaconda; a linha vermelha embaixo vem do CSS (border-bottom).
-    gradient(1040, 132, (26, 28, 31), TOP).save(OUT / "topbar-bg.png", optimize=True)
-
-
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     sidebar_bg()
     sidebar_logo()
-    topbar_bg()
-    for name in ("sidebar-bg.png", "sidebar-logo.png", "topbar-bg.png"):
+    for name in ("sidebar-bg.png", "sidebar-logo.png"):
         print("wrote", (OUT / name).relative_to(ROOT))
