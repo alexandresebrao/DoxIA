@@ -113,6 +113,21 @@ mkdir -p "$(dirname "$gtk_css")"
 if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
   echo "@import url('file://$HOME/.local/state/omarchy/current/theme/gtk.css');" >> "$gtk_css"
 fi
+if ! grep -q 'nautilus-grid-view' "$gtk_css"; then
+  cat >> "$gtk_css" <<'CSS'
+
+/* Nautilus: grid icons 4% smaller (zoom only has ~25% steps). */
+.nautilus-grid-view .nautilus-view-cell > :first-child {
+  transform: scale(0.96);
+}
+CSS
+fi
+# No minimize/maximize/close or app icon in GTK title bars: Hyprland manages windows.
+for ini in ~/.config/gtk-3.0/settings.ini ~/.config/gtk-4.0/settings.ini; do
+  if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
+    sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
+  fi
+done
 bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
 
 echo "==> Theme (RHEL 8, the DoxIA default)"
@@ -123,8 +138,9 @@ fi
 mkdir -p ~/.config/btop/themes
 ln -snf "$HOME/.local/state/omarchy/current/theme/btop.theme" ~/.config/btop/themes/current.theme
 # Headless theme-set skips gsettings (no session bus in the installer): set the
-# dark scheme and the theme's icons through a throwaway bus.
-dbus-run-session -- omarchy-theme-set-gnome
+# dark scheme, the theme's icons and the bare title bars through a throwaway bus.
+dbus-run-session -- bash -c 'omarchy-theme-set-gnome
+  gsettings set org.gnome.desktop.wm.preferences button-layout ":"'
 
 echo "==> XCompose"
 if [[ ! -f ~/.XCompose ]]; then

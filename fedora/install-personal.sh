@@ -40,15 +40,6 @@ echo "==> Branding"
 seed omarchy/branding "$HOME/.config/omarchy/branding"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts
 
-# Sem minimizar/maximizar/fechar nem ícone do app nas barras de título GTK: o
-# Hyprland cuida das janelas.
-gsettings set org.gnome.desktop.wm.preferences button-layout ':'
-for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
-  if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
-    sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
-  fi
-done
-
 echo "==> Screen share (Hyprland picker, stop button in the bar)"
 seed hypr/xdph.conf "$HOME/.config/hypr/xdph.conf"
 omarchy-pkg-add wtype jq
@@ -89,15 +80,5 @@ fi
 echo "Add VPN profiles from the FortiVPN widget; credentials stay in /etc/openfortivpn."
 
 echo "==> Theme"
-# As cores do GTK e as pastas vermelhas já vêm do install-user.sh.
-gtk_css="$HOME/.config/gtk-4.0/gtk.css"
-if ! grep -q 'nautilus-grid-view' "$gtk_css"; then
-  cat >> "$gtk_css" <<'CSS'
-
-/* Nautilus: ícones da grade 4% menores (o zoom só tem degraus de ~25%). */
-.nautilus-grid-view .nautilus-view-cell > :first-child {
-  transform: scale(0.96);
-}
-CSS
-fi
+# As cores do GTK, as pastas vermelhas e os ajustes do Nautilus já vêm do install-user.sh.
 omarchy-theme-set rhel-8
