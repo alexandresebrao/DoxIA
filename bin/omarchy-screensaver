@@ -37,7 +37,9 @@ wait_for_terminal_resize
 
 # DoxIA: the dachshund running through the night (fedora/doxia/screensaver-salsicha)
 # instead of the TTE effects below, which stay so upstream changes keep merging.
-exec python3 "$OMARCHY_PATH/fedora/doxia/screensaver-salsicha"
+# Not exec'd: the cursor hidden above has to come back when it quits.
+python3 "$OMARCHY_PATH/fedora/doxia/screensaver-salsicha"
+exit_screensaver
 
 # DoxIA palette: every effect settles on light gray (DOX) and RHEL 8 red
 # (IA) instead of its own default colors. Effects that animate in strong green
