@@ -38,10 +38,7 @@ done
 
 echo "==> Branding"
 seed omarchy/branding "$HOME/.config/omarchy/branding"
-for tpl in "$personal"/omarchy/themed/*.tpl; do
-  seed "omarchy/themed/$(basename "$tpl")" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
-done
-omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
+omarchy-pkg-add redhat-display-fonts redhat-text-fonts
 
 # Sem minimizar/maximizar/fechar nem ícone do app nas barras de título GTK: o
 # Hyprland cuida das janelas.
@@ -92,14 +89,8 @@ fi
 echo "Add VPN profiles from the FortiVPN widget; credentials stay in /etc/openfortivpn."
 
 echo "==> Theme"
-# Pastas do Tela em vermelho sobre o Papirus-Dark (Papirus-Tela-Red, gerado no $HOME).
-bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
-# GTK4/libadwaita (Nautilus) com as cores do tema, via themed/gtk.css.tpl.
+# As cores do GTK e as pastas vermelhas já vêm do install-user.sh.
 gtk_css="$HOME/.config/gtk-4.0/gtk.css"
-mkdir -p "$(dirname "$gtk_css")"
-if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
-  echo "@import url('file://$HOME/.local/state/omarchy/current/theme/gtk.css');" >> "$gtk_css"
-fi
 if ! grep -q 'nautilus-grid-view' "$gtk_css"; then
   cat >> "$gtk_css" <<'CSS'
 

@@ -104,6 +104,17 @@ for migration in "$OMARCHY_PATH"/migrations/*.sh; do
   [[ -f $migration ]] && touch ~/.local/state/omarchy/migrations/"$(basename "$migration")"
 done
 
+echo "==> GTK apps in the theme's colors and red folder icons (DoxIA default)"
+for tpl in "$OMARCHY_PATH"/fedora/personal/omarchy/themed/*.tpl; do
+  seed "fedora/personal/omarchy/themed/$(basename "$tpl")" ~/.config/omarchy/themed/"$(basename "$tpl")"
+done
+gtk_css=~/.config/gtk-4.0/gtk.css
+mkdir -p "$(dirname "$gtk_css")"
+if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
+  echo "@import url('file://$HOME/.local/state/omarchy/current/theme/gtk.css');" >> "$gtk_css"
+fi
+bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
+
 echo "==> Theme (RHEL 8, the DoxIA default)"
 mkdir -p ~/.config/omarchy/themes
 if [[ ! -s ~/.local/state/omarchy/current/theme.name ]]; then
@@ -111,6 +122,9 @@ if [[ ! -s ~/.local/state/omarchy/current/theme.name ]]; then
 fi
 mkdir -p ~/.config/btop/themes
 ln -snf "$HOME/.local/state/omarchy/current/theme/btop.theme" ~/.config/btop/themes/current.theme
+# Headless theme-set skips gsettings (no session bus in the installer): set the
+# dark scheme and the theme's icons through a throwaway bus.
+dbus-run-session -- omarchy-theme-set-gnome
 
 echo "==> XCompose"
 if [[ ! -f ~/.XCompose ]]; then

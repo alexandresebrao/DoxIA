@@ -40,6 +40,9 @@ packages=(
   # Terminal + default apps
   foot nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
   gnome-keyring yaru-icon-theme yaru-theme
+  # Red folders of the DoxIA theme (themes/rhel-8/make-icons.sh) and applying
+  # them without a session (install-user.sh)
+  papirus-icon-theme-dark perl-interpreter dbus-daemon
 
   # Wayland/desktop utilities used by omarchy-* commands
   brightnessctl pamixer playerctl wireplumber wl-clipboard wtype grim slurp cliphist
