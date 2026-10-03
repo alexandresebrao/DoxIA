@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "doxia.workspaces",
+  "name": "DoxIA Workspaces",
+  "version": "1.0.0",
+  "author": "alexandre",
+  "license": "MIT",
+  "description": "Workspaces com ícones dos espaços fixos e traço vermelho no ativo, estilo PatternFly.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Workspaces.qml" },
+  "barWidget": {
+    "displayName": "DoxIA Workspaces",
+    "description": "Terminal, navegador, chat, IDE, email e Spotify nos espaços 1 a 6; os demais com o número.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

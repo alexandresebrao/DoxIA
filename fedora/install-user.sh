@@ -45,13 +45,14 @@ mkdir -p ~/.config/omarchy/branding
 mkdir -p ~/.bashrc.d
 ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" ~/.bashrc.d/doxia.sh
 
-echo "==> DoxIA bar (the theme's ∞ as the menu button, Now Playing and screen share by the clock)"
-for plugin in doxia.emblem alexandre.media alexandre.screenshare; do
+echo "==> DoxIA bar (∞ menu button, workspace icons, Now Playing and screen share by the clock)"
+for plugin in doxia.emblem doxia.workspaces alexandre.media alexandre.screenshare; do
   seed "fedora/doxia/plugins/$plugin" ~/.config/omarchy/plugins/$plugin
 done
 shell_json=~/.config/omarchy/shell.json
 jq '.bar.layout |= (
-    .left |= map(if .id == "omarchy.menu" then {id: "doxia.emblem"} else . end)
+    .left |= map(if .id == "omarchy.menu" then {id: "doxia.emblem"}
+      elif .id == "omarchy.workspaces" then {id: "doxia.workspaces"} else . end)
   | .center |= (if any(.[]; .id == "alexandre.media") then . else
       (map(.id) | index("omarchy.clock")) as $i | .[:$i] + [{id: "alexandre.media"}] + .[$i:] end)
   | .center |= (if any(.[]; .id == "alexandre.screenshare") then . else
