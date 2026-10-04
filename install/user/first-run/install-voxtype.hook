@@ -3,7 +3,7 @@
 set -e
 
 if omarchy-done ensure voxtype-install-invitation; then
-  omarchy-notification-send -u critical -g  "Install Dictation with Voxtype" \
-    "Click to install voice dictation for Omarchy." \
+  omarchy-notification-send -u critical -g  "Instalar o ditado com Voxtype" \
+    "Clique para instalar o ditado por voz." \
     --exec omarchy-launch-floating-terminal-with-presentation omarchy-voxtype-install
 fi

@@ -7,8 +7,15 @@ set -e
 
 # Install voxtype and configure it for use.
 
-if gum confirm "Install Voxtype + AI model (~150MB) to enable dictation?"; then
-  omarchy-pkg-add wtype voxtype-bin
+if gum confirm "Instalar o Voxtype + modelo de IA (~500MB) para ativar o ditado?"; then
+  omarchy-pkg-add wtype
+
+  # Fedora has no voxtype package, so install the RPM from the latest upstream release.
+  if omarchy-pkg-missing voxtype; then
+    release_url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/peteonrails/voxtype/releases/latest)
+    version=${release_url##*/v}
+    sudo dnf install -y "https://github.com/peteonrails/voxtype/releases/download/v$version/voxtype-$version-1.x86_64.rpm"
+  fi
 
   # Setup voxtype
   mkdir -p ~/.config/voxtype
@@ -22,5 +29,5 @@ if gum confirm "Install Voxtype + AI model (~150MB) to enable dictation?"; then
 
   hyprctl reload >/dev/null
   omarchy-restart-shell
-  omarchy-notification-send -g  "Ditado do Voxtype pronto" "Segure F9 para ditar (ou alterne com Super + Ctrl + X)." -t 10000
+  omarchy-notification-send -g  "Ditado do Voxtype pronto" "Segure F9 para ditar (ou alterne com Super + Ctrl + X)." -t 10000
 fi
