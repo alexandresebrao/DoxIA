@@ -9,7 +9,9 @@
 command=${1:-}
 [[ $command == @(add|retitle) ]] || exit 0
 
-entries=${KERNEL_INSTALL_BOOT_ROOT:-/boot}/loader/entries
+# Fedora's 20-grub.install always writes the entries to /boot/loader/entries, where
+# GRUB reads them; on UEFI KERNEL_INSTALL_BOOT_ROOT is /boot/efi, which has none.
+entries=/boot/loader/entries
 for entry in "$entries"/*.conf; do
   [[ -f $entry ]] || continue
   sed -i -E 's/^title Fedora Linux \((.*)\) ([0-9]+)( \(.*\))?$/title DoxIA \2 (\1)/' "$entry"
