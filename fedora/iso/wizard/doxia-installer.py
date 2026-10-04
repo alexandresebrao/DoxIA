@@ -243,6 +243,11 @@ class Wizard(Gtk.Window):
         frame.set_margin_start(28)
         frame.set_margin_end(28)
         stage.pack_start(frame, True, True, 0)
+        self.frame = frame
+        # While the files are copied the window steps aside for this strip on the
+        # gray background: tip, separator, status and the bar with its percentage.
+        self.copy_panel = self._copy_panel()
+        stage.pack_end(self.copy_panel, False, False, 0)
 
         frame.pack_start(self._titlebar(), False, False, 0)
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -280,6 +285,7 @@ class Wizard(Gtk.Window):
         self.stack.add_named(self._page_failed(), "failed")
         self.show_all()
         self.enc_box.hide()
+        self.copy_panel.hide()
         self.go("welcome")
 
     # Chrome
@@ -524,25 +530,34 @@ class Wizard(Gtk.Window):
         return box
 
     def _page_copy(self):
-        box = self.page("Copiando arquivos do DoxIA...",
-                        "Isto pode levar alguns minutos. Você pode tomar um café.")
-        self.copy_status = bevel_label("Preparando o disco...")
-        box.pack_start(self.copy_status, False, False, 0)
+        # Shown in the strip at the bottom (_copy_panel); the window is hidden meanwhile
+        return self.page("Copiando arquivos do DoxIA...", None)
+
+    def _copy_panel(self):
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        panel.get_style_context().add_class("copy-panel")
+        panel.pack_start(bevel_label("Você sabia?", "tip-title"), False, False, 0)
+        self.tip = bevel_label(TIPS[0], "tip-text")
+        panel.pack_start(self.tip, False, False, 0)
+        panel.pack_start(Gtk.Separator(), False, False, 0)
+
+        status = Gtk.Box(spacing=6)
+        self.copy_status = bevel_label("Preparando o disco...", wrap=False)
+        status.pack_start(self.copy_status, False, False, 0)
         self.copy_detail = bevel_label(" ", "dim", wrap=False)
         self.copy_detail.set_ellipsize(Pango.EllipsizeMode.MIDDLE)
-        box.pack_start(self.copy_detail, False, False, 0)
-        self.bar = Gtk.ProgressBar()
-        self.bar.get_style_context().add_class("blocks")
-        box.pack_start(self.bar, False, False, 0)
-        self.percent = bevel_label("0% concluído", "dim")
-        box.pack_start(self.percent, False, False, 0)
-        tip = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        tip.get_style_context().add_class("tip")
-        tip.pack_start(bevel_label("Você sabia?", "tip-title"), False, False, 0)
-        self.tip = bevel_label(TIPS[0])
-        tip.pack_start(self.tip, False, False, 0)
-        box.pack_start(tip, False, False, 6)
-        return box
+        status.pack_start(self.copy_detail, True, True, 0)
+        panel.pack_start(status, False, False, 0)
+
+        row = Gtk.Box(spacing=16)
+        self.bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER)
+        self.bar.get_style_context().add_class("thin")
+        row.pack_start(self.bar, True, True, 0)
+        self.percent = bevel_label("0%", "percent", xalign=1.0, wrap=False)
+        self.percent.set_width_chars(4)
+        row.pack_start(self.percent, False, False, 0)
+        panel.pack_start(row, False, False, 0)
+        return panel
 
     def _page_done(self):
         box = self.page("Concluindo a instalação",
@@ -565,6 +580,8 @@ class Wizard(Gtk.Window):
     def go(self, name):
         self.stack.set_visible_child_name(name)
         self.current = name
+        self.frame.set_visible(name != "copy")
+        self.copy_panel.set_visible(name == "copy")
         step = {"welcome": 0, "network": 1, "disk": 1, "user": 1, "ready": 1, "copy": 2, "done": 3, "failed": 2}[name]
         self.set_step(step)
         self.back.set_sensitive(name in ("network", "disk", "user", "ready"))
@@ -960,7 +977,7 @@ class Wizard(Gtk.Window):
     def set_progress(self, fraction):
         self.fraction = max(self.fraction, min(fraction, 1.0))
         self.bar.set_fraction(self.fraction)
-        self.percent.set_text(f"{int(self.fraction * 100)}% concluído")
+        self.percent.set_text(f"{int(self.fraction * 100)}%")
 
     def tick(self):
         if not self.installing:

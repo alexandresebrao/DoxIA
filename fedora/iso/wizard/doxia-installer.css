@@ -270,6 +270,33 @@ progressbar.blocks progress {
     min-height: 16px;
 }
 
+/* Copying: the strip at the bottom of the gray stage (tip, separator, status,
+   thin bar with the percentage outside it on the right) */
+
+.copy-panel { padding: 0 48px 40px 48px; }
+.copy-panel label.tip-title { font-weight: bold; color: @text; }
+.copy-panel label.tip-text { font-size: 13pt; color: @text; }
+.copy-panel separator {
+    background-color: @light;
+    min-height: 1px;
+    margin: 14px 0 8px 0;
+}
+.copy-panel label.percent { font-weight: bold; font-size: 12pt; }
+progressbar.thin trough {
+    background-color: @field;
+    background-image: none;
+    border: none;
+    border-radius: 3px;
+    min-height: 6px;
+}
+progressbar.thin progress {
+    background-color: @red;
+    background-image: none;
+    border: none;
+    border-radius: 3px;
+    min-height: 6px;
+}
+
 .tip {
     background-color: @field;
     border: 1px solid;
