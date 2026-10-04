@@ -68,7 +68,29 @@ dnf upgrade -y --refresh quickshell uwsm
 # PDF thumbnails in Nautilus.
 echo "==> Installing Flatpak apps"
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install -y --noninteractive flathub org.gnome.Evince
+if systemd-detect-virt --quiet --chroot; then
+  # The installer's chroot can't run bwrap (the install fails after downloading
+  # ~1 GB of runtimes), so the installed system does it on its first boot online.
+  cat > /etc/systemd/system/doxia-flatpak-apps.service <<'UNIT'
+[Unit]
+Description=DoxIA: install the Flatpak apps the installer could not
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=!/var/lib/doxia/flatpak-apps-done
+
+[Service]
+Type=oneshot
+StateDirectory=doxia
+ExecStart=/usr/bin/flatpak install -y --noninteractive flathub org.gnome.Evince
+ExecStartPost=/usr/bin/touch /var/lib/doxia/flatpak-apps-done
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl enable doxia-flatpak-apps.service
+else
+  flatpak install -y --noninteractive flathub org.gnome.Evince
+fi
 
 # Fedora ships tuned-ppd (same D-Bus API as power-profiles-daemon, which conflicts
 # with it) but no powerprofilesctl, which Omarchy's power menu relies on.
