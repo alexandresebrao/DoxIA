@@ -204,6 +204,20 @@ fi
 echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
 bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
 
+echo "==> Google Chrome (flags, extensions, default browser)"
+if bash "$OMARCHY_PATH/fedora/doxia/install-chrome"; then
+  omarchy-done mark doxia-chrome
+else
+  echo "  Chrome setup failed; Atualizar will retry."
+fi
+
+echo "==> Claude Code (the default coding agent)"
+if bash "$OMARCHY_PATH/fedora/doxia/install-claude"; then
+  omarchy-done mark doxia-claude
+else
+  echo "  Claude Code was not installed; Atualizar will retry."
+fi
+
 echo "==> Voxtype dictation (config, Whisper model, user service; F9 to dictate)"
 if bash "$OMARCHY_PATH/fedora/doxia/install-voxtype"; then
   omarchy-done mark doxia-voxtype

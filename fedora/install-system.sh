@@ -74,6 +74,9 @@ echo "==> Voxtype dictation (RPM from the upstream release; Fedora has no packag
 # Atualizar try again.
 bash "$omarchy_path/fedora/doxia/install-voxtype" --rpm || echo "  Voxtype was not installed; Atualizar will retry."
 
+echo "==> Google Chrome (the default browser; Google's dnf repo)"
+bash "$omarchy_path/fedora/doxia/install-chrome" --system || echo "  Chrome was not installed; Atualizar will retry."
+
 # Document viewer and office suite from Flathub instead of the RPMs;
 # evince-thumbnailer above keeps PDF thumbnails in Nautilus. ONLYOFFICE replaces
 # LibreOffice, which Fedora's spins install (removing it also drops the JDK only it
