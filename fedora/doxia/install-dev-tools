@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Installs nvm (Node.js versions) in ~/.config/nvm and SDKMAN! (Java and JVM tools)
-# in ~/.sdkman for the current user, with the Node.js LTS and SDKMAN!'s default JDK
-# as the defaults: node and java come from them, not from Fedora's packages
+# in ~/.sdkman for the current user, with the Node.js LTS (pnpm in every Node.js
+# version) and SDKMAN!'s default JDK as the defaults: node and java come from them,
+# not from Fedora's packages
 # (install-system.sh drops LibreOffice and, with it, Fedora's JDK). Loads both in
 # every bash through ~/.bashrc.d/dev-tools.sh (fedora/doxia/dev-tools.sh). Skips
 # what is already installed; neither installer touches ~/.bashrc. Also puts the
@@ -32,6 +33,15 @@ if [[ ! -s $HOME/.sdkman/bin/sdkman-init.sh ]]; then
   echo "  SDKMAN!"
   curl -fsSL "https://get.sdkman.io?rcupdate=false" | bash >/dev/null
 fi
+
+# pnpm in every Node.js version: nvm installs what default-packages lists with each
+# nvm install (the window's included), and the versions already there get it now.
+grep -qx pnpm "$nvm_dir/default-packages" 2>/dev/null || echo pnpm >> "$nvm_dir/default-packages"
+for node in "$nvm_dir"/versions/node/*/; do
+  [[ -x $node/bin/node && ! -e $node/bin/pnpm ]] || continue
+  echo "  pnpm for Node.js $(basename "$node")"
+  PATH="$node/bin:$PATH" npm install -g --silent pnpm
+done
 
 # nvm and SDKMAN! are shell functions that don't run under set -u.
 if [[ ! -e $nvm_dir/alias/default ]]; then
