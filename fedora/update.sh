@@ -64,6 +64,15 @@ fi
 echo "==> Brand image in terminals (chafa renders it, ImageMagick sizes it)"
 omarchy-pkg-add chafa ImageMagick
 
+echo "==> Kitty as the default terminal"
+omarchy-pkg-add kitty
+# Older installs pinned foot in ~/.config/hyprland-xdg-terminals.list, which beats
+# both the system order and a terminal picked with omarchy-default-terminal.
+if [[ -e $HOME/.config/hyprland-xdg-terminals.list ]]; then
+  backup "$HOME/.config/hyprland-xdg-terminals.list"
+fi
+[[ -e $HOME/.config/kitty ]] || cp -a "$OMARCHY_PATH/config/kitty" "$HOME/.config/kitty"
+
 echo "==> Icon font (∞ glyph)"
 mkdir -p "$HOME/.local/share/fonts/omarchy"
 cp -f "$OMARCHY_PATH/default/fonts/omarchy/omarchy.ttf" "$HOME/.local/share/fonts/omarchy/"
@@ -183,6 +192,9 @@ chmod 644 /etc/motd
 mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
 ln -sfn "$omarchy_path/fedora/bin/fastfetch" /usr/local/bin/fastfetch
+install -Dm644 "$omarchy_path/etc/xdg/kitty/kitty.conf" /etc/xdg/kitty/kitty.conf
+install -Dm644 "$omarchy_path/default/xdg-terminal-exec/hyprland-xdg-terminals.list" \
+  /usr/share/xdg-terminal-exec/hyprland-xdg-terminals.list
 install -Dm755 "$omarchy_path/fedora/doxia/kernel-install/95-doxia-title.install" \
   /etc/kernel/install.d/95-doxia-title.install
 /etc/kernel/install.d/95-doxia-title.install retitle

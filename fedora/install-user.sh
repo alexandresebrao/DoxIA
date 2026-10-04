@@ -35,8 +35,8 @@ echo "==> Seeding Omarchy configs into ~/.config"
 for item in hypr omarchy foot alacritty ghostty kitty btop imv lazygit tmux starship.toml; do
   seed "config/$item" "$HOME/.config/$item"
 done
-# xdg-terminal-exec reads this only when XDG_CURRENT_DESKTOP=Hyprland.
-seed default/xdg-terminal-exec/hyprland-xdg-terminals.list "$HOME/.config/hyprland-xdg-terminals.list"
+# The terminal order (Kitty first) is system-wide, from install-system.sh, so
+# omarchy-default-terminal's ~/.config/xdg-terminals.list can override it.
 
 # Hyper-V guests: hyperv_drm prefers 1024x768 and has no hardware cursor plane,
 # so the first login came up blurry (same check as default/sddm/hyprland.lua).

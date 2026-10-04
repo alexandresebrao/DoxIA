@@ -38,7 +38,7 @@ packages=(
   gtk4-layer-shell
 
   # Terminal + default apps
-  foot nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
+  kitty foot nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
   gnome-keyring yaru-icon-theme yaru-theme
   # Red folders of the DoxIA theme (themes/rhel-8/make-icons.sh) and applying
   # them without a session (install-user.sh)
@@ -106,6 +106,13 @@ install -Dm755 "$omarchy_path/fedora/doxia/kernel-install/95-doxia-title.install
 
 # The DoxIA brand as an image instead of ASCII in terminals that draw images.
 ln -sfn "$omarchy_path/fedora/bin/fastfetch" /usr/local/bin/fastfetch
+
+echo "==> Kitty as the default terminal (Omarchy's defaults and terminal order)"
+install -Dm644 "$omarchy_path/etc/xdg/kitty/kitty.conf" /etc/xdg/kitty/kitty.conf
+# System-wide, like Omarchy: ~/.config/xdg-terminals.list (omarchy-default-terminal)
+# still wins over it.
+install -Dm644 "$omarchy_path/default/xdg-terminal-exec/hyprland-xdg-terminals.list" \
+  /usr/share/xdg-terminal-exec/hyprland-xdg-terminals.list
 
 echo "==> Linking Omarchy into /usr/share/omarchy"
 # Many Omarchy scripts reference /usr/share/omarchy directly (Arch package path).
