@@ -104,9 +104,9 @@ O ditado por voz (Voxtype) é processado inteiramente no seu computador.
 6. MARCAS
 
 Fedora e o logotipo do Fedora são marcas da Red Hat, Inc.; o DoxIA usa os
-logotipos genéricos no lugar deles. Red Hat, Red Hat Enterprise Linux, RHEL e o
-logotipo Shadowman são marcas da Red Hat, Inc.; o tema visual "RHEL 8" é uma
-homenagem e não indica nenhuma relação com a Red Hat. Omarchy e Basecamp são
+logotipos genéricos no lugar deles. Red Hat é marca da Red Hat, Inc.; as fontes
+Red Hat Display e Red Hat Text são software livre (SIL OFL 1.1) e são usadas só
+como fontes. Omarchy e Basecamp são
 marcas da 37signals LLC. Google e Google Chrome são marcas da Google LLC. Claude e
 Anthropic são marcas da Anthropic PBC. ONLYOFFICE é marca da Ascensio System SIA.
 Linux é marca registrada de Linus Torvalds. As demais marcas pertencem aos seus

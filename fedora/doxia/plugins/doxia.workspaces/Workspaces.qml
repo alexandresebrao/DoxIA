@@ -6,7 +6,7 @@ import qs.Commons
 import qs.Ui
 
 // Workspaces soltos, com ícone nos espaços fixos: fundo leve no hover e traço
-// vermelho embaixo do ativo (estilo PatternFly, como o tema RHEL 8).
+// vermelho embaixo do ativo (estilo PatternFly, como o tema DoxIA).
 BarWidget {
   id: root
   moduleName: "doxia.workspaces"

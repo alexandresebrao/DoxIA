@@ -161,12 +161,12 @@ for ini in ~/.config/gtk-3.0/settings.ini ~/.config/gtk-4.0/settings.ini; do
     sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
   fi
 done
-bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
+bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
 
-echo "==> Theme (RHEL 8, the DoxIA default)"
+echo "==> Theme (DoxIA, the default)"
 mkdir -p ~/.config/omarchy/themes
 if [[ ! -s ~/.local/state/omarchy/current/theme.name ]]; then
-  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "rhel-8"
+  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "doxia"
 fi
 mkdir -p ~/.config/btop/themes
 ln -snf "$HOME/.local/state/omarchy/current/theme/btop.theme" ~/.config/btop/themes/current.theme

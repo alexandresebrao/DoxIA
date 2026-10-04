@@ -41,7 +41,7 @@ wait_for_terminal_resize
 python3 "$OMARCHY_PATH/fedora/doxia/screensaver-salsicha"
 exit_screensaver
 
-# DoxIA palette: every effect settles on light gray (DOX) and RHEL 8 red
+# DoxIA palette: every effect settles on light gray (DOX) and the theme red
 # (IA) instead of its own default colors. Effects that animate in strong green
 # (matrix, binarypath, decrypt, vhstape, errorcorrect, swarm, colorshift) are left out;
 # synthgrid has no final gradient to recolor.

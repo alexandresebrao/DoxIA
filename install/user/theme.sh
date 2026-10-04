@@ -4,10 +4,10 @@ mkdir -p ~/.config/omarchy/themes
 if [[ ! -s $HOME/.local/state/omarchy/current/theme.name ]]; then
   # iso-chroot and provision-owner both run without a live session to notify.
   if [[ ${OMARCHY_SETUP_CONTEXT:-runtime} != "runtime" ]]; then
-    OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "rhel-8"
+    OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "doxia"
     rm -f ~/.config/chromium/SingletonLock # otherwise archiso owns the Chromium singleton
   else
-    omarchy-theme-set "rhel-8"
+    omarchy-theme-set "doxia"
   fi
 fi
 omarchy-theme-set-pi --activate

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
-# RHEL 8 theme (the DoxIA default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
+# DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
 # name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice) and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
@@ -189,15 +189,16 @@ if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
 
-echo "==> Theme (RHEL 8, the DoxIA default)"
+echo "==> Theme (DoxIA, the default)"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
-# Reapplied only while RHEL 8 (or no theme) is in use: the Atualizar menu runs
+# Reapplied only while DoxIA (or no theme) is in use: the Atualizar menu runs
 # this after every update, and a theme picked by hand must survive it.
 current_theme=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
 reapply_theme=false
-[[ -z $current_theme || $current_theme == "rhel-8" ]] && reapply_theme=true
+# rhel-8 is the same theme under its old name, before the Red Hat marks came out of it.
+[[ -z $current_theme || $current_theme == "doxia" || $current_theme == "rhel-8" ]] && reapply_theme=true
 # Copies under ~/.config/omarchy/themes shadow the themes shipped in the repo, so move
-# them all aside and let the repo's rhel-8 be the one in use.
+# them all aside and let the repo's doxia be the one in use.
 if $reapply_theme; then
   for theme in "$HOME"/.config/omarchy/themes/*; do
     [[ -e $theme ]] && backup "$theme"
@@ -206,7 +207,7 @@ fi
 for tpl in "$doxia"/themed/*.tpl; do
   place "$tpl" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
 done
-[[ -d $HOME/.local/share/icons/Papirus-Tela-Red ]] || bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
+[[ -d $HOME/.local/share/icons/Papirus-Tela-Red ]] || bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
 gsettings set org.gnome.desktop.wm.preferences button-layout ':'
 for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
   if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
@@ -221,9 +222,9 @@ fi
 if ! $reapply_theme; then
   echo "  keeping the current theme ($current_theme)"
 elif [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
-  omarchy-theme-set rhel-8
+  omarchy-theme-set doxia
 else
-  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set rhel-8
+  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set doxia
 fi
 
 echo "==> Dev-link authorization for the checkout (sudo)"

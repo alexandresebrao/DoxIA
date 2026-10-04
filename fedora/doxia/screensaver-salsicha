@@ -33,7 +33,7 @@ PAL = {
     "L": (205, 140, 82),   # peito / focinho claro
     "K": (17, 17, 17),     # olho / nariz
     "W": (255, 255, 255),  # brilho do olho
-    "C": (238, 0, 0),      # coleira (vermelho do RHEL 8)
+    "C": (238, 0, 0),      # coleira (vermelho do tema)
     "G": (242, 201, 76),   # plaquinha
     "T": (232, 112, 126),  # língua
 }
