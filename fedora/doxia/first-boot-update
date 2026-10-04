@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# DoxIA's first boot: brings the fresh install up to date before anyone can log in,
+# so it never asks for a password. The ISO installs the packages and the repo of the
+# day it was built; this does what the Atualizar menu would right after: pulls the
+# repo, upgrades every package and Flatpak, and runs the migrations and
+# fedora/update.sh. The boot splash shows it in its "updates" mode (title and
+# percentage bar), and a new kernel reboots into it before the login screen.
+#
+# Run as root by doxia-first-boot.service (fedora/doxia/doxia-first-boot.service),
+# from a root-owned copy in /usr/libexec/doxia (the checkout belongs to the user and
+# changes under the pull). It runs before systemd-user-sessions.service, so no one
+# is logged in while the user's own update steps briefly get passwordless sudo.
+# On success it clears the first-login fallback (fedora/doxia/first-boot); on a
+# failure (no internet, say) the login screen comes up as usual and that fallback
+# asks for the password and tries again.
+#
+#   first-boot-update <user>
+
+set -uo pipefail
+
+user=${1:?usage: first-boot-update <user>}
+home=$(getent passwd "$user" | cut -d: -f6)
+checkout=$home/.local/share/omarchy
+pending=/var/lib/doxia/first-boot-pending
+grant=/etc/sudoers.d/90-doxia-first-boot
+log=/var/log/doxia-first-boot.log
+
+exec > >(tee -a "$log") 2>&1
+echo "== DoxIA first boot update, $(date)"
+
+splash() { plymouth --ping 2>/dev/null && plymouth "$@" 2>/dev/null; true; }
+progress() { splash system-update --progress="$1"; }
+
+as_user() {
+  runuser -u "$user" -- env HOME="$home" USER="$user" LOGNAME="$user" \
+    OMARCHY_PATH="$checkout" PATH="$checkout/bin:$home/.local/bin:/usr/local/bin:/usr/bin:/usr/sbin" \
+    "$@"
+}
+
+# The user's update steps call sudo; no one can log in yet (see above), and the
+# rule goes when this exits however it exits (the unit's ExecStopPost too).
+cleanup() { rm -f "$grant"; }
+trap cleanup EXIT
+
+fail() {
+  echo "First boot update failed: $*"
+  rm -f "$pending"
+  splash display-message --text="Não foi possível atualizar agora. O DoxIA tenta de novo depois do login."
+  sleep 5
+  exit 1
+}
+
+splash change-mode --updates
+progress 1
+
+echo "==> Pulling the DoxIA repo"
+as_user git -C "$checkout" pull --ff-only || fail "git pull"
+progress 4
+
+echo "==> Upgrading the system packages"
+# dnf's "[ 12/380] ..." lines move the bar from 5% to 70%: the downloads up to 30%,
+# then the transaction (dnf counts each in its own [n/total]).
+dnf upgrade --refresh -y 2>&1 | {
+  phase_start=5 phase_size=25 last=0
+  while IFS= read -r line; do
+    echo "$line"
+    [[ $line == "Running transaction"* ]] && phase_start=30 phase_size=40
+    if [[ $line =~ ^\[\ *([0-9]+)/([0-9]+)\] ]]; then
+      pct=$(( phase_start + phase_size * BASH_REMATCH[1] / BASH_REMATCH[2] ))
+      (( pct > last )) && { last=$pct; progress "$pct"; }
+    fi
+  done
+}
+(( PIPESTATUS[0] == 0 )) || fail "dnf upgrade"
+progress 70
+
+staged=$(mktemp)
+printf '%s\n' "# fedora/doxia/first-boot-update: only while the first boot updates, before any login." \
+  "$user ALL=(ALL) NOPASSWD: ALL" > "$staged"
+visudo -cqf "$staged" && install -m 0440 -o root -g root "$staged" "$grant"
+rm -f "$staged"
+
+echo "==> Migrations and fedora/update.sh"
+as_user omarchy-migrate || fail "omarchy-migrate"
+progress 75
+# A throwaway session bus for the gsettings calls (no one is logged in). Each of
+# update.sh's "==> " steps moves the bar on, from 75% to 95%.
+steps=$(grep -c '^echo "==> ' "$checkout/fedora/update.sh")
+as_user dbus-run-session -- bash "$checkout/fedora/update.sh" --no-pull 2>&1 | {
+  done_steps=0
+  while IFS= read -r line; do
+    echo "$line"
+    if [[ $line == "==> "* ]]; then
+      done_steps=$(( done_steps + 1 ))
+      progress $(( 75 + 20 * done_steps / (steps > 0 ? steps : 1) ))
+    fi
+  done
+}
+(( PIPESTATUS[0] == 0 )) || fail "fedora/update.sh"
+rm -f "$grant"
+progress 95
+
+echo "==> Flatpak apps"
+flatpak update -y --noninteractive || echo "Flatpak update failed; the next Atualizar retries it"
+progress 100
+
+rm -f "$pending" "$home/.local/state/omarchy/doxia-first-boot-pending"
+echo "== Done, $(date)"
+
+# A new kernel only runs after a reboot: do it now, before the first login.
+running=$(uname -r)
+if [[ ! -e /usr/lib/modules/$running/vmlinuz ]] || [[ $(rpm -q --last kernel-core | head -1) != *"$running"* ]]; then
+  echo "New kernel installed: rebooting into it"
+  splash display-message --text="Reiniciando para concluir a atualização..."
+  systemctl --no-block reboot
+fi

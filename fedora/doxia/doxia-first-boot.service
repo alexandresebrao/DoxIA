@@ -1,0 +1,20 @@
+# DoxIA's first boot: update the fresh install before the login screen comes up
+# (fedora/doxia/first-boot-update). The kickstart installs and enables it and leaves
+# /var/lib/doxia/first-boot-pending, which the update removes.
+[Unit]
+Description=DoxIA: update the system before the first login
+ConditionPathExists=/var/lib/doxia/first-boot-pending
+Wants=network-online.target
+After=network-online.target
+# No logins (graphical, console or ssh) until it is done
+Before=display-manager.service systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/doxia/first-boot-update @USER@
+# The temporary sudo rule goes even if the update is killed
+ExecStopPost=/usr/bin/rm -f /etc/sudoers.d/90-doxia-first-boot
+TimeoutStartSec=90min
+
+[Install]
+WantedBy=multi-user.target
