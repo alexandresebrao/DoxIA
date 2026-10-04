@@ -2,7 +2,7 @@
 
 # Builds the DoxIA installer ISO: Fedora's netinstall (Anaconda) rebuilt with lorax
 # as "DoxIA", with the generic logos instead of Fedora's, the DoxIA setup wizard
-# (wizard/) in front of Anaconda and doxia.ks embedded. Installing needs internet:
+# (wizard/) in front of Anaconda, the DoxIA boot menu theme and doxia.ks embedded. Installing needs internet:
 # packages come from Fedora's mirrors and %post clones this repository at the
 # commit the ISO was built from.
 #
@@ -54,10 +54,27 @@ lorax \
   --logfile "$out/lorax.log" --tmp "$work" \
   "$work/lorax"
 
-echo "==> Embedding the kickstart (installs $commit)"
+echo "==> Embedding the kickstart (installs $commit) and the boot menu theme"
 sed "s/@COMMIT@/$commit/" "$iso_dir/doxia.ks" > "$work/doxia.ks"
+# The installed system's GRUB theme, at /doxia-grub on the ISO. Both boot menus
+# (UEFI and BIOS) load it right after they find the ISO by its label, before the
+# entries; with gfxterm, the edit screen and command line need Unifont too.
+grub_theme=$work/doxia-grub
+install -d "$grub_theme"
+install -m644 "$omarchy_path"/default/grub/doxia/* /usr/share/grub/unicode.pf2 "$grub_theme/"
+theme_setup="set gfxmode=auto
+insmod gfxterm
+insmod gfxmenu
+insmod png
+$(for font in "$grub_theme"/*.pf2; do echo "loadfont /doxia-grub/${font##*/}"; done)
+terminal_output gfxterm
+set theme=/doxia-grub/theme.txt
+export theme
+"
+entries="### BEGIN /etc/grub.d/10_linux ###"
 rm -f "$iso"
 mkksiso --ks "$work/doxia.ks" --cmdline "inst.profile=doxia" \
+  --add "$grub_theme" --replace "$entries" "$theme_setup$entries" \
   "$work/lorax/images/boot.iso" "$iso"
 
 if [[ -n ${SUDO_USER:-} ]]; then
