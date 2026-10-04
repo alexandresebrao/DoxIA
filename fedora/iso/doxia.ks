@@ -71,6 +71,9 @@ cp /usr/share/plymouth/themes/spinner/*.png "$theme/"
 install -m644 "$checkout"/default/plymouth/doxia/{doxia.plymouth,watermark.png} "$theme/"
 plymouth-set-default-theme doxia
 dracut -f --regenerate-all
+
+echo "==> Boot menu (graphical GRUB with the DoxIA theme)"
+bash "$checkout/fedora/doxia/install-grub-theme" "$checkout"
 %end
 
 # Last: tell the wizard the installation is done, then hold Anaconda (which reboots

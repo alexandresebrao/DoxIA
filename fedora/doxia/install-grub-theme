@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Puts the DoxIA theme (default/grub/doxia) on the graphical GRUB boot menu: copies
+# it to /boot/grub2/themes/doxia, switches /etc/default/grub from the text console
+# to gfxterm with that theme, and regenerates grub.cfg. Does nothing when the theme
+# and the settings are already in place. Run as root with the checkout path; run by
+# fedora/update.sh and the ISO's %post.
+#
+#   sudo bash fedora/doxia/install-grub-theme ~/.local/share/omarchy
+
+set -euo pipefail
+
+if (( EUID != 0 )); then
+  echo "Run with sudo: sudo bash $0 <checkout>" >&2
+  exit 1
+fi
+
+source=${1:?usage: install-grub-theme <checkout>}/default/grub/doxia
+theme=/boot/grub2/themes/doxia
+config=/etc/default/grub
+
+# The menu's terminal (E to edit, C for the command line) needs a monospaced font
+# on /boot, which GRUB can always read, unlike / on an encrypted disk.
+settings=(
+  'GRUB_TERMINAL_OUTPUT="gfxterm"'
+  'GRUB_GFXMODE="auto"'
+  "GRUB_THEME=\"$theme/theme.txt\""
+  "GRUB_FONT=\"$theme/unicode.pf2\""
+)
+
+changed=false
+if ! diff -rq --exclude=unicode.pf2 "$source" "$theme" >/dev/null 2>&1 || [[ ! -f $theme/unicode.pf2 ]]; then
+  rm -rf "$theme"
+  install -d "$theme"
+  install -m644 "$source"/* "$theme/"
+  install -m644 /usr/share/grub/unicode.pf2 "$theme/"
+  restorecon -R "$theme" 2>/dev/null || true
+  changed=true
+fi
+
+for setting in "${settings[@]}"; do
+  key=${setting%%=*}
+  grep -qxF "$setting" "$config" && continue
+  if grep -q "^$key=" "$config"; then
+    sed -i "s|^$key=.*|$setting|" "$config"
+  else
+    echo "$setting" >> "$config"
+  fi
+  changed=true
+done
+
+if $changed; then
+  grub2-mkconfig -o /boot/grub2/grub.cfg
+fi

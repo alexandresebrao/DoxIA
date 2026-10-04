@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # RHEL 8 theme (the DoxIA default), branding, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
-# name, the SDDM theme and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the SDDM theme, the GRUB boot menu theme and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins are refreshed and the missing widgets added; the rest of the bar,
 # personal plugins included, stays as it is).
 #
@@ -180,6 +180,10 @@ rm -rf /usr/share/plymouth/themes/fedorai
 dracut -f --regenerate-all
 ROOT
 fi
+
+echo "==> Boot menu (graphical GRUB with the DoxIA theme, sudo)"
+# Regenerates grub.cfg only when the theme or its settings changed.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-grub-theme" "$OMARCHY_PATH"
 
 echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'

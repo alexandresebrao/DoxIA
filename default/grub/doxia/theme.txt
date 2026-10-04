@@ -1,0 +1,61 @@
+# DoxIA boot menu: the ∞ DoxIA mark on top, on the charcoal of the login screen.
+# fedora/doxia/make-grub-theme.py makes the images and fonts; this file is written
+# by hand. fedora/doxia/install-grub-theme copies the folder to /boot/grub2/themes.
+
+title-text: ""
+desktop-image: "background.png"
+desktop-image-scale-method: "stretch"
+desktop-color: "#101112"
+terminal-font: "Unifont Regular 16"
+terminal-left: "10%"
+terminal-top: "10%"
+terminal-width: "80%"
+terminal-height: "80%"
+
++ image {
+  left = 50%-210
+  top = 14%
+  width = 420
+  height = 73
+  file = "logo.png"
+}
+
++ boot_menu {
+  left = 50%-320
+  top = 14%+73+64
+  width = 640
+  height = 50%
+  item_font = "Red Hat Text Regular 18"
+  item_color = "#a8a8a8"
+  selected_item_font = "Red Hat Text Regular 18"
+  selected_item_color = "#f0f0f0"
+  item_height = 40
+  item_padding = 18
+  item_spacing = 6
+  icon_width = 0
+  icon_height = 0
+  item_icon_space = 0
+  selected_item_pixmap_style = "select_*.png"
+  scrollbar = false
+}
+
++ label {
+  id = "__timeout__"
+  left = 0
+  top = 100%-80
+  width = 100%
+  align = "center"
+  font = "Red Hat Text Regular 14"
+  color = "#8a8a8a"
+  text = "Iniciando em %d s"
+}
+
++ label {
+  left = 0
+  top = 100%-50
+  width = 100%
+  align = "center"
+  font = "Red Hat Text Regular 14"
+  color = "#5c5c5c"
+  text = "Enter iniciar  •  E editar  •  C linha de comando"
+}
