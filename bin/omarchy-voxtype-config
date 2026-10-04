@@ -1,8 +1,14 @@
 #!/bin/bash
 
-# omarchy:summary=Open Voxtype configuration
+# omarchy:summary=Open Voxtype configuration, or offer to install it when it's missing
 
 set -e
+
+# The bar's dictation icon is always shown, so a click before Voxtype is
+# installed would only fail with "voxtype: command not found".
+if omarchy-cmd-missing voxtype; then
+  exec omarchy-launch-floating-terminal-with-presentation omarchy-voxtype-install
+fi
 
 omarchy-launch-floating-terminal-with-presentation "voxtype configure"
 omarchy-restart-shell
