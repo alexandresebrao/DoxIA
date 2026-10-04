@@ -20,10 +20,11 @@ fi
 omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 nvm_dir=$HOME/.config/nvm
 
-# nvm's documented git install, at its latest release.
+# nvm's documented git install, at its latest release. awk reads the whole list:
+# head -1 would close the pipe early, git dies of SIGPIPE and pipefail aborts here.
 if [[ ! -s $nvm_dir/nvm.sh ]]; then
   tag=$(git ls-remote --tags --refs --sort=-v:refname https://github.com/nvm-sh/nvm.git 'v*' |
-    head -1 | sed 's|.*refs/tags/||')
+    awk 'NR == 1 { sub(/.*refs\/tags\//, ""); print }')
   echo "  nvm $tag"
   rm -rf "$nvm_dir"
   git -c advice.detachedHead=false clone -q --depth 1 --branch "$tag" https://github.com/nvm-sh/nvm.git "$nvm_dir"

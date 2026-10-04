@@ -97,7 +97,7 @@ ln -sfn "$OMARCHY_PATH/default/uwsm/env.d/10-omarchy" ~/.config/uwsm/env.d/10-om
 echo "==> Fonts (JetBrainsMono Nerd Font + Omarchy glyph font)"
 font_dir="$HOME/.local/share/fonts"
 mkdir -p "$font_dir/JetBrainsMonoNerd" "$font_dir/omarchy"
-if ! fc-list | grep -q "JetBrainsMono Nerd Font"; then
+if [[ -z $(fc-list "JetBrainsMono Nerd Font") ]]; then
   tmp=$(mktemp -d)
   curl -fsSL -o "$tmp/jbm.tar.xz" \
     https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz
