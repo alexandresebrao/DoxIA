@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Installs the Omarchy user units DoxIA uses in ~/.config/systemd/user and enables
+# them: the Bluetooth pairing agent, the crash notifier and the internal monitor
+# recovery. On Arch the omarchy package ships them in /usr/lib/systemd/user; here
+# they point at the checkout's bin/, like omarchy-sleep-lock in install-user.sh.
+# Enabled through the .wants symlinks, as the installer has no user manager to ask.
+# The agent and the notifier run only in Hyprland: KDE has its own of both.
+# Run as the user by install-user.sh and fedora/update.sh.
+
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  echo "Run as your user, not root." >&2
+  exit 1
+fi
+
+omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+units=$HOME/.config/systemd/user
+
+for unit in bt-agent omarchy-crash-watch omarchy-recover-internal-monitor; do
+  hyprland_only=()
+  [[ $unit == "omarchy-recover-internal-monitor" ]] ||
+    hyprland_only=(-e '/^\[Unit\]/a ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland')
+  mkdir -p "$units"
+  sed -e "s|/usr/bin/omarchy-|$omarchy_path/bin/omarchy-|g" "${hyprland_only[@]}" \
+    "$omarchy_path/default/systemd/user/$unit.service" > "$units/$unit.service"
+
+  target=$(sed -n 's/^WantedBy=//p' "$units/$unit.service")
+  mkdir -p "$units/$target.wants"
+  ln -sfn "../$unit.service" "$units/$target.wants/$unit.service"
+done
+
+# On Atualizar the session is up: start what the next login would.
+if [[ -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
+  systemctl --user daemon-reload
+  if systemctl --user is-active --quiet graphical-session.target; then
+    systemctl --user start bt-agent.service omarchy-crash-watch.service
+  fi
+fi
