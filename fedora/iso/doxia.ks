@@ -3,9 +3,9 @@
 # The DoxIA wizard (wizard/doxia-installer.py) runs from %pre and asks for the
 # language, keyboard, disk, account and computer name; it writes them to
 # /tmp/doxia/answers.ks, included below. Anaconda then installs without its own
-# interface (cmdline) while the wizard shows the progress. The %post clones this
-# repository at the commit the ISO was built from and runs the same scripts as a
-# manual install, minus the personal setup.
+# interface (cmdline) while the wizard shows the progress. The %post clones the
+# latest of this repository's fedora branch, runs the same scripts as a manual
+# install (minus the personal setup) and upgrades every package.
 
 cmdline
 # Without it, cmdline mode ends at "Press ENTER to quit" on tty1 and never reboots.
@@ -55,13 +55,19 @@ fi
 home=$(getent passwd "$user" | cut -d: -f6)
 checkout=$home/.local/share/omarchy
 
-echo "==> Cloning DoxIA at $commit for $user"
+# The latest of the branch, as the Atualizar menu would bring right after the first
+# boot, not only the commit the ISO was built from.
+echo "==> Cloning DoxIA for $user (latest of the fedora branch; the ISO has $commit)"
 runuser -u "$user" -- mkdir -p "$home/.local/share"
 runuser -u "$user" -- git clone --branch fedora "$repo" "$checkout"
-# Stay on the branch (update.sh pulls it) but at the commit the ISO was built from.
-runuser -u "$user" -- git -C "$checkout" reset -q --hard "$commit"
+echo "  installing $(runuser -u "$user" -- git -C "$checkout" rev-parse HEAD)"
 
 SUDO_USER=$user bash "$checkout/fedora/install-system.sh"
+
+# Anaconda already installed from the updates repo; this catches what was published
+# while it ran, and the COPRs install-system.sh enabled.
+echo "==> Updating every package"
+dnf upgrade -y --refresh
 runuser -l "$user" -c 'bash ~/.local/share/omarchy/fedora/install-user.sh --no-personal'
 
 echo "==> Boot splash (Fedora's spinner with the DoxIA watermark)"

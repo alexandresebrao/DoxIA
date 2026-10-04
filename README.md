@@ -43,8 +43,9 @@ menu, MOTD and login screen) without touching the top bar layout or its plugins,
 with lorax under the DoxIA name, with the generic logos instead of Fedora's and an
 installer theme in the login screen's colors. Its kickstart sets pt-BR, the Brazilian
 keyboard and São Paulo time, leaves the disk, network and user account to the
-installer, and clones this repository at the commit the ISO was built from to run
-the install scripts above (without the personal setup). Installing needs internet.
+installer, and clones the latest of this repository's fedora branch to run the
+install scripts above (without the personal setup), then upgrades every package, so
+the first boot is already up to date. Installing needs internet.
 
 ```bash
 sudo dnf install lorax lorax-templates-generic

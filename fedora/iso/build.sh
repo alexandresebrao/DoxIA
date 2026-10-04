@@ -2,9 +2,9 @@
 
 # Builds the DoxIA installer ISO: Fedora's netinstall (Anaconda) rebuilt with lorax
 # as "DoxIA", with the generic logos instead of Fedora's, the DoxIA setup wizard
-# (wizard/) in front of Anaconda, the DoxIA boot menu theme and doxia.ks embedded. Installing needs internet:
-# packages come from Fedora's mirrors and %post clones this repository at the
-# commit the ISO was built from.
+# (wizard/) in front of Anaconda, the DoxIA boot menu theme and doxia.ks embedded.
+# Installing needs internet: packages come from Fedora's mirrors and %post clones
+# the latest of this repository's fedora branch.
 #
 #   sudo bash ~/.local/share/omarchy/fedora/iso/build.sh [output dir]
 #
@@ -27,7 +27,7 @@ iso="$out/DoxIA-$release-$arch.iso"
 
 commit=$(git -C "$omarchy_path" rev-parse HEAD)
 if ! git -C "$omarchy_path" branch -r --contains "$commit" | grep -q 'origin/fedora'; then
-  echo "Commit $commit is not on origin/fedora: push it first, the installer clones it from GitHub." >&2
+  echo "Commit $commit is not on origin/fedora: push it first, the installer clones the branch from GitHub." >&2
   exit 1
 fi
 if [[ -n $(git -C "$omarchy_path" status --porcelain) ]]; then
