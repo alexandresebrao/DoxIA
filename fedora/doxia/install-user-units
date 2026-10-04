@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # Installs the Omarchy user units DoxIA uses in ~/.config/systemd/user and enables
-# them: the Bluetooth pairing agent, the crash notifier and the internal monitor
-# recovery. On Arch the omarchy package ships them in /usr/lib/systemd/user; here
-# they point at the checkout's bin/, like omarchy-sleep-lock in install-user.sh.
+# them: the Bluetooth pairing agent, the crash notifier, the pending migrations
+# notifier and the internal monitor recovery. On Arch the omarchy package ships
+# them in /usr/lib/systemd/user; here they point at the checkout's bin/ and
+# migrations/, like omarchy-sleep-lock in install-user.sh.
 # Enabled through the .wants symlinks, as the installer has no user manager to ask.
-# The agent and the notifier run only in Hyprland: KDE has its own of both.
+# The agent and the notifiers run only in Hyprland: KDE has its own agent, and
+# the notifications need the DoxIA shell.
 # Run as the user by install-user.sh and fedora/update.sh.
 
 set -euo pipefail
@@ -18,12 +20,13 @@ fi
 omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 units=$HOME/.config/systemd/user
 
-for unit in bt-agent omarchy-crash-watch omarchy-recover-internal-monitor; do
+for unit in bt-agent omarchy-crash-watch omarchy-migrate-notify omarchy-recover-internal-monitor; do
   hyprland_only=()
   [[ $unit == "omarchy-recover-internal-monitor" ]] ||
     hyprland_only=(-e '/^\[Unit\]/a ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland')
   mkdir -p "$units"
-  sed -e "s|/usr/bin/omarchy-|$omarchy_path/bin/omarchy-|g" "${hyprland_only[@]}" \
+  sed -e "s|/usr/bin/omarchy-|$omarchy_path/bin/omarchy-|g" \
+    -e "s|/usr/share/omarchy/migrations|$omarchy_path/migrations|g" "${hyprland_only[@]}" \
     "$omarchy_path/default/systemd/user/$unit.service" > "$units/$unit.service"
 
   target=$(sed -n 's/^WantedBy=//p' "$units/$unit.service")

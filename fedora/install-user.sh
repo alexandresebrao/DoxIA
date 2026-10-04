@@ -201,7 +201,7 @@ o.exec_on_start("systemctl --user start omarchy-sleep-lock.service")
 EOF
 fi
 
-echo "==> User units (Bluetooth pairing agent, crash notifier, internal monitor recovery)"
+echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
 bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
 
 echo
