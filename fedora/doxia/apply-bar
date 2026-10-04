@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Puts the DoxIA bar in place for the current user: copies the plugins in
+# fedora/doxia/plugins to ~/.config/omarchy/plugins (replacing older copies) and
+# adds their widgets to ~/.config/omarchy/shell.json where they are missing:
+# the ∞ menu button and workspace icons on the left, Now Playing and the screen
+# share indicator around the clock, CPU/memory/battery usage on the right.
+# Widgets already placed (or moved) stay where they are, and the old Xi widgets
+# become their DoxIA versions. Run by install-user.sh and fedora/update.sh.
+
+set -euo pipefail
+
+omarchy_path=$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")
+plugins=$HOME/.config/omarchy/plugins
+shell_json=$HOME/.config/omarchy/shell.json
+
+mkdir -p "$plugins"
+for plugin in "$omarchy_path"/fedora/doxia/plugins/*/; do
+  name=$(basename "$plugin")
+  rm -rf "${plugins:?}/$name"
+  cp -a "$plugin" "$plugins/$name"
+done
+
+if [[ ! -f $shell_json ]]; then
+  echo "  $shell_json not found; the bar layout was left alone" >&2
+  exit 0
+fi
+
+jq '
+  def has($id): any(.[]; .id == $id);
+  # Inserts {id} next to the clock (offset 0 = before it, 1 = after it), or at
+  # the end when the clock is elsewhere.
+  def by_clock($id; $offset):
+    if has($id) then . else
+      (map(.id) | index("omarchy.clock")) as $i
+      | if $i == null then . + [{id: $id}]
+        else .[:$i + $offset] + [{id: $id}] + .[$i + $offset:] end
+    end;
+  def renamed:
+    map(if .id == "omarchy.menu" or .id == "xi.emblem" then {id: "doxia.emblem"}
+        elif .id == "omarchy.workspaces" or .id == "xi.workspaces" then {id: "doxia.workspaces"}
+        elif .id == "xi.reactor" then {id: "doxia.usage"}
+        else . end);
+  .bar.layout |= (
+    (.left, .center, .right) |= renamed
+    | .center |= (by_clock("alexandre.media"; 0) | by_clock("alexandre.screenshare"; 1))
+    | if (.left + .center + .right | has("doxia.usage")) then .
+      else .right |= [{id: "doxia.usage"}] + . end
+  )' "$shell_json" > "$shell_json.tmp"
+mv "$shell_json.tmp" "$shell_json"

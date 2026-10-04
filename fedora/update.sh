@@ -3,8 +3,9 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # RHEL 8 theme (the DoxIA default), branding, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
-# name and the SDDM theme. The top bar is left alone: ~/.config/omarchy/shell.json and
-# the bar plugins/panels in ~/.config/omarchy/plugins are never touched.
+# name, the SDDM theme and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# DoxIA plugins are refreshed and the missing widgets added; the rest of the bar,
+# personal plugins included, stays as it is).
 #
 # Everything it replaces or moves aside goes to ~/.local/state/omarchy/doxia-backup-<date>/.
 #
@@ -86,6 +87,9 @@ place "$personal/omarchy/extensions/omarchy-menu.jsonc" "$HOME/.config/omarchy/e
 place "$personal/omarchy/defaults/agent" "$HOME/.config/omarchy/defaults/agent"
 mkdir -p "$HOME/.local/state/omarchy/defaults"
 echo nano > "$HOME/.local/state/omarchy/defaults/editor"
+
+echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage)"
+bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
 echo "==> Screen share picker and Hyprland window rules"
 place "$OMARCHY_PATH/fedora/doxia/hypr/xdph.conf" "$HOME/.config/hypr/xdph.conf"
@@ -178,4 +182,4 @@ ROOT
 if [[ -d $backup_dir ]]; then
   echo "Replaced files were saved in $backup_dir"
 fi
-echo "Done. The top bar (shell.json and plugins) was left as it was."
+echo "Done."
