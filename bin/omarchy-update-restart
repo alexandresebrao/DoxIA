@@ -5,6 +5,11 @@
 echo
 
 confirm_reboot() {
+  # omarchy-update -y promises not to ask: say a reboot is due and let the caller offer it.
+  if [[ ${OMARCHY_UPDATE_UNATTENDED:-} == 1 ]]; then
+    echo "Reboot required: $1"
+    return
+  fi
   gum confirm "$1" && { omarchy-system-reboot; exit 0; }
 }
 
