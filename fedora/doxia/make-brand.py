@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Gera a marca do DoxIA: o ∞ do tema RHEL 8 com "DoxIA" ao lado, em Red Hat Display
-(a fonte da marca do RHEL), "Dox" em cinza-claro e "IA" em vermelho com a extrusão 3D
+"""Gera a marca do DoxIA: o ∞ do tema DoxIA com "DoxIA" ao lado, em Red Hat Display
+(fonte livre, SIL OFL), "Dox" em cinza-claro e "IA" em vermelho com a extrusão 3D
 do ∞ (nos terminais, chapado).
 
 Saídas (rode da raiz do repositório depois de mudar a marca):
@@ -20,7 +20,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 FONT = "/usr/share/fonts/redhat/RedHatDisplay-Bold.otf"
-INFINITY = ROOT / "themes/rhel-8/infinito.png"
+INFINITY = ROOT / "themes/doxia/infinito.png"
 LIGHT = (240, 240, 240)
 RED = (238, 0, 0)
 SIDE = (163, 0, 0)  # lateral 3D, a mesma do ∞
@@ -42,7 +42,7 @@ def infinity(height):
 
 def extrude(mask, depth):
     """A lateral 3D: o contorno deslocado passo a passo para baixo e à direita, na mesma
-    direção e proporção do ∞ (themes/rhel-8/infinito/infinito_flat3d.py)."""
+    direção e proporção do ∞ (themes/doxia/infinito/infinito_flat3d.py)."""
     out = Image.new("L", mask.size, 0)
     for i in range(1, int(depth) + 1):
         out = ImageChops.lighter(out, ImageChops.offset(mask, int(0.55 * i), int(0.85 * i)))

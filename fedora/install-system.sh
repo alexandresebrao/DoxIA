@@ -42,7 +42,7 @@ packages=(
   # Only Yaru's icons: the yaru-theme metapackage pulls in GNOME Shell, GDM and Mutter.
   # gnome-keyring-pam unlocks the keyring at the SDDM login (Chrome's passwords).
   gnome-keyring gnome-keyring-pam yaru-icon-theme
-  # Red folders of the DoxIA theme (themes/rhel-8/make-icons.sh) and applying
+  # Red folders of the DoxIA theme (themes/doxia/make-icons.sh) and applying
   # them without a session (install-user.sh)
   papirus-icon-theme-dark perl-interpreter dbus-daemon
 

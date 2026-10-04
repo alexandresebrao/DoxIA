@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Amostras de símbolo do infinito 3D retorcido, vermelho Red Hat, com sombra.
+"""Amostras de símbolo do infinito 3D retorcido, vermelho #ee0000, com sombra.
 
 Renderizador simples: superfície paramétrica em volta de uma lemniscata,
 iluminação Lambert + especular, ordenação por profundidade e polígonos no PIL
