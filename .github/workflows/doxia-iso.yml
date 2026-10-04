@@ -1,17 +1,13 @@
 # Builds the DoxIA installer ISO with fedora/iso/build.sh and keeps it as a
-# workflow artifact. The ISO installs the commit it was built from, so it is
-# rebuilt whenever the Fedora port changes; it can also be started by hand.
+# workflow artifact. It runs only when a tag is pushed (the tagged commit must be
+# on the fedora branch); it can also be started by hand. Pushing to fedora alone
+# no longer builds anything.
 name: DoxIA ISO
 
 on:
   workflow_dispatch:
   push:
-    branches: [fedora]
-    paths:
-      - "fedora/**"
-      - "default/sddm/**"
-      - "default/plymouth/**"
-      - ".github/workflows/doxia-iso.yml"
+    tags: ["*"]
 
 concurrency:
   group: doxia-iso
@@ -40,7 +36,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: DoxIA-ISO-${{ github.sha }}
+          name: DoxIA-ISO-${{ github.ref_name }}
           path: out/*.iso
           compression-level: 0
           retention-days: 14
@@ -48,7 +44,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: lorax-logs-${{ github.sha }}
+          name: lorax-logs-${{ github.ref_name }}
           path: |
             out/*.log
             out/pkglists

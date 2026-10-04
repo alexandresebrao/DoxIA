@@ -64,6 +64,9 @@ sudo dnf install lorax lorax-templates-generic
 sudo bash ~/.local/share/omarchy/fedora/iso/build.sh ~/doxia-iso
 ```
 
+GitHub Actions builds the ISO only when a tag is pushed (`git tag v1.2 && git push origin v1.2`)
+or when the **DoxIA ISO** workflow is started by hand; pushes to `fedora` don't build it.
+
 Create a user account in the installer: the desktop is set up for that user.
 `fedora/iso/make-installer-art.py` regenerates the installer images.
 
