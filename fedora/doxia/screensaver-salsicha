@@ -3,8 +3,8 @@
 
 Desenha num terminal em tela cheia usando meio-blocos (▀), então cada célula
 vale dois pixels quadrados. O cenário noturno rola em paralaxe atrás do
-cachorro. Sai com qualquer tecla ou quando a janela perde o foco, igual ao
-omarchy-screensaver original.
+cachorro. Sai com qualquer tecla, ao mexer o mouse ou quando a janela perde o
+foco.
 
     screensaver-salsicha            roda no terminal atual
     screensaver-salsicha --preview DIR  salva quadros PNG em DIR (precisa do PIL)
@@ -319,7 +319,7 @@ def main():
     old = termios.tcgetattr(fd)
 
     def finish(*_):
-        sys.stdout.write("\x1b[0m\x1b[?25h\x1b[2J")
+        sys.stdout.write("\x1b[?1003l\x1b[0m\x1b[?25h\x1b[2J")
         sys.stdout.flush()
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
         cursor_invisible(False)
@@ -330,7 +330,9 @@ def main():
         signal.signal(s, finish)
 
     tty.setcbreak(fd)
-    sys.stdout.write("\x1b]11;rgb:00/00/00\x07\x1b[?25l\x1b[2J")
+    # ?1003h: o terminal manda cada movimento do mouse como entrada, e aí ele
+    # também fecha o protetor, como uma tecla.
+    sys.stdout.write("\x1b]11;rgb:00/00/00\x07\x1b[?25l\x1b[?1003h\x1b[2J")
     cursor_invisible(True)
 
     # o pty nasce 80x24 e só cresce quando o compositor redimensiona a janela
@@ -354,7 +356,10 @@ def main():
 
         if select.select([fd], [], [], 1 / FPS)[0]:
             os.read(fd, 64)
-            finish()
+            # ignora o que chega no primeiro meio segundo (o cursor ainda
+            # assentando quando a janela abre embaixo dele)
+            if time.time() - start > 0.5:
+                finish()
         if time.time() - last_focus > 1:
             last_focus = time.time()
             if not in_focus():
