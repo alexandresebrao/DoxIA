@@ -91,6 +91,9 @@ place "$personal/omarchy/defaults/agent" "$HOME/.config/omarchy/defaults/agent"
 mkdir -p "$HOME/.local/state/omarchy/defaults"
 echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 
+echo "==> Run on every Atualizar (omarchy-update's post-update hook)"
+bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
+
 echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
@@ -105,11 +108,18 @@ fi
 
 echo "==> Theme (RHEL 8, the DoxIA default)"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
+# Reapplied only while RHEL 8 (or no theme) is in use: the Atualizar menu runs
+# this after every update, and a theme picked by hand must survive it.
+current_theme=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
+reapply_theme=false
+[[ -z $current_theme || $current_theme == "rhel-8" ]] && reapply_theme=true
 # Copies under ~/.config/omarchy/themes shadow the themes shipped in the repo, so move
 # them all aside and let the repo's rhel-8 be the one in use.
-for theme in "$HOME"/.config/omarchy/themes/*; do
-  [[ -e $theme ]] && backup "$theme"
-done
+if $reapply_theme; then
+  for theme in "$HOME"/.config/omarchy/themes/*; do
+    [[ -e $theme ]] && backup "$theme"
+  done
+fi
 for tpl in "$personal"/omarchy/themed/*.tpl; do
   place "$tpl" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
 done
@@ -125,7 +135,9 @@ mkdir -p "$(dirname "$gtk_css")"
 if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
   echo "@import url('file://$HOME/.local/state/omarchy/current/theme/gtk.css');" >> "$gtk_css"
 fi
-if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+if ! $reapply_theme; then
+  echo "  keeping the current theme ($current_theme)"
+elif [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
   omarchy-theme-set rhel-8
 else
   OMARCHY_THEME_HEADLESS=1 omarchy-theme-set rhel-8

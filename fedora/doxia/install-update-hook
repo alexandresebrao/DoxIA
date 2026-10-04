@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# Makes the Atualizar menu (omarchy-update) finish with fedora/update.sh, which
+# applies what the pulled repo changed (bar widgets, branding, packages, login
+# screen); omarchy-update only pulls, upgrades packages and runs migrations.
+# The hook goes through omarchy-hook post-update; run by install-user.sh and
+# fedora/update.sh.
+
+hook=$HOME/.config/omarchy/hooks/post-update.d/doxia-update
+mkdir -p "$(dirname "$hook")"
+cat > "$hook" <<'EOF'
+# DoxIA: apply the updated repo (fedora/doxia/install-update-hook writes this file)
+bash "$HOME/.local/share/omarchy/fedora/update.sh" --no-pull
+EOF

@@ -61,6 +61,9 @@ ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" ~/.bashrc.d/doxia.sh
 echo "==> DoxIA bar (∞ menu button, workspace icons, Now Playing, screen share, usage)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
+echo "==> Run fedora/update.sh on every Atualizar (post-update hook)"
+bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
+
 echo "==> Screen share (portal config, Chrome's sharing bar hidden behind the bar button)"
 seed fedora/doxia/hypr/xdph.conf ~/.config/hypr/xdph.conf
 if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua; then
