@@ -71,6 +71,12 @@ if [[ -e $HOME/.config/hyprland-xdg-terminals.list ]]; then
 fi
 [[ -e $HOME/.config/kitty ]] || cp -a "$OMARCHY_PATH/config/kitty" "$HOME/.config/kitty"
 
+echo "==> Volume keys and power profiles (pactl, tuned-ppd)"
+omarchy-pkg-add pulseaudio-utils tuned-ppd
+if ! systemctl is-enabled --quiet tuned-ppd.service || ! systemctl is-active --quiet tuned-ppd.service; then
+  sudo systemctl enable --now tuned.service tuned-ppd.service
+fi
+
 echo "==> Icon font (∞ glyph)"
 mkdir -p "$HOME/.local/share/fonts/omarchy"
 cp -f "$OMARCHY_PATH/default/fonts/omarchy/omarchy.ttf" "$HOME/.local/share/fonts/omarchy/"
