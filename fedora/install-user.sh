@@ -225,6 +225,19 @@ else
   echo "  Voxtype setup failed; Atualizar will retry."
 fi
 
+echo "==> First login: the installer's last step updates the system (fedora/doxia/first-boot)"
+# The ISO installs the packages and the repo of the day it was built; the first
+# login brings both up to date before the desktop is used.
+mkdir -p ~/.local/state/omarchy
+touch ~/.local/state/omarchy/doxia-first-boot-pending
+if ! grep -q 'fedora/doxia/first-boot' ~/.config/hypr/autostart.lua; then
+  cat >> ~/.config/hypr/autostart.lua <<'EOF'
+
+-- DoxIA: finish the installation on the first login (exits at once afterwards).
+o.exec_on_start("$OMARCHY_PATH/fedora/doxia/first-boot")
+EOF
+fi
+
 echo
 echo "Done. Log out of KDE and pick \"DoxIA (Hyprland uwsm)\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the menu."

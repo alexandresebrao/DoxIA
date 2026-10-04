@@ -562,7 +562,8 @@ class Wizard(Gtk.Window):
     def _page_done(self):
         box = self.page("Concluindo a instalação",
                         "O DoxIA foi instalado. Remova o pendrive ou o DVD e clique em Reiniciar.\n\n"
-                        "Depois de reiniciar, o DoxIA vai terminar de se configurar e abrir a tela de login.")
+                        "Depois de reiniciar, entre com a sua conta: o DoxIA vai voltar a esta tela para "
+                        "instalar as atualizações mais recentes e então abrir a área de trabalho.")
         return box
 
     def _page_failed(self):
