@@ -1,0 +1,750 @@
+#!/usr/bin/python3
+"""DoxIA: Node.js and Java versions (nvm and SDKMAN!) in a window.
+
+Lists the installed versions of each, picks the default (what a new terminal
+uses), installs and removes versions, and installs a JDK from a file (a zip,
+tar.gz, tgz, tar.xz, tar.bz2, tar.zst, tar.Z or rpm, like Oracle's) or from an
+already extracted folder. nvm and SDKMAN! are shell functions, so every change
+runs them in a bash that loads them, the same way ~/.bashrc.d/dev-tools.sh does.
+fedora/doxia/install-dev-tools installs both and this window's launcher.
+
+  python3 fedora/doxia/dev-versions
+"""
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import tempfile
+import threading
+import urllib.request
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
+
+HERE = Path(__file__).resolve().parent
+HOME = Path.home()
+NVM_DIR = HOME / ".config/nvm"
+SDKMAN_DIR = HOME / ".sdkman"
+JAVA_DIR = SDKMAN_DIR / "candidates/java"
+
+NVM = f'export NVM_DIR={shlex.quote(str(NVM_DIR))}; . "$NVM_DIR/nvm.sh"; '
+# No colors, no prompts: every answer comes from the window.
+SDK = (f'export SDKMAN_DIR={shlex.quote(str(SDKMAN_DIR))}; . "$SDKMAN_DIR/bin/sdkman-init.sh"; '
+       "sdkman_colour_enable=false; sdkman_auto_answer=false; ")
+
+ARCHIVES = ("*.zip", "*.tar", "*.tar.gz", "*.tgz", "*.tar.xz", "*.txz", "*.tar.bz2", "*.tbz2",
+            "*.tar.zst", "*.tzst", "*.tar.Z", "*.taz", "*.rpm")
+# The release file's IMPLEMENTOR and the suffix SDKMAN! gives that vendor's builds.
+VENDORS = (("Oracle", "open"), ("Eclipse Adoptium", "tem"), ("Amazon", "amzn"), ("Azul", "zulu"),
+           ("BellSoft", "librca"), ("Microsoft", "ms"), ("SAP", "sapmchn"), ("Red Hat", "open"),
+           ("GraalVM", "graalce"), ("JetBrains", "jbr"))
+IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]*$")
+# The installer's copy strip (fedora/iso/wizard): what is installing, then a thin red
+# bar with the percentage outside it on the right.
+CSS = """
+.progress-panel { padding: 10px 18px 14px 18px; }
+.progress-panel label.task { font-weight: bold; }
+.progress-panel label.percent { font-weight: bold; }
+progressbar.thin trough { min-height: 6px; border-radius: 3px; border: none; }
+progressbar.thin progress { min-height: 6px; border-radius: 3px; border: none; background-color: #ee0000; }
+"""
+# nvm's and SDKMAN!'s curl download bars: "######    13.2%"
+PERCENT = re.compile(r"(\d{1,3}(?:[.,]\d+)?)\s*%")
+REMOTE_ROWS = 150  # rows shown at once in an "install" list; the search narrows it
+
+
+def run_capture(script):
+    """Runs a bash script and returns its stdout (for quick reads)."""
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=120)
+    return result.stdout
+
+
+def node_installed():
+    folder = NVM_DIR / "versions/node"
+    versions = [p.name for p in folder.iterdir() if p.name.startswith("v")] if folder.is_dir() else []
+    return sorted(versions, key=version_key, reverse=True)
+
+
+def node_default():
+    out = run_capture(NVM + "nvm version default").strip()
+    return out if out.startswith("v") else None
+
+
+def node_remote():
+    """[(version, LTS name or "")], newest first."""
+    out = run_capture(NVM + "nvm ls-remote --no-colors")
+    versions = []
+    for line in out.splitlines():
+        match = re.search(r"(v\d+\.\d+\.\d+)(?:\s+\*)?\s*(?:\((?:Latest )?LTS: ([^)]+)\))?", line)
+        if match:
+            versions.append((match.group(1), match.group(2) or ""))
+    return sorted(versions, key=lambda v: version_key(v[0]), reverse=True)
+
+
+def java_installed():
+    """[(identifier, local folder it points to, or None)], newest first."""
+    if not JAVA_DIR.is_dir():
+        return []
+    versions = []
+    for path in JAVA_DIR.iterdir():
+        if path.name == "current":
+            continue
+        versions.append((path.name, os.readlink(path) if path.is_symlink() else None))
+    return sorted(versions, key=lambda v: version_key(v[0]), reverse=True)
+
+
+def java_default():
+    current = JAVA_DIR / "current"
+    return os.path.basename(os.readlink(current)) if current.is_symlink() else None
+
+
+def java_remote():
+    """[(vendor, version, identifier)] from SDKMAN!'s list, in its order."""
+    platform = (SDKMAN_DIR / "var/platform").read_text().strip()
+    url = f"https://api.sdkman.io/2/candidates/java/{platform}/versions/list?installed="
+    with urllib.request.urlopen(url, timeout=30) as response:
+        text = response.read().decode()
+    versions, vendor = [], ""
+    for line in text.splitlines():
+        columns = [c.strip() for c in line.split("|")]
+        if len(columns) < 4 or columns[-1] in ("Identifier", ""):
+            continue
+        vendor = columns[0] or vendor
+        versions.append((vendor, columns[2], columns[-1]))
+    return versions
+
+
+def version_key(text):
+    return [int(n) for n in re.findall(r"\d+", text)[:4]]
+
+
+def find_jdk(folder):
+    """The shallowest folder under `folder` with an executable bin/java."""
+    for depth in range(5):
+        for java in sorted(Path(folder).glob("/".join(["*"] * depth + ["bin", "java"]))):
+            if java.is_file() and os.access(java, os.X_OK):
+                return java.parent.parent
+    return None
+
+
+def suggest_identifier(jdk):
+    """SDKMAN!-style name from the JDK's release file and java -version:
+    1.8.0_192 from Oracle becomes 8.0.192-oracle, as SDKMAN! names its versions."""
+    release = {}
+    if (jdk / "release").is_file():
+        for line in (jdk / "release").read_text(errors="replace").splitlines():
+            key, _, value = line.partition("=")
+            release[key.strip()] = value.strip().strip('"')
+    try:
+        banner = subprocess.run([str(jdk / "bin/java"), "-version"], capture_output=True,
+                                text=True, timeout=30).stderr
+    except (OSError, subprocess.TimeoutExpired):
+        banner = ""
+    version = release.get("JAVA_VERSION")
+    if not version:
+        match = re.search(r'version "([^"]+)"', banner)
+        version = match.group(1) if match else "local"
+    old = re.match(r"^1\.(\d+)\.(\d+)(?:_(\d+))?", version)
+    if old:
+        version = ".".join(n for n in old.groups() if n)
+    implementor = release.get("IMPLEMENTOR", "")
+    if "Java(TM)" in banner:
+        vendor = "oracle"
+    else:
+        vendor = next((suffix for name, suffix in VENDORS if name in implementor), "local")
+    return f"{version}-{vendor}"
+
+
+def extract(archive, into):
+    """Unpacks a JDK archive with the system tools (tar detects the compression)."""
+    name = archive.name.lower()
+    if name.endswith(".zip"):
+        command = ["unzip", "-q", str(archive), "-d", str(into)]
+    elif name.endswith(".rpm"):
+        command = ["bash", "-c", 'cd "$1" && rpm2cpio "$2" | cpio -idm --quiet', "_", str(into), str(archive)]
+    else:
+        command = ["tar", "-xf", str(archive), "-C", str(into)]
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "não foi possível extrair o arquivo")
+
+
+class Page(Gtk.Box):
+    """One tool's tab: installed versions on top, versions to install below."""
+
+    def __init__(self, window):
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.window = window
+        self.preferences = Adw.PreferencesPage()
+        self.append(self.preferences)
+        self.installed = Adw.PreferencesGroup()
+        self.preferences.add(self.installed)
+        self.installed_rows = []
+        self.remote = Adw.PreferencesGroup()
+        self.preferences.add(self.remote)
+        self.remote_rows = []
+        self.remote_versions = None
+        self.search = Gtk.SearchEntry(placeholder_text="Buscar versão", hexpand=True)
+        self.search.connect("search-changed", lambda *_: self.fill_remote())
+
+    def set_installed(self, rows):
+        for row in self.installed_rows:
+            self.installed.remove(row)
+        self.installed_rows = rows
+        for row in rows:
+            self.installed.add(row)
+
+    def fill_remote(self):
+        for row in self.remote_rows:
+            self.remote.remove(row)
+        self.remote_rows = []
+        if self.remote_versions is None:
+            self.add_remote_row(Adw.ActionRow(title="Carregando a lista de versões…"))
+            return
+        if isinstance(self.remote_versions, Exception):
+            self.add_remote_row(Adw.ActionRow(title="Não foi possível carregar a lista de versões",
+                                              subtitle=GLib.markup_escape_text(str(self.remote_versions))))
+            return
+        self.prepare_remote()
+        query = self.search.get_text().strip().lower()
+        matches = [v for v in self.remote_versions if self.matches(v, query)]
+        for version in matches[:REMOTE_ROWS]:
+            self.add_remote_row(self.remote_row(version))
+        if len(matches) > REMOTE_ROWS:
+            self.add_remote_row(Adw.ActionRow(
+                title=f"Mais {len(matches) - REMOTE_ROWS} versões", subtitle="Use a busca para encontrá-las"))
+        elif not matches:
+            self.add_remote_row(Adw.ActionRow(title="Nenhuma versão encontrada"))
+
+    def prepare_remote(self):
+        pass
+
+    def add_remote_row(self, row):
+        self.remote_rows.append(row)
+        self.remote.add(row)
+
+    def button(self, label, callback, *args, style=None, icon=None, tooltip=None, sensitive=True):
+        widget = Gtk.Button(valign=Gtk.Align.CENTER, sensitive=sensitive)
+        if icon:
+            widget.set_icon_name(icon)
+        else:
+            widget.set_label(label)
+        if tooltip:
+            widget.set_tooltip_text(tooltip)
+        if style:
+            widget.add_css_class(style)
+        widget.connect("clicked", lambda *_: callback(*args))
+        return widget
+
+    def default_badge(self):
+        badge = Gtk.Label(label="Padrão", valign=Gtk.Align.CENTER)
+        badge.add_css_class("accent")
+        badge.add_css_class("heading")
+        return badge
+
+
+class NodePage(Page):
+    def __init__(self, window):
+        super().__init__(window)
+        self.installed.set_title("Versões instaladas")
+        self.installed.set_description("A versão padrão é a que um terminal novo usa (nvm alias default).")
+        self.remote.set_title("Instalar outra versão")
+        self.lts_only = Gtk.CheckButton(label="Só LTS", active=True, valign=Gtk.Align.CENTER)
+        self.lts_only.connect("toggled", lambda *_: self.fill_remote())
+        header = Gtk.Box(spacing=12)
+        header.append(self.search)
+        header.append(self.lts_only)
+        self.remote.set_header_suffix(header)
+
+    def refresh(self):
+        def load():
+            installed, default = node_installed(), node_default()
+            GLib.idle_add(self.show_installed, installed, default)
+        threading.Thread(target=load, daemon=True).start()
+
+    def show_installed(self, installed, default):
+        self.default = default
+        rows = []
+        for version in installed:
+            row = Adw.ActionRow(title=version)
+            if version == default:
+                row.add_suffix(self.default_badge())
+            else:
+                row.add_suffix(self.button("Tornar padrão", self.set_default, version))
+            row.add_suffix(self.button(None, self.uninstall, version, icon="user-trash-symbolic", style="flat",
+                                       tooltip="Remover" if version != default else "A versão padrão não pode ser removida",
+                                       sensitive=version != default))
+            rows.append(row)
+        if not rows:
+            rows.append(Adw.ActionRow(title="Nenhuma versão instalada"))
+        self.set_installed(rows)
+        self.fill_remote()
+
+    def load_remote(self):
+        def load():
+            try:
+                versions = node_remote()
+                if not versions:
+                    raise RuntimeError("o nvm não retornou nenhuma versão (sem internet?)")
+            except Exception as error:  # noqa: BLE001 - shown in the list
+                versions = error
+            GLib.idle_add(self.show_remote, versions)
+        threading.Thread(target=load, daemon=True).start()
+
+    def show_remote(self, versions):
+        self.remote_versions = versions
+        self.fill_remote()
+
+    def prepare_remote(self):
+        self.installed_names = set(node_installed())
+
+    def matches(self, version, query):
+        name, lts = version
+        if self.lts_only.get_active() and not lts:
+            return False
+        return query in name.lower() or query in lts.lower()
+
+    def remote_row(self, version):
+        name, lts = version
+        row = Adw.ActionRow(title=name, subtitle=f"LTS {lts}" if lts else "")
+        if name in self.installed_names:
+            row.add_suffix(Gtk.Label(label="Instalada", valign=Gtk.Align.CENTER, css_classes=["dim-label"]))
+        else:
+            row.add_suffix(self.button("Instalar", self.install, name, style="suggested-action"))
+        return row
+
+    def set_default(self, version):
+        self.window.run(f"Node.js {version} como padrão", NVM + f"nvm alias default {version}",
+                        done=f"Node.js {version} é o padrão. Abra um terminal novo para usá-lo.")
+
+    def install(self, version):
+        self.window.run(f"Instalando Node.js {version}", NVM + f"nvm install {version}",
+                        done=f"Node.js {version} instalado.",
+                        action=("Tornar padrão", lambda: self.set_default(version)))
+
+    def uninstall(self, version):
+        self.window.confirm(f"Remover o Node.js {version}?", "Os pacotes globais (npm -g) dessa versão também saem.",
+                            "Remover", lambda: self.window.run(
+                                f"Removendo Node.js {version}",
+                                NVM + f"nvm deactivate >/dev/null; nvm uninstall {version}",
+                                done=f"Node.js {version} removido."))
+
+
+class JavaPage(Page):
+    def __init__(self, window):
+        super().__init__(window)
+        self.installed.set_title("Versões instaladas")
+        self.installed.set_description("A versão padrão é a que um terminal novo usa (sdk default java).")
+        add = Gtk.MenuButton(label="Instalar de arquivo", valign=Gtk.Align.CENTER, css_classes=["suggested-action"])
+        menu = Gio.Menu()
+        menu.append("Arquivo compactado (zip, tar.gz, rpm…)", "win.java-archive")
+        menu.append("Pasta já extraída", "win.java-folder")
+        add.set_menu_model(menu)
+        self.installed.set_header_suffix(add)
+        self.remote.set_title("Instalar do SDKMAN!")
+        self.remote.set_header_suffix(self.search)
+
+    def refresh(self):
+        self.show_installed(java_installed(), java_default())
+
+    def show_installed(self, installed, default):
+        rows = []
+        for identifier, link in installed:
+            row = Adw.ActionRow(title=identifier,
+                                subtitle=GLib.markup_escape_text(f"Pasta local: {link}") if link else "")
+            if identifier == default:
+                row.add_suffix(self.default_badge())
+            else:
+                row.add_suffix(self.button("Tornar padrão", self.set_default, identifier))
+            row.add_suffix(self.button(None, self.uninstall, identifier, bool(link), icon="user-trash-symbolic",
+                                       style="flat",
+                                       tooltip="Remover" if identifier != default else "A versão padrão não pode ser removida",
+                                       sensitive=identifier != default))
+            rows.append(row)
+        if not rows:
+            rows.append(Adw.ActionRow(title="Nenhuma versão instalada"))
+        self.set_installed(rows)
+        self.fill_remote()
+
+    def load_remote(self):
+        def load():
+            try:
+                versions = java_remote()
+            except Exception as error:  # noqa: BLE001 - shown in the list
+                versions = error
+            GLib.idle_add(self.show_remote, versions)
+        threading.Thread(target=load, daemon=True).start()
+
+    def show_remote(self, versions):
+        self.remote_versions = versions
+        self.fill_remote()
+
+    def matches(self, version, query):
+        return any(query in field.lower() for field in version)
+
+    def remote_row(self, version):
+        vendor, number, identifier = version
+        row = Adw.ActionRow(title=GLib.markup_escape_text(f"{vendor} {number}"), subtitle=identifier)
+        if (JAVA_DIR / identifier).exists():
+            row.add_suffix(Gtk.Label(label="Instalada", valign=Gtk.Align.CENTER, css_classes=["dim-label"]))
+        else:
+            row.add_suffix(self.button("Instalar", self.install, identifier, style="suggested-action"))
+        return row
+
+    def set_default(self, identifier):
+        self.window.run(f"Java {identifier} como padrão", SDK + f"sdk default java {shlex.quote(identifier)}",
+                        done=f"Java {identifier} é o padrão. Abra um terminal novo para usá-lo.")
+
+    def install(self, identifier):
+        # SDKMAN! asks whether to make it the default: no, the window has its own button.
+        self.window.run(f"Instalando Java {identifier}",
+                        SDK + f"printf 'n\\n' | sdk install java {shlex.quote(identifier)}",
+                        done=f"Java {identifier} instalado.",
+                        action=("Tornar padrão", lambda: self.set_default(identifier)))
+
+    def uninstall(self, identifier, local):
+        detail = ("Só o atalho sai do SDKMAN!; a pasta original fica onde está." if local
+                  else "A pasta dessa versão é apagada.")
+        self.window.confirm(f"Remover o Java {identifier}?", detail, "Remover", lambda: self.window.run(
+            f"Removendo Java {identifier}", SDK + f"sdk uninstall java {shlex.quote(identifier)}",
+            done=f"Java {identifier} removido."))
+
+    def pick_archive(self):
+        dialog = Gtk.FileDialog(title="JDK compactado")
+        archives = Gtk.FileFilter(name="JDK compactado")
+        for pattern in ARCHIVES:
+            archives.add_pattern(pattern)
+        everything = Gtk.FileFilter(name="Todos os arquivos")
+        everything.add_pattern("*")
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(archives)
+        filters.append(everything)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(archives)
+
+        def chosen(dialog, result):
+            try:
+                file = dialog.open_finish(result)
+            except GLib.Error:
+                return
+            self.install_archive(Path(file.get_path()))
+        dialog.open(self.window, None, chosen)
+
+    def pick_folder(self):
+        dialog = Gtk.FileDialog(title="Pasta do JDK")
+
+        def chosen(dialog, result):
+            try:
+                folder = dialog.select_folder_finish(result)
+            except GLib.Error:
+                return
+            self.install_folder(Path(folder.get_path()))
+        dialog.select_folder(self.window, None, chosen)
+
+    def install_folder(self, folder):
+        """Links an extracted JDK as an SDKMAN! local version; it stays where it is."""
+        jdk = find_jdk(folder)
+        if not jdk:
+            self.window.error("Essa pasta não tem um JDK", "Nenhum bin/java foi encontrado nela.")
+            return
+        self.ask_identifier(jdk, lambda identifier, default: self.window.run(
+            f"Instalando Java {identifier}",
+            SDK + f"printf 'n\\n' | sdk install java {shlex.quote(identifier)} {shlex.quote(str(jdk))}"
+            + (f" && sdk default java {shlex.quote(identifier)}" if default else ""),
+            done=f"Java {identifier} instalado."))
+
+    def install_archive(self, archive):
+        """Extracts into SDKMAN!'s tmp, then asks for the name and moves the JDK into
+        candidates/java, where SDKMAN! sees it as one of its own versions."""
+        (SDKMAN_DIR / "tmp").mkdir(parents=True, exist_ok=True)
+        workdir = Path(tempfile.mkdtemp(prefix="doxia-jdk-", dir=SDKMAN_DIR / "tmp"))
+        self.window.set_busy(f"Extraindo {archive.name}")
+        self.window.detail.set_text("")
+
+        def work():
+            try:
+                extract(archive, workdir)
+                jdk = find_jdk(workdir)
+                if not jdk:
+                    raise RuntimeError("o arquivo não tem um JDK para Linux (nenhum bin/java)")
+                identifier = suggest_identifier(jdk)
+                GLib.idle_add(extracted, jdk, identifier)
+            except Exception as error:  # noqa: BLE001 - shown in a dialog
+                shutil.rmtree(workdir, ignore_errors=True)
+                GLib.idle_add(failed, str(error))
+
+        def failed(message):
+            self.window.set_idle()
+            self.window.error(f"Não foi possível instalar {archive.name}", message)
+
+        def extracted(jdk, identifier):
+            self.window.set_idle()
+
+            def move(identifier, default):
+                shutil.move(str(jdk), JAVA_DIR / identifier)
+                shutil.rmtree(workdir, ignore_errors=True)
+                self.window.log(f"{archive.name} → {JAVA_DIR / identifier}\n")
+                if default:
+                    self.set_default(identifier)
+                else:
+                    self.window.toast(f"Java {identifier} instalado.",
+                                      ("Tornar padrão", lambda: self.set_default(identifier)))
+                    self.window.refresh()
+            self.ask_identifier(jdk, move, suggestion=identifier,
+                                cancelled=lambda: shutil.rmtree(workdir, ignore_errors=True))
+        threading.Thread(target=work, daemon=True).start()
+
+    def ask_identifier(self, jdk, accepted, suggestion=None, cancelled=None):
+        dialog = Adw.AlertDialog(heading="Nome da versão",
+                                 body="Como o SDKMAN! vai chamar este JDK (sdk use java <nome>).")
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        entry = Gtk.Entry(text=suggestion or suggest_identifier(jdk), activates_default=True)
+        problem = Gtk.Label(xalign=0, wrap=True, css_classes=["error", "caption"])
+        default = Gtk.CheckButton(label="Tornar padrão")
+        box.append(entry)
+        box.append(problem)
+        box.append(default)
+        dialog.set_extra_child(box)
+        dialog.add_response("cancel", "Cancelar")
+        dialog.add_response("install", "Instalar")
+        dialog.set_response_appearance("install", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("install")
+        dialog.set_close_response("cancel")
+
+        def validate(*_):
+            name = entry.get_text().strip()
+            if not IDENTIFIER.match(name):
+                reason = "Use letras, números, ponto, hífen, + ou _, sem espaços."
+            elif (JAVA_DIR / name).exists() or (JAVA_DIR / name).is_symlink() or name == "current":
+                reason = "Já existe uma versão com esse nome."
+            else:
+                reason = ""
+            problem.set_text(reason)
+            problem.set_visible(bool(reason))
+            dialog.set_response_enabled("install", not reason)
+        entry.connect("changed", validate)
+        validate()
+
+        def response(_, answer):
+            if answer == "install":
+                accepted(entry.get_text().strip(), default.get_active())
+            elif cancelled:
+                cancelled()
+        dialog.connect("response", response)
+        dialog.present(self.window)
+
+
+class Window(Adw.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title="Versões do Node e do Java", default_width=760, default_height=720)
+        self.busy = False
+        self.output = Gtk.TextBuffer()
+
+        self.stack = Adw.ViewStack()
+        header = Adw.HeaderBar(title_widget=Adw.ViewSwitcher(stack=self.stack, policy=Adw.ViewSwitcherPolicy.WIDE))
+        output = Gtk.Button(icon_name="utilities-terminal-symbolic", tooltip_text="Ver a saída dos comandos")
+        output.connect("clicked", lambda *_: self.show_output())
+        header.pack_end(output)
+
+        self.node = NodePage(self)
+        self.java = JavaPage(self)
+        if (NVM_DIR / "nvm.sh").is_file():
+            self.stack.add_titled_with_icon(self.node, "node", "Node.js", "doxia-javascript")
+        else:
+            self.stack.add_titled_with_icon(self.missing("nvm"), "node", "Node.js", "doxia-javascript")
+            self.node = None
+        if (SDKMAN_DIR / "bin/sdkman-init.sh").is_file():
+            self.stack.add_titled_with_icon(self.java, "java", "Java", "java")
+        else:
+            self.stack.add_titled_with_icon(self.missing("SDKMAN!"), "java", "Java", "java")
+            self.java = None
+
+        view = Adw.ToolbarView(content=self.stack, reveal_bottom_bars=False)
+        view.add_top_bar(header)
+        view.add_bottom_bar(self.progress_panel())
+        self.view = view
+        self.toasts = Adw.ToastOverlay(child=view)
+        self.set_content(self.toasts)
+
+        for name, callback in (("java-archive", lambda *_: self.java.pick_archive()),
+                               ("java-folder", lambda *_: self.java.pick_folder())):
+            action = Gio.SimpleAction(name=name)
+            action.connect("activate", callback)
+            self.add_action(action)
+
+        # Alt+1 and Alt+2 switch tabs, as in GNOME's apps.
+        shortcuts = Gtk.ShortcutController(scope=Gtk.ShortcutScope.GLOBAL)
+        for key, name in (("1", "node"), ("2", "java")):
+            shortcuts.add_shortcut(Gtk.Shortcut(
+                trigger=Gtk.ShortcutTrigger.parse_string(f"<Alt>{key}"),
+                action=Gtk.CallbackAction.new(lambda *_, name=name: self.stack.set_visible_child_name(name) or True)))
+        shortcuts.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        self.add_controller(shortcuts)
+
+        self.refresh()
+        for page in self.pages():
+            page.fill_remote()
+            page.load_remote()
+
+    def missing(self, tool):
+        return Adw.StatusPage(icon_name="dialog-warning-symbolic", title=f"O {tool} não está instalado",
+                              description="Instale com: bash ~/.local/share/omarchy/fedora/doxia/install-dev-tools")
+
+    def pages(self):
+        return [page for page in (self.node, self.java) if page]
+
+    def refresh(self):
+        for page in self.pages():
+            page.refresh()
+
+    def progress_panel(self):
+        panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, css_classes=["progress-panel"])
+        texts = Gtk.Box(spacing=12)
+        self.task = Gtk.Label(xalign=0, css_classes=["task"])
+        self.detail = Gtk.Label(xalign=0, hexpand=True, ellipsize=Pango.EllipsizeMode.MIDDLE,
+                                css_classes=["dim-label", "caption"])
+        texts.append(self.task)
+        texts.append(self.detail)
+        row = Gtk.Box(spacing=16)
+        self.bar = Gtk.ProgressBar(hexpand=True, valign=Gtk.Align.CENTER, css_classes=["thin"])
+        self.percent = Gtk.Label(xalign=1, width_chars=4, css_classes=["percent"])
+        row.append(self.bar)
+        row.append(self.percent)
+        panel.append(texts)
+        panel.append(row)
+        return panel
+
+    def set_busy(self, text):
+        """Shows the strip; the bar moves back and forth until a percentage arrives."""
+        self.busy = True
+        self.stack.set_sensitive(False)
+        self.task.set_text(text)
+        self.detail.set_text("")
+        self.set_fraction(None)
+        self.view.set_reveal_bottom_bars(True)
+        if not getattr(self, "pulsing", None):
+            self.pulsing = GLib.timeout_add(120, self.pulse)
+
+    def set_fraction(self, fraction):
+        self.fraction = fraction
+        if fraction is None:
+            self.percent.set_text("")
+        else:
+            self.bar.set_fraction(fraction)
+            self.percent.set_text(f"{int(fraction * 100)}%")
+
+    def pulse(self):
+        if not self.busy:
+            self.pulsing = None
+            return False
+        if self.fraction is None:
+            self.bar.pulse()
+        return True
+
+    def set_idle(self):
+        self.busy = False
+        self.stack.set_sensitive(True)
+        self.view.set_reveal_bottom_bars(False)
+
+    def log(self, text):
+        self.output.insert(self.output.get_end_iter(), text)
+
+    def run(self, title, script, done, action=None):
+        """Runs a bash script in the background, streaming its output to the log
+        (SDKMAN!'s download bar redraws with \\r, so that ends a line too)."""
+        self.set_busy(title)
+        self.log(f"\n$ {title}\n")
+
+        def work():
+            process = subprocess.Popen(["bash", "-c", script], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       stdin=subprocess.DEVNULL)
+            line = b""
+            while chunk := process.stdout.read1(4096):
+                parts = (line + chunk).replace(b"\r", b"\n").split(b"\n")
+                line = parts.pop()
+                for part in parts:
+                    text = re.sub(r"\x1b\[[0-9;]*m", "", part.decode(errors="replace")).rstrip()
+                    if text:
+                        GLib.idle_add(progress, text)
+            code = process.wait()
+            GLib.idle_add(finished, code)
+
+        def progress(text):
+            self.log(text + "\n")
+            percent = PERCENT.search(text)
+            if percent:
+                self.set_fraction(min(float(percent.group(1).replace(",", ".")), 100) / 100)
+            # The download bar's own #s are already the bar; anything else is detail.
+            words = PERCENT.sub("", text).strip(" #-=O\t")
+            if words:
+                self.detail.set_text(words)
+
+        def finished(code):
+            self.set_idle()
+            self.refresh()
+            if code == 0:
+                self.toast(done, action)
+            else:
+                self.error(f"{title}: falhou", "Veja a saída dos comandos para o motivo.", show_output=True)
+        threading.Thread(target=work, daemon=True).start()
+
+    def toast(self, text, action=None):
+        toast = Adw.Toast(title=text, timeout=6)
+        if action:
+            label, callback = action
+            toast.set_button_label(label)
+            toast.connect("button-clicked", lambda *_: callback())
+        self.toasts.add_toast(toast)
+
+    def confirm(self, heading, body, verb, accepted):
+        dialog = Adw.AlertDialog(heading=heading, body=body)
+        dialog.add_response("cancel", "Cancelar")
+        dialog.add_response("ok", verb)
+        dialog.set_response_appearance("ok", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_close_response("cancel")
+        dialog.connect("response", lambda _, answer: answer == "ok" and accepted())
+        dialog.present(self)
+
+    def error(self, heading, body, show_output=False):
+        dialog = Adw.AlertDialog(heading=heading, body=body)
+        dialog.add_response("close", "Fechar")
+        if show_output:
+            dialog.add_response("output", "Ver saída")
+        dialog.connect("response", lambda _, answer: answer == "output" and self.show_output())
+        dialog.present(self)
+
+    def show_output(self):
+        text = Gtk.TextView(buffer=self.output, editable=False, monospace=True, wrap_mode=Gtk.WrapMode.WORD_CHAR,
+                            top_margin=12, bottom_margin=12, left_margin=12, right_margin=12)
+        scrolled = Gtk.ScrolledWindow(child=text, vexpand=True)
+        GLib.idle_add(lambda: scrolled.get_vadjustment().set_value(scrolled.get_vadjustment().get_upper()))
+        view = Adw.ToolbarView(content=scrolled)
+        view.add_top_bar(Adw.HeaderBar())
+        dialog = Adw.Dialog(title="Saída dos comandos", child=view, content_width=700, content_height=480)
+        dialog.present(self)
+
+
+class App(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id="org.doxia.DevVersions", flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+
+    def do_startup(self):
+        Adw.Application.do_startup(self)
+        display = Gdk.Display.get_default()
+        Gtk.IconTheme.get_for_display(display).add_search_path(str(HERE / "dev-versions-icons"))
+        css = Gtk.CssProvider()
+        css.load_from_string(CSS)
+        Gtk.StyleContext.add_provider_for_display(display, css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+    def do_activate(self):
+        window = self.get_active_window() or Window(self)
+        window.present()
+
+
+if __name__ == "__main__":
+    App().run()

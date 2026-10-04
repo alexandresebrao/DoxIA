@@ -53,8 +53,9 @@ packages=(
   btop fastfetch gum jq socat inotify-tools fzf util-linux-script eza zoxide ripgrep fd-find bat tmux
   ImageMagick vips-tools ffmpegthumbnailer qrencode zbar tesseract tldr inxi plocate
   python3-gobject tree-sitter-cli nss-mdns
-  # SDKMAN! (fedora/doxia/install-dev-tools) needs zip and unzip
-  zip unzip
+  # SDKMAN! (fedora/doxia/install-dev-tools) needs zip and unzip; its window
+  # (fedora/doxia/dev-versions) runs on GTK 4 and libadwaita and unpacks rpm JDKs with cpio
+  zip unzip gtk4 libadwaita cpio
 
   # Fonts
   google-noto-sans-fonts google-noto-emoji-fonts google-noto-sans-cjk-fonts

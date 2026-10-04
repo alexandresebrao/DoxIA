@@ -21,6 +21,10 @@ Commands, paths and config files keep their Omarchy names (`omarchy-*`,
 - Lock screen PAM config adapted to Fedora
 - Menus, panels, notifications and OSD messages in pt-BR
 - DoxIA branding: login session name, login, About and screensaver logos, terminal greeting and MOTD
+- Node.js from nvm and Java from SDKMAN! (an LTS of each by default) instead of Fedora's packages,
+  with **Versões do Node e do Java** in the launcher to pick the default version, install and
+  remove versions, and install a JDK from a file (zip, tar.gz, rpm… like Oracle's) or a folder
+- ONLYOFFICE from Flathub, in pt-BR, instead of LibreOffice
 
 ### Install
 

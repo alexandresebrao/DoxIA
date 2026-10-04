@@ -5,8 +5,9 @@
 # as the defaults: node and java come from them, not from Fedora's packages
 # (install-system.sh drops LibreOffice and, with it, Fedora's JDK). Loads both in
 # every bash through ~/.bashrc.d/dev-tools.sh (fedora/doxia/dev-tools.sh). Skips
-# what is already installed; neither installer touches ~/.bashrc. Run as the user by
-# install-user.sh and fedora/update.sh.
+# what is already installed; neither installer touches ~/.bashrc. Also puts the
+# "Versões do Node e do Java" window (fedora/doxia/dev-versions) in the launcher.
+# Run as the user by install-user.sh and fedora/update.sh.
 
 set -euo pipefail
 
@@ -45,3 +46,17 @@ fi
 
 mkdir -p "$HOME/.bashrc.d"
 ln -sfn "$omarchy_path/fedora/doxia/dev-tools.sh" "$HOME/.bashrc.d/dev-tools.sh"
+
+# The window that picks the defaults and installs versions (fedora/doxia/dev-versions),
+# in the launcher. Named after its app ID so the dock and switcher match it.
+mkdir -p "$HOME/.local/share/applications"
+cat > "$HOME/.local/share/applications/org.doxia.DevVersions.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Versões do Node e do Java
+Comment=Escolha a versão padrão e instale versões do Node.js (nvm) e do Java (SDKMAN!)
+Keywords=node;nodejs;npm;nvm;java;jdk;sdkman;oracle;
+Exec=python3 $omarchy_path/fedora/doxia/dev-versions
+Icon=java
+Categories=Development;
+DESKTOP
