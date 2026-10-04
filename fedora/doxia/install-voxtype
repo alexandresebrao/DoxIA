@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Voxtype dictation ready out of the box: the RPM from the latest upstream release
+# (Fedora has no package), the DoxIA config (Portuguese, F9 push-to-talk), the
+# Whisper model and the user service. What omarchy-voxtype-install does after its
+# confirmation, without the questions, so the ISO and Atualizar can run it.
+# Every step is skipped when already done, so a hand-tuned config survives.
+#
+#   sudo fedora/doxia/install-voxtype --rpm   # as root: only the RPM (install-system.sh)
+#   fedora/doxia/install-voxtype              # as the user: RPM via sudo, config, model, service
+
+set -euo pipefail
+
+install_rpm() {
+  rpm -q voxtype &>/dev/null && return 0
+  local release_url version
+  release_url=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/peteonrails/voxtype/releases/latest)
+  version=${release_url##*/v}
+  dnf install -y "https://github.com/peteonrails/voxtype/releases/download/v$version/voxtype-$version-1.x86_64.rpm"
+}
+
+if [[ ${1:-} == "--rpm" ]]; then
+  install_rpm
+  exit 0
+fi
+
+if (( EUID == 0 )); then
+  echo "Run as your user, not root (or with --rpm for the package only)." >&2
+  exit 1
+fi
+
+omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+
+if ! rpm -q voxtype &>/dev/null; then
+  sudo bash "$omarchy_path/fedora/doxia/install-voxtype" --rpm
+fi
+
+if [[ ! -f $HOME/.config/voxtype/config.toml ]]; then
+  mkdir -p "$HOME/.config/voxtype"
+  cp "$omarchy_path/default/voxtype/config.toml" "$HOME/.config/voxtype/"
+fi
+
+# Downloads the model the config names (~500MB), only when it's missing.
+voxtype setup --download --no-post-install --quiet
+
+# The unit voxtype setup systemd writes, enabled through the .wants symlink because
+# the installer has no user manager to ask (see install-user-units).
+units=$HOME/.config/systemd/user
+mkdir -p "$units/graphical-session.target.wants"
+cat > "$units/voxtype.service" <<'UNIT'
+[Unit]
+Description=Voxtype push-to-talk voice-to-text daemon
+Documentation=https://voxtype.io
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/voxtype daemon
+Restart=on-failure
+RestartSec=5
+
+# Ensure we have access to the display
+Environment=XDG_RUNTIME_DIR=%t
+
+[Install]
+WantedBy=graphical-session.target
+UNIT
+ln -sfn ../voxtype.service "$units/graphical-session.target.wants/voxtype.service"
+
+# On Atualizar the session is up: start it now, and let Hyprland pick up the
+# F9 bindings (default/hypr/bindings/voxtype.lua only binds when voxtype exists).
+if [[ -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
+  systemctl --user daemon-reload
+  if systemctl --user is-active --quiet graphical-session.target; then
+    systemctl --user start voxtype.service
+    hyprctl reload >/dev/null 2>&1 || true
+  fi
+fi
