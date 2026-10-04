@@ -120,7 +120,7 @@ place "$doxia/default-agent" "$HOME/.config/omarchy/defaults/agent"
 mkdir -p "$HOME/.local/state/omarchy/defaults"
 echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 
-echo "==> User units (Bluetooth pairing agent, crash notifier, internal monitor recovery)"
+echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
 bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
 
 echo "==> Run on every Atualizar (omarchy-update's post-update hook)"
