@@ -6,7 +6,7 @@
 
 mkdir usr/libexec/doxia-installer
 runcmd install -m755 ${wizarddir}/doxia-installer-start ${wizarddir}/doxia-installer.py ${root}/usr/libexec/doxia-installer/
-runcmd install -m644 ${wizarddir}/doxia-installer.css ${brand} ${root}/usr/libexec/doxia-installer/
+runcmd install -m644 ${wizarddir}/doxia-installer.css ${wizarddir}/LICENCA.txt ${brand} ${root}/usr/libexec/doxia-installer/
 
 mkdir usr/share/anaconda/pixmaps/doxia
 runcmd cp ${themedir}/doxia.css ${themedir}/sidebar-bg.png ${themedir}/sidebar-logo.png ${root}/usr/share/anaconda/pixmaps/doxia/

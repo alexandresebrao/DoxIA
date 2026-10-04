@@ -237,6 +237,23 @@ check {
 }
 check:checked { -gtk-icon-source: -gtk-icontheme("object-select-symbolic"); color: white; background-color: @red; }
 checkbutton label { font-size: 10pt; }
+radio {
+    background-color: @field;
+    background-image: none;
+    border-radius: 50%;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    color: @red;
+    min-width: 12px;
+    min-height: 12px;
+    margin-right: 8px;
+}
+radio:checked { -gtk-icon-source: -gtk-icontheme("radio-checked-symbolic"); color: @red; }
+radiobutton label { font-size: 10pt; }
+
+/* License text */
+
+textview.license, textview.license text { background-color: @field; color: @text; font-size: 9.5pt; }
 
 /* Group box ("Configurações escolhidas") */
 

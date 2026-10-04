@@ -32,6 +32,7 @@ STATE = Path(os.environ.get("DOXIA_STATE", "/tmp/doxia"))
 SYSROOT = Path("/mnt/sysroot")
 BUS_ADDRESS = Path("/run/anaconda/bus.address")
 TASK_IFACE = "org.fedoraproject.Anaconda.Task"
+LICENSE = HERE / "LICENCA.txt"
 VERSION = os.environ.get("DOXIA_VERSION", "44")
 
 # DoxIA is Brazilian Portuguese only: shown, locale, time zone
@@ -199,6 +200,23 @@ def signal_words(percent):
     return "Excelente" if percent >= 75 else "Bom" if percent >= 50 else "Regular" if percent >= 30 else "Fraco"
 
 
+def reflow(text):
+    """Joins the license's hard-wrapped lines so it fills the box: each paragraph
+    becomes one line; list items ("  - ") and copyright lines keep their own."""
+    out = []
+    for block in text.split("\n\n"):
+        lines = []
+        for line in block.strip("\n").split("\n"):
+            own_line = re.match(r"\s*(- |Copyright)", line)
+            if lines and not own_line:
+                lines[-1] += " " + line.strip()
+            else:
+                lines.append(line.rstrip())
+        if any(lines):
+            out.append("\n".join(lines))
+    return "\n\n".join(out)
+
+
 def bevel_label(text, css=None, xalign=0.0, wrap=True):
     lbl = Gtk.Label(label=text, xalign=xalign)
     lbl.set_line_wrap(wrap)
@@ -274,7 +292,8 @@ class Wizard(Gtk.Window):
         self.next.connect("clicked", self.on_next)
         self.cancel.connect("clicked", self.on_cancel)
 
-        self.pages = ["welcome", "network", "disk", "user", "ready", "copy", "done", "failed"]
+        self.pages = ["license", "welcome", "network", "disk", "user", "ready", "copy", "done", "failed"]
+        self.stack.add_named(self._page_license(), "license")
         self.stack.add_named(self._page_welcome(), "welcome")
         self.stack.add_named(self._page_network(), "network")
         self.stack.add_named(self._page_disk(), "disk")
@@ -286,7 +305,7 @@ class Wizard(Gtk.Window):
         self.show_all()
         self.enc_box.hide()
         self.copy_panel.hide()
-        self.go("welcome")
+        self.go("license")
 
     # Chrome
 
@@ -369,6 +388,30 @@ class Wizard(Gtk.Window):
         return box
 
     # Pages
+
+    def _page_license(self):
+        box = self.page(
+            "Contrato de Licença",
+            "Leia o contrato abaixo. Para instalar o DoxIA, você precisa aceitar os termos.")
+        view = Gtk.TextView(editable=False, cursor_visible=False, wrap_mode=Gtk.WrapMode.WORD_CHAR)
+        view.get_style_context().add_class("license")
+        view.set_left_margin(8)
+        view.set_right_margin(8)
+        view.set_top_margin(6)
+        view.set_bottom_margin(6)
+        view.get_buffer().set_text(reflow(LICENSE.read_text()) if LICENSE.exists() else "")
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.get_style_context().add_class("well")
+        sw.add(view)
+        box.pack_start(sw, True, True, 0)
+        self.accept = Gtk.RadioButton.new_with_mnemonic(None, "_Aceito os termos do contrato")
+        decline = Gtk.RadioButton.new_with_mnemonic_from_widget(self.accept, "_Não aceito os termos do contrato")
+        decline.set_active(True)
+        self.accept.connect("toggled", lambda *_: self.validate())
+        box.pack_start(self.accept, False, False, 0)
+        box.pack_start(decline, False, False, 0)
+        return box
 
     def _page_welcome(self):
         box = self.page(
@@ -583,9 +626,9 @@ class Wizard(Gtk.Window):
         self.current = name
         self.frame.set_visible(name != "copy")
         self.copy_panel.set_visible(name == "copy")
-        step = {"welcome": 0, "network": 1, "disk": 1, "user": 1, "ready": 1, "copy": 2, "done": 3, "failed": 2}[name]
+        step = {"license": 0, "welcome": 0, "network": 1, "disk": 1, "user": 1, "ready": 1, "copy": 2, "done": 3, "failed": 2}[name]
         self.set_step(step)
-        self.back.set_sensitive(name in ("network", "disk", "user", "ready"))
+        self.back.set_sensitive(name in ("welcome", "network", "disk", "user", "ready"))
         self.back.set_visible(name not in ("done", "failed"))
         self.next.set_visible(name not in ("copy",))
         self.cancel.set_visible(name not in ("done", "failed"))
@@ -612,7 +655,9 @@ class Wizard(Gtk.Window):
         self.go(self.pages[i - 1])
 
     def on_next(self, _button):
-        if self.current == "welcome":
+        if self.current == "license":
+            self.go("welcome")
+        elif self.current == "welcome":
             self.go("network")
         elif self.current == "network":
             self.go("disk")
@@ -801,7 +846,9 @@ class Wizard(Gtk.Window):
 
     def validate(self):
         ok, msg = True, ""
-        if self.current == "network":
+        if self.current == "license":
+            ok = self.accept.get_active()
+        elif self.current == "network":
             ok = self._online
         elif self.current == "disk":
             model, it = self.disk_view.get_selection().get_selected()

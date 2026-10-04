@@ -1,0 +1,155 @@
+CONTRATO DE LICENÇA DE USO DO DOXIA
+
+Leia com atenção antes de instalar. Ao clicar em "Aceito os termos" e continuar a
+instalação, você concorda com este contrato. Se não concordar, clique em Cancelar:
+nada será alterado no seu computador.
+
+
+1. O QUE É O DOXIA
+
+O DoxIA é um sistema operacional montado a partir do Fedora Linux (um "Fedora
+Remix") com a área de trabalho do Omarchy (Hyprland e Quickshell), traduzida para o
+português do Brasil. É um projeto independente e não oficial, mantido por Alexandre
+Sebrão. O DoxIA não é afiliado, patrocinado nem endossado pelo Fedora Project, pela
+Red Hat, pela Basecamp (Omarchy) ou por qualquer outra empresa citada neste
+contrato.
+
+
+2. LICENÇA DO DOXIA
+
+Os scripts, configurações, temas e demais arquivos próprios do DoxIA e do Omarchy
+são software livre, distribuídos sob a Licença MIT:
+
+  Copyright (c) David Heinemeier Hansson (Omarchy)
+  Copyright (c) Alexandre Sebrão (modificações do DoxIA)
+
+  É concedida permissão, gratuitamente, a qualquer pessoa que obtenha uma cópia
+  deste software e dos arquivos de documentação associados (o "Software"), para
+  lidar com o Software sem restrições, incluindo, sem limitação, os direitos de
+  usar, copiar, modificar, mesclar, publicar, distribuir, sublicenciar e/ou vender
+  cópias do Software, e de permitir que as pessoas a quem o Software é fornecido o
+  façam, sob a seguinte condição: o aviso de copyright acima e este aviso de
+  permissão devem ser incluídos em todas as cópias ou partes substanciais do
+  Software.
+
+O texto original em inglês da Licença MIT, que prevalece em caso de divergência,
+está no final deste contrato.
+
+
+3. SOFTWARE LIVRE DE TERCEIROS
+
+O DoxIA instala centenas de programas de terceiros, cada um sob a sua própria
+licença, que continua valendo integralmente. Nada neste contrato restringe os
+direitos que essas licenças lhe dão, entre eles o de obter o código-fonte dos
+programas sob a GPL e licenças semelhantes, disponível nos repositórios do Fedora
+Project e nos sites de cada projeto. Entre os principais:
+
+  - Linux (núcleo do sistema): GPL-2.0
+  - Pacotes do Fedora Linux: cada um com a sua licença (GPL, LGPL, MIT, BSD,
+    Apache e outras), indicada no próprio pacote (comando: rpm -qi <pacote>)
+  - Hyprland: BSD-3-Clause
+  - Quickshell: LGPL-3.0 e GPL-3.0
+  - SDDM (tela de login): GPL-2.0 ou posterior
+  - GRUB (menu de inicialização) e Plymouth: GPL-3.0 ou posterior e GPL-2.0 ou
+    posterior
+  - Kitty (terminal): GPL-3.0
+  - uwsm: MIT
+  - Voxtype (ditado por voz): MIT
+  - Modelos de reconhecimento de voz Whisper (OpenAI, no formato do whisper.cpp):
+    MIT
+  - ONLYOFFICE Desktop Editors (Flathub): AGPL-3.0
+  - Evince (Flathub): GPL-2.0 ou posterior
+  - nvm (versões do Node.js): MIT
+  - SDKMAN! (versões do Java): Apache-2.0
+  - Oh My Zsh: MIT
+  - Fontes Red Hat Display e Red Hat Text, JetBrains Mono (Nerd Font) e Noto:
+    SIL Open Font License 1.1
+  - Font Awesome Free: ícones CC BY 4.0, fontes SIL OFL 1.1, código MIT
+  - Ícones Papirus: GPL-3.0
+  - Ícones Yaru: CC BY-SA 4.0 e GPL-3.0
+
+
+4. SOFTWARE PROPRIETÁRIO
+
+Por padrão, o DoxIA também baixa e instala dois programas que NÃO são software
+livre. Eles são fornecidos pelos seus fabricantes, diretamente dos servidores
+deles, e o uso de cada um depende de você aceitar os termos do respectivo
+fabricante:
+
+  - Google Chrome, da Google LLC: sujeito aos Termos de Serviço do Google e aos
+    Termos de Serviço Adicionais do Google Chrome e do ChromeOS. O Chrome adiciona
+    o repositório de pacotes da Google ao sistema, para receber atualizações.
+  - Claude Code, da Anthropic PBC: sujeito aos Termos Comerciais ou aos Termos de
+    Consumidor da Anthropic, conforme o tipo da sua conta. Usá-lo exige uma conta
+    da Anthropic, e o que você enviar a ele é processado nos servidores da
+    Anthropic.
+
+Você pode remover os dois a qualquer momento (Menu > Remover). Programas
+instalados depois, pelo menu ou pelo Flathub, seguem as licenças dos seus
+fabricantes.
+
+
+5. INTERNET E PRIVACIDADE
+
+O DoxIA não coleta dados nem envia nenhuma informação sobre você ou sobre o uso do
+computador para o mantenedor do projeto. Para instalar e atualizar o sistema, ele
+se conecta aos servidores de quem distribui cada parte: espelhos do Fedora
+Project, COPR, GitHub, Flathub, Hugging Face (modelo de voz), Google, Anthropic e
+os sites do nvm, do SDKMAN! e do Oh My Zsh. Esses serviços têm as suas próprias
+políticas de privacidade. O gerenciador de pacotes do Fedora (dnf) envia
+semanalmente uma contagem anônima de instalações ao Fedora Project ("countme").
+O ditado por voz (Voxtype) é processado inteiramente no seu computador.
+
+
+6. MARCAS
+
+Fedora e o logotipo do Fedora são marcas da Red Hat, Inc.; o DoxIA usa os
+logotipos genéricos no lugar deles. Red Hat, Red Hat Enterprise Linux, RHEL e o
+logotipo Shadowman são marcas da Red Hat, Inc.; o tema visual "RHEL 8" é uma
+homenagem e não indica nenhuma relação com a Red Hat. Omarchy e Basecamp são
+marcas da 37signals LLC. Google e Google Chrome são marcas da Google LLC. Claude e
+Anthropic são marcas da Anthropic PBC. ONLYOFFICE é marca da Ascensio System SIA.
+Linux é marca registrada de Linus Torvalds. As demais marcas pertencem aos seus
+respectivos donos e são citadas apenas para identificar os programas.
+
+
+7. INSTALAÇÃO E SEUS DADOS
+
+A instalação apaga todo o conteúdo do disco que você escolher. Faça uma cópia de
+segurança de tudo o que for importante antes de continuar. Você é responsável
+pelos seus dados e por manter cópias de segurança deles.
+
+
+8. SEM GARANTIA
+
+O DOXIA É FORNECIDO GRATUITAMENTE, "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIA DE
+QUALQUER TIPO, EXPRESSA OU IMPLÍCITA, INCLUINDO, SEM LIMITAÇÃO, GARANTIAS DE
+COMERCIALIZAÇÃO, ADEQUAÇÃO A UM DETERMINADO FIM E NÃO VIOLAÇÃO. NA EXTENSÃO MÁXIMA
+PERMITIDA PELA LEGISLAÇÃO APLICÁVEL, OS AUTORES E DETENTORES DOS DIREITOS NÃO SERÃO
+RESPONSÁVEIS POR QUALQUER RECLAMAÇÃO, DANO, PERDA DE DADOS OU OUTRA
+RESPONSABILIDADE, SEJA EM AÇÃO CONTRATUAL, ILÍCITO CIVIL OU OUTRA, DECORRENTE DO
+SOFTWARE, DO SEU USO OU DE OUTRAS NEGOCIAÇÕES COM ELE.
+
+
+9. TEXTO ORIGINAL DA LICENÇA MIT
+
+  Copyright (c) David Heinemeier Hansson
+
+  Permission is hereby granted, free of charge, to any person obtaining
+  a copy of this software and associated documentation files (the
+  "Software"), to deal in the Software without restriction, including
+  without limitation the rights to use, copy, modify, merge, publish,
+  distribute, sublicense, and/or sell copies of the Software, and to
+  permit persons to whom the Software is furnished to do so, subject to
+  the following conditions:
+
+  The above copyright notice and this permission notice shall be
+  included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
