@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fedora port of Omarchy: personal setup, run at the end of install-user.sh.
-# Restores my plugins (FortiVPN, Java servers, panel), DoxIA branding, bar layout,
+# Restores my plugins (FortiVPN, Java servers, panel, services), DoxIA branding, bar layout,
 # menu extensions, default agent and Hyprland window rules from fedora/personal. Existing files are backed up.
 # Can be re-run on its own to reapply them:
 #
@@ -54,6 +54,15 @@ seed omarchy/defaults/agent "$HOME/.config/omarchy/defaults/agent"
 echo "==> Hyprland window rules"
 if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua 2>/dev/null; then
   { echo; cat "$personal/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
+fi
+
+echo "==> Painel de serviços (svc no PATH e skill /servicos do Claude Code)"
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$HOME/.config/omarchy/plugins/alexandre.services/svc" "$HOME/.local/bin/svc"
+seed claude/skills/servicos "$HOME/.claude/skills/servicos"
+if ! grep -q "org.omarchy.services-log" ~/.config/hypr/hyprland.lua 2>/dev/null; then
+  { echo; echo "-- Janela de log do painel de serviços (plugin alexandre.services): flutuante e larga."
+    grep -F 'org.omarchy.services-log' "$personal/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 
 echo "==> FortiVPN (openfortivpn + polkit helper)"

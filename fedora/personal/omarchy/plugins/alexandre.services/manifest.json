@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "alexandre.services",
+  "name": "Serviços",
+  "version": "1.0.0",
+  "author": "alexandre",
+  "license": "MIT",
+  "description": "Liga, desliga e troca de branch dos serviços de desenvolvimento (node/java) definidos em ~/.config/omarchy/services.json.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Serviços",
+    "description": "Play/stop, branch atual com troca (rodando build/scripts configurados) e log de cada serviço.",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

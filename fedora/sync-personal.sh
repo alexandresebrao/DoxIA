@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copies my current plugins, branding, bar layout, menu extensions,
-# screen-share picker config and default agent from ~/.config back into fedora/personal so they can
+# screen-share picker config, default agent and the /servicos Claude skill from ~/.config back into fedora/personal so they can
 # be committed. Backups (*.bak*) are left out. Hyprland window rules live in
 # fedora/personal/hypr/window-rules.lua and are edited there by hand.
 
@@ -30,5 +30,9 @@ cp "$HOME/.config/omarchy/shell.json" "$personal/omarchy/shell.json"
 cp "$HOME/.config/omarchy/defaults/agent" "$personal/omarchy/defaults/agent"
 mkdir -p "$personal/omarchy/extensions"
 cp "$HOME/.config/omarchy/extensions/omarchy-menu.jsonc" "$personal/omarchy/extensions/omarchy-menu.jsonc"
+
+mkdir -p "$personal/claude/skills"
+rm -rf "$personal/claude/skills/servicos"
+cp -a "$HOME/.claude/skills/servicos" "$personal/claude/skills/servicos"
 
 git -C "$personal" status --short -- .

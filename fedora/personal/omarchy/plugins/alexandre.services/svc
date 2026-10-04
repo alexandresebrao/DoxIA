@@ -1,0 +1,438 @@
+#!/usr/bin/env bash
+# Backend do painel de serviços (alexandre.services).
+#
+# Cada serviço roda como uma unit transitória do systemd do usuário
+# (svc-<id>.service); trocas de branch e builds rodam em svc-<id>-task.service.
+# A saída das duas vai para ~/.local/state/omarchy-services/<id>.log.
+#
+# Config: ~/.config/omarchy/services.json (gerada pela skill /servicos).
+#
+#   svc status                 JSON com o estado de todos os serviços
+#   svc branches <id>          JSON com as branches locais e remotas
+#   svc branches-all           {id: [branches]} de todos os serviços
+#   svc runtimes               versões instaladas de node (nvm) e java (sdkman)
+#   svc runtime <id> [versão]  fixa a versão do serviço (sem versão = automático)
+#   svc start|stop|restart <id>
+#   svc checkout <id> <branch> troca de branch e roda os passos de onBranchChange
+#   svc build <id>             roda os passos de onBranchChange sem trocar de branch
+#   svc log <id>               abre um terminal com o log do serviço
+#   svc validate               confere a config
+
+set -uo pipefail
+
+CONFIG="${OMARCHY_SERVICES_CONFIG:-$HOME/.config/omarchy/services.json}"
+STATE_DIR="$HOME/.local/state/omarchy-services"
+SELF="$(readlink -f "$0")"
+mkdir -p "$STATE_DIR"
+
+die() { echo "svc: $*" >&2; exit 1; }
+
+svc_json() {
+  [[ -f $CONFIG ]] || die "config não encontrada: $CONFIG"
+  jq -ce --arg id "$1" '.services[] | select(.id == $id)' "$CONFIG" 2>/dev/null || die "serviço desconhecido: $1"
+}
+
+field() { jq -r "$2 // empty" <<<"$1"; }
+
+expand_dir() {
+  local d="$1"
+  [[ $d == "~"* ]] && d="$HOME${d:1}"
+  printf '%s' "$d"
+}
+
+unit() { printf 'svc-%s.service' "$1"; }
+task_unit() { printf 'svc-%s-task.service' "$1"; }
+log_file() { printf '%s/%s.log' "$STATE_DIR" "$1"; }
+
+is_active() { systemctl --user is-active --quiet "$1"; }
+
+stamp() { printf '\n\033[1;36m==> %s  %s\033[0m\n' "$(date '+%F %T')" "$*"; }
+
+notify() { command -v notify-send >/dev/null && notify-send -a "Serviços" "$@" || true; }
+
+# Mantém o log abaixo de ~5 MB, preservando o final.
+trim_log() {
+  local f="$1"
+  [[ -f $f ]] || return 0
+  if (( $(stat -c %s "$f") > 5242880 )); then
+    tail -n 5000 "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+  fi
+}
+
+NVM_HOME="${NVM_DIR:-$HOME/.config/nvm}"
+[[ -s $NVM_HOME/nvm.sh ]] || NVM_HOME="$HOME/.nvm"
+SDKMAN_HOME="${SDKMAN_DIR:-$HOME/.sdkman}"
+
+# Versões instaladas, mais recentes primeiro.
+node_versions() { ls -1 "$NVM_HOME/versions/node" 2>/dev/null | sort -rV; }
+java_versions() { ls -1 "$SDKMAN_HOME/candidates/java" 2>/dev/null | grep -vx current | sort -rV; }
+
+# Resolve um alias do nvm (default, lts/*, 24, v24.1) para a versão
+# instalada que ele usaria, sem carregar o nvm (é chamado a cada poll).
+nvm_resolve() {
+  local v="$1" i
+  for ((i = 0; i < 5; i++)); do
+    [[ -f $NVM_HOME/alias/$v ]] || break
+    v="$(tr -d '[:space:]' <"$NVM_HOME/alias/$v")"
+  done
+  v="${v#v}"
+  local hit; hit="$(node_versions | grep -m1 -E "^v${v//./\\.}(\\.|$)")"
+  printf '%s' "${hit:-$1}"
+}
+
+# O que o modo automático usaria, para mostrar no painel.
+runtime_hint() {
+  local type="$1" dir="$2" v=""
+  case "$type" in
+    node)
+      [[ -f $dir/.nvmrc ]] && v="$(tr -d '[:space:]' <"$dir/.nvmrc")"
+      [[ -z $v && -f $NVM_HOME/alias/default ]] && v=default
+      [[ -n $v ]] && v="$(nvm_resolve "$v")"
+      ;;
+    java)
+      [[ -f $dir/.sdkmanrc ]] && v="$(sed -n 's/^java=//p' "$dir/.sdkmanrc" | tr -d '[:space:]')"
+      [[ -z $v && -L $SDKMAN_HOME/candidates/java/current ]] && v="$(basename "$(readlink -f "$SDKMAN_HOME/candidates/java/current")")"
+      ;;
+  esac
+  printf '%s' "$v"
+}
+
+# Prepara o ambiente (diretório, env, versão de node/java) para rodar
+# comandos do serviço. Roda dentro das units, nunca no processo do shell.
+#
+# Versão: a escolhida na config ("node" via nvm, "java" via sdkman) vence;
+# sem escolha, vale o projeto (mise.toml/.tool-versions, .nvmrc, .sdkmanrc) e
+# por fim o default do nvm / o "current" do sdkman.
+load_env() {
+  local json="$1" dir type
+  dir="$(expand_dir "$(field "$json" .dir)")"
+  type="$(field "$json" .type)"
+  cd "$dir" || die "diretório não existe: $dir"
+
+  export PATH="$HOME/.local/bin:$PATH"
+  while IFS=$'\t' read -r k v; do
+    [[ -n $k ]] && export "$k=$v"
+  done < <(jq -r '(.env // {}) | to_entries[] | "\(.key)\t\(.value)"' <<<"$json")
+
+  local want; want="$(field "$json" ".$type")"
+  [[ $type == java && -z $want ]] && want="$(field "$json" .javaHome)"
+
+  if [[ -z $want ]] && command -v mise >/dev/null && [[ -f mise.toml || -f .mise.toml || -f .tool-versions ]]; then
+    eval "$(mise env -s bash 2>/dev/null)"
+    return 0
+  fi
+
+  case "$type" in
+    node)
+      [[ -s $NVM_HOME/nvm.sh ]] || { [[ -n $want ]] && die "nvm não encontrado"; return 0; }
+      export NVM_DIR="$NVM_HOME"
+      # shellcheck disable=SC1091
+      source "$NVM_DIR/nvm.sh" --no-use
+      if [[ -n $want ]]; then nvm use --silent "$want" || die "nvm: node $want não instalado (nvm install $want)"
+      elif [[ -f .nvmrc ]]; then nvm use --silent || die "nvm: versão do .nvmrc não instalada (nvm install)"
+      else nvm use --silent default >/dev/null 2>&1 || true
+      fi
+      echo "node $(node --version 2>/dev/null) ($(command -v node))"
+      ;;
+    java)
+      local home=""
+      if [[ $want == /* || $want == "~"* ]]; then
+        home="$(expand_dir "$want")"
+      elif [[ -n $want ]]; then
+        home="$SDKMAN_HOME/candidates/java/$want"
+        [[ -d $home ]] || die "sdkman: java $want não instalado (sdk install java $want)"
+      elif [[ -f .sdkmanrc ]]; then
+        local v; v="$(runtime_hint java "$dir")"
+        home="$SDKMAN_HOME/candidates/java/$v"
+        [[ -d $home ]] || die "sdkman: java $v do .sdkmanrc não instalado (sdk install java $v)"
+      elif [[ -d $SDKMAN_HOME/candidates/java/current ]]; then
+        home="$SDKMAN_HOME/candidates/java/current"
+      fi
+      if [[ -n $home ]]; then
+        export JAVA_HOME="$(readlink -f "$home")"
+        export PATH="$JAVA_HOME/bin:$PATH"
+      fi
+      echo "java $(java -version 2>&1 | head -1) (${JAVA_HOME:-sistema})"
+      ;;
+  esac
+}
+
+# Executa uma unit transitória com a saída anexada ao log do serviço.
+spawn() {
+  local name="$1" id="$2"; shift 2
+  systemctl --user reset-failed "$name" >/dev/null 2>&1 || true
+  systemd-run --user --quiet --unit="$name" \
+    -p StandardOutput="append:$(log_file "$id")" \
+    -p StandardError="append:$(log_file "$id")" \
+    -p TimeoutStopSec=20 \
+    -p SuccessExitStatus="130 143 SIGINT SIGTERM" \
+    -E PATH="$PATH" -E OMARCHY_SERVICES_CONFIG="$CONFIG" -E NVM_DIR="${NVM_DIR:-$HOME/.config/nvm}" \
+    "$@"
+}
+
+cmd_start() {
+  local id="$1" json; json="$(svc_json "$id")" || exit 1
+  is_active "$(unit "$id")" && return 0
+  rm -f "$STATE_DIR/$id.failed"
+  local log; log="$(log_file "$id")"
+  trim_log "$log"
+  local branch; branch="$(git -C "$(expand_dir "$(field "$json" .dir)")" branch --show-current 2>/dev/null)"
+  stamp "start ${branch:+($branch) }$(field "$json" .start)" >>"$log"
+  spawn "$(unit "$id")" "$id" "$SELF" _run "$id"
+}
+
+cmd_stop() {
+  local id="$1"
+  svc_json "$id" >/dev/null
+  if is_active "$(unit "$id")"; then
+    stamp "stop" >>"$(log_file "$id")"
+    systemctl --user stop "$(unit "$id")"
+  fi
+  systemctl --user reset-failed "$(unit "$id")" >/dev/null 2>&1 || true
+}
+
+cmd_restart() { cmd_stop "$1"; cmd_start "$1"; }
+
+cmd_checkout() {
+  local id="$1" branch="$2"
+  svc_json "$id" >/dev/null
+  is_active "$(task_unit "$id")" && die "$id já tem uma tarefa rodando"
+  spawn "$(task_unit "$id")" "$id" "$SELF" _task "$id" "$branch"
+}
+
+cmd_build() { cmd_checkout "$1" ""; }
+
+# --- dentro das units -------------------------------------------------------
+
+internal_run() {
+  local json; json="$(svc_json "$1")" || exit 1
+  load_env "$json"
+  exec bash -c "$(field "$json" .start)"
+}
+
+# Troca de branch (se $2 não for vazio) e roda os passos de onBranchChange.
+# Para o serviço antes e o religa no fim se ele estava rodando.
+internal_task() {
+  local id="$1" branch="$2" json; json="$(svc_json "$id")" || exit 1
+  local name; name="$(field "$json" .name)"; name="${name:-$id}"
+  rm -f "$STATE_DIR/$id.failed"
+  local was_running=0
+  is_active "$(unit "$id")" && was_running=1
+
+  ( load_env "$json"
+    set -e
+    local old; old="$(git rev-parse HEAD)"
+
+    if (( was_running )); then
+      stamp "parando para trocar de branch"
+      systemctl --user stop "$(unit "$id")"
+    fi
+
+    if [[ -n $branch ]]; then
+      stamp "git checkout $branch"
+      if ! git checkout "$branch"; then
+        git fetch --quiet origin "$branch" 2>/dev/null || true
+        git checkout "$branch"
+      fi
+      if [[ $(field "$json" .pullOnCheckout) == true ]] && git rev-parse --abbrev-ref '@{u}' >/dev/null 2>&1; then
+        stamp "git pull --ff-only"
+        git pull --ff-only
+      fi
+    fi
+
+    local changed; changed="$(git diff --name-only "$old" HEAD)"
+    local n; n="$(jq '(.onBranchChange // []) | length' <<<"$json")"
+    for ((i = 0; i < n; i++)); do
+      local step; step="$(jq -c ".onBranchChange[$i]" <<<"$json")"
+      local sname run; sname="$(field "$step" .name)"; run="$(field "$step" .run)"
+      local pats; pats="$(jq -r '(.ifChanged // [])[]' <<<"$step")"
+      if [[ -n $pats && -n $branch ]]; then
+        local hit=0 f p
+        while IFS= read -r f; do
+          while IFS= read -r p; do
+            # shellcheck disable=SC2053
+            [[ $f == $p ]] && { hit=1; break 2; }
+          done <<<"$pats"
+        done <<<"$changed"
+        if (( ! hit )); then
+          stamp "pulando: ${sname:-$run} (nada mudou em $(tr '\n' ' ' <<<"$pats"))"
+          continue
+        fi
+      fi
+      printf '%s' "${sname:-$run}" >"$STATE_DIR/$id.step"
+      stamp "${sname:-$run}: $run"
+      bash -c "$run"
+    done
+  )
+  local rc=$?
+  rm -f "$STATE_DIR/$id.step"
+
+  local now; now="$(git -C "$(expand_dir "$(field "$json" .dir)")" branch --show-current 2>/dev/null)"
+  if (( rc != 0 )); then
+    stamp "FALHOU (código $rc)"
+    notify -u critical "$name: falhou" "${branch:+Troca para $branch parou com erro. }Veja o log."
+    # Sai limpo para o Omarchy não avisar "Failed unit"; o painel lê este arquivo.
+    echo "$rc" >"$STATE_DIR/$id.failed"
+    exit 0
+  fi
+
+  local restart; restart="$(field "$json" .restartOnBranchChange)"
+  if (( was_running )) || [[ $restart == always ]]; then
+    "$SELF" start "$id"
+    notify "$name" "Em ${now:-?} e rodando."
+  else
+    stamp "pronto"
+    notify "$name" "Em ${now:-?}."
+  fi
+}
+
+# --- consultas --------------------------------------------------------------
+
+cmd_status() {
+  [[ -f $CONFIG ]] || { echo '{"config":false,"services":[]}'; return; }
+  local out="[]" json
+  while IFS= read -r json; do
+    local id dir u t
+    id="$(field "$json" .id)"
+    dir="$(expand_dir "$(field "$json" .dir)")"
+    u="$(unit "$id")"; t="$(task_unit "$id")"
+
+    # --value imprime na ordem fixa das propriedades do systemd, não na pedida.
+    local props state pid since result
+    props="$(systemctl --user show "$u" -p ActiveState -p MainPID -p ActiveEnterTimestamp -p Result)"
+    state="$(sed -n 's/^ActiveState=//p' <<<"$props")"
+    pid="$(sed -n 's/^MainPID=//p' <<<"$props")"
+    since="$(sed -n 's/^ActiveEnterTimestamp=//p' <<<"$props")"
+    result="$(sed -n 's/^Result=//p' <<<"$props")"
+    local task="" taskfail=false
+    [[ -f $STATE_DIR/$id.failed ]] && taskfail=true
+    if is_active "$t"; then
+      task="$(cat "$STATE_DIR/$id.step" 2>/dev/null)"; task="${task:-git checkout}"
+    fi
+    case "$state" in
+      active|activating|reloading) state=running ;;
+      deactivating) state=stopping ;;
+      failed) state=failed ;;
+      *) state=stopped ;;
+    esac
+    [[ -n $task ]] && state=busy
+
+    local branch="" dirty=false gitok=false
+    if branch="$(git -C "$dir" branch --show-current 2>/dev/null)"; then
+      gitok=true
+      [[ -z $branch ]] && branch="($(git -C "$dir" rev-parse --short HEAD 2>/dev/null))"
+      [[ -n $(git -C "$dir" status --porcelain -uno 2>/dev/null | head -1) ]] && dirty=true
+    fi
+
+    local ts=0
+    [[ $state == running && -n $since ]] && ts="$(date -d "$since" +%s 2>/dev/null || echo 0)"
+
+    out="$(jq -c --argjson s "$json" --arg state "$state" --arg task "$task" --arg branch "$branch" \
+      --argjson dirty "$dirty" --argjson git "$gitok" --argjson pid "${pid:-0}" --argjson since "$ts" \
+      --arg result "$result" --argjson taskFailed "$taskfail" \
+      --arg hint "$(runtime_hint "$(field "$json" .type)" "$dir")" \
+      '. + [{id: $s.id, name: ($s.name // $s.id), type: ($s.type // ""), dir: $s.dir,
+             port: ($s.port // null), url: ($s.url // null),
+             hasBuild: (($s.onBranchChange // []) | length > 0),
+             runtime: (if $s.type == "java" then ($s.java // "") else ($s.node // "") end),
+             runtimeHint: $hint,
+             state: $state, task: $task, taskFailed: $taskFailed, result: $result, pid: $pid, since: $since,
+             branch: $branch, dirty: $dirty, git: $git}]' <<<"$out")"
+  done < <(jq -c '.services[]?' "$CONFIG")
+  jq -c '{config: true, services: .}' <<<"$out"
+}
+
+cmd_branches() {
+  local json; json="$(svc_json "$1")" || exit 1
+  local dir; dir="$(expand_dir "$(field "$json" .dir)")"
+  {
+    git -C "$dir" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads
+    git -C "$dir" for-each-ref --sort=-committerdate --format='%(refname:lstrip=3)' refs/remotes | { grep -vx HEAD || true; }
+  } | awk '!seen[$0]++' | head -200 | jq -Rsc 'split("\n") | map(select(length > 0))'
+}
+
+cmd_branches_all() {
+  [[ -f $CONFIG ]] || { echo '{}'; return; }
+  local id out="{}"
+  for id in $(jq -r '.services[]?.id' "$CONFIG"); do
+    out="$(jq -c --arg id "$id" --argjson b "$(cmd_branches "$id" 2>/dev/null || echo '[]')" '. + {($id): $b}' <<<"$out")"
+  done
+  echo "$out"
+}
+
+cmd_runtimes() {
+  jq -nc --args '{node: $ARGS.positional[0] | split("\n") | map(select(length > 0)),
+                  java: $ARGS.positional[1] | split("\n") | map(select(length > 0))}' \
+    "$(node_versions)" "$(java_versions)"
+}
+
+# Grava a versão escolhida (vazio = automático) e religa se estiver rodando.
+cmd_runtime() {
+  local id="$1" version="$2" json; json="$(svc_json "$id")" || exit 1
+  local type; type="$(field "$json" .type)"
+  if [[ -n $version ]]; then
+    case "$type" in
+      node) node_versions | grep -qx "$version" || die "node $version não instalado no nvm" ;;
+      java) java_versions | grep -qx "$version" || die "java $version não instalado no sdkman" ;;
+    esac
+  fi
+  local tmp; tmp="$(mktemp "$CONFIG.XXXX")"
+  jq --indent 2 --arg id "$id" --arg k "$type" --arg v "$version" '
+    .services |= map(if .id == $id then (if $v == "" then del(.[$k]) else .[$k] = $v end) else . end)
+  ' "$CONFIG" >"$tmp" && mv "$tmp" "$CONFIG" || { rm -f "$tmp"; die "não consegui gravar $CONFIG"; }
+  stamp "$type → ${version:-automático}" >>"$(log_file "$id")"
+  is_active "$(unit "$id")" && cmd_restart "$id"
+  return 0
+}
+
+cmd_log() {
+  local id="$1"; svc_json "$id" >/dev/null
+  local log; log="$(log_file "$id")"
+  touch "$log"
+  exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.services-log --title="log: $id" \
+    -e bash -c "tail -n 1000 -F '$log'"
+}
+
+cmd_validate() {
+  [[ -f $CONFIG ]] || die "config não encontrada: $CONFIG"
+  jq -e . "$CONFIG" >/dev/null || die "JSON inválido"
+  local ok=0 json
+  while IFS= read -r json; do
+    local id; id="$(field "$json" .id)"
+    [[ $id =~ ^[a-z0-9][a-z0-9_-]*$ ]] || { echo "✗ id inválido: '$id' (use a-z, 0-9, - e _)"; ok=1; }
+    [[ $(field "$json" .type) =~ ^(node|java)$ ]] || { echo "✗ $id: type precisa ser node ou java"; ok=1; }
+    [[ -n $(field "$json" .start) ]] || { echo "✗ $id: falta start"; ok=1; }
+    local dir; dir="$(expand_dir "$(field "$json" .dir)")"
+    [[ -d $dir ]] || { echo "✗ $id: diretório não existe: $dir"; ok=1; }
+    local nv jv; nv="$(field "$json" .node)"; jv="$(field "$json" .java)"
+    [[ -z $nv || -n $(nvm_resolve "$nv" | grep -x 'v[0-9.]*' | grep -Fxf <(node_versions)) ]] \
+      || { echo "✗ $id: node $nv não instalado no nvm (nvm install $nv)"; ok=1; }
+    [[ -z $jv ]] || java_versions | grep -qx "$jv" \
+      || { echo "✗ $id: java $jv não instalado no sdkman (sdk install java $jv)"; ok=1; }
+    git -C "$dir" rev-parse --git-dir >/dev/null 2>&1 || echo "! $id: $dir não é repositório git (sem troca de branch)"
+    jq -e '(.onBranchChange // []) | all(.run? | type == "string")' <<<"$json" >/dev/null \
+      || { echo "✗ $id: todo passo de onBranchChange precisa de run"; ok=1; }
+  done < <(jq -c '.services[]?' "$CONFIG")
+  dup="$(jq -r '[.services[].id] | group_by(.) | map(select(length > 1) | .[0]) | .[]' "$CONFIG")"
+  [[ -z $dup ]] || { echo "✗ ids repetidos: $dup"; ok=1; }
+  (( ok == 0 )) && echo "✓ config ok ($(jq '.services | length' "$CONFIG") serviços)"
+  return $ok
+}
+
+case "${1:-}" in
+  status) cmd_status ;;
+  branches) cmd_branches "${2:?id}" ;;
+  branches-all) cmd_branches_all ;;
+  runtimes) cmd_runtimes ;;
+  runtime) cmd_runtime "${2:?id}" "${3-}" ;;
+  start) cmd_start "${2:?id}" ;;
+  stop) cmd_stop "${2:?id}" ;;
+  restart) cmd_restart "${2:?id}" ;;
+  checkout) cmd_checkout "${2:?id}" "${3:?branch}" ;;
+  build) cmd_build "${2:?id}" ;;
+  log) cmd_log "${2:?id}" ;;
+  validate) cmd_validate ;;
+  _run) internal_run "$2" ;;
+  _task) internal_task "$2" "${3:-}" ;;
+  *) sed -n '2,20p' "$SELF" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac
