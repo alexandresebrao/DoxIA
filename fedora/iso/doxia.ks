@@ -43,7 +43,7 @@ generic-logos
 %post --log=/root/doxia-install.log
 set -euo pipefail
 
-repo=https://github.com/alexandresebrao/ChapeuOS.git
+repo=https://github.com/alexandresebrao/DoxIA.git
 commit=@COMMIT@
 
 user=$(awk -F: '$3 >= 1000 && $3 < 60000 { print $1; exit }' /etc/passwd)

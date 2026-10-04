@@ -25,7 +25,7 @@ Commands, paths and config files keep their Omarchy names (`omarchy-*`,
 ### Install
 
 ```bash
-git clone https://github.com/alexandresebrao/ChapeuOS.git ~/.local/share/omarchy
+git clone https://github.com/alexandresebrao/DoxIA.git ~/.local/share/omarchy
 sudo bash ~/.local/share/omarchy/fedora/install-system.sh
 bash ~/.local/share/omarchy/fedora/install-user.sh
 ```
