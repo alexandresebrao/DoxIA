@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Installs nvm (Node.js versions) in ~/.config/nvm and SDKMAN! (Java and JVM tools)
+# in ~/.sdkman for the current user, with the Node.js LTS and SDKMAN!'s default JDK
+# as the defaults: node and java come from them, not from Fedora's packages (the
+# only JDK DoxIA keeps from dnf is the one LibreOffice depends on). Loads both in
+# every bash through ~/.bashrc.d/dev-tools.sh (fedora/doxia/dev-tools.sh). Skips
+# what is already installed; neither installer touches ~/.bashrc. Run as the user by
+# install-user.sh and fedora/update.sh.
+
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  echo "Run as your user, not root." >&2
+  exit 1
+fi
+
+omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+nvm_dir=$HOME/.config/nvm
+
+# nvm's documented git install, at its latest release.
+if [[ ! -s $nvm_dir/nvm.sh ]]; then
+  tag=$(git ls-remote --tags --refs --sort=-v:refname https://github.com/nvm-sh/nvm.git 'v*' |
+    head -1 | sed 's|.*refs/tags/||')
+  echo "  nvm $tag"
+  rm -rf "$nvm_dir"
+  git -c advice.detachedHead=false clone -q --depth 1 --branch "$tag" https://github.com/nvm-sh/nvm.git "$nvm_dir"
+fi
+
+if [[ ! -s $HOME/.sdkman/bin/sdkman-init.sh ]]; then
+  echo "  SDKMAN!"
+  curl -fsSL "https://get.sdkman.io?rcupdate=false" | bash >/dev/null
+fi
+
+# nvm and SDKMAN! are shell functions that don't run under set -u.
+if [[ ! -e $nvm_dir/alias/default ]]; then
+  echo "  Node.js LTS (nvm default)"
+  bash -c '. "$1/nvm.sh" && nvm install --lts >/dev/null && nvm alias default "lts/*" >/dev/null' _ "$nvm_dir"
+fi
+
+if [[ ! -e $HOME/.sdkman/candidates/java/current ]]; then
+  echo "  Java (SDKMAN! default)"
+  bash -c '. "$HOME/.sdkman/bin/sdkman-init.sh" && sdkman_auto_answer=true && sdk install java >/dev/null'
+fi
+
+mkdir -p "$HOME/.bashrc.d"
+ln -sfn "$omarchy_path/fedora/doxia/dev-tools.sh" "$HOME/.bashrc.d/dev-tools.sh"

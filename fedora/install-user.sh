@@ -70,6 +70,9 @@ if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 
+echo "==> nvm and SDKMAN! (Node.js and Java versions)"
+bash "$OMARCHY_PATH/fedora/doxia/install-dev-tools"
+
 echo "==> nano as the default editor (omarchy-launch-editor, \$EDITOR) instead of nvim"
 mkdir -p ~/.local/state/omarchy/defaults
 echo nano > ~/.local/state/omarchy/defaults/editor
