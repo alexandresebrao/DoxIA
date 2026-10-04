@@ -77,6 +77,15 @@ if ! systemctl is-enabled --quiet tuned-ppd.service || ! systemctl is-active --q
   sudo systemctl enable --now tuned.service tuned-ppd.service
 fi
 
+echo "==> GNOME Shell out (ISO installs got it through the yaru-theme metapackage)"
+# Only Yaru's icons are used. The keyring PAM module came in as one of GNOME
+# Shell's dependencies but unlocks the keyring at the SDDM login, so it is marked
+# as wanted before dnf drops the rest (GDM, Mutter, GNOME Settings...).
+if omarchy-pkg-present yaru-theme; then
+  sudo dnf mark user -y gnome-keyring gnome-keyring-pam yaru-icon-theme >/dev/null
+  omarchy-pkg-drop yaru-theme gnome-shell-theme-yaru gnome-shell-extension-user-theme gnome-shell
+fi
+
 echo "==> Icon font (∞ glyph)"
 mkdir -p "$HOME/.local/share/fonts/omarchy"
 cp -f "$OMARCHY_PATH/default/fonts/omarchy/omarchy.ttf" "$HOME/.local/share/fonts/omarchy/"
