@@ -371,7 +371,7 @@ class Wizard(Gtk.Window):
                 mark.set_text("✓")
                 ctx.add_class("done")
             elif i == current:
-                mark.set_text("►")
+                mark.set_text("▶")
                 ctx.add_class("current")
             else:
                 mark.set_text("•")
