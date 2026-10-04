@@ -1,8 +1,10 @@
 #!/usr/bin/python3
-"""DoxIA first login: the installer's last step, "Configurando o DoxIA".
+"""DoxIA first login: the installer's last step, "Configurando o DoxIA", as a fallback.
 
 The ISO installs from the packages of the day it was built and clones the repo
-then; this screen brings the machine fully up to date before it is used. It is
+then. doxia-first-boot.service (fedora/doxia/first-boot-update) brings the machine
+up to date on the first boot, before the login screen, and clears the pending file
+below; when it could not (no internet, say), this screen does it on the login. It is
 the installer wizard again (same window, sidebar and progress strip, imported
 from fedora/iso/wizard), asks for the user's password once, runs the Atualizar
 menu's update (omarchy-update -y, which ends with fedora/update.sh) and lets the
@@ -274,7 +276,7 @@ class FirstBoot(Gtk.Window):
         # session) and dnf prints its per-package progress; the prompt is answered here.
         demo = ("echo 'Update Omarchy dev checkout'; sleep 0.5; echo 'Update system packages'; "
                 "for i in $(seq 1 40); do echo \"[$i/40] Instalando demo-$i.rpm 100%\"; sleep 0.05; done; "
-                "for s in 'Kitty as the default terminal' 'Branding' 'Theme (RHEL 8)'; do echo \"==> $s\"; sleep 0.6; done; "
+                "for s in 'Kitty as the default terminal' 'Branding' 'Theme (DoxIA, the default)'; do echo \"==> $s\"; sleep 0.6; done; "
                 "echo 'Update Flatpak apps'; sleep 0.5")
         command = ["bash", "-c", demo] if DEMO else ["omarchy-update", "-y"]
         env = dict(os.environ, SUDO_PROMPT=SUDO_PROMPT, TERM="dumb", COLUMNS="200", NO_COLOR="1")

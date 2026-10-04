@@ -70,6 +70,14 @@ echo "==> Updating every package"
 dnf upgrade -y --refresh
 runuser -l "$user" -c 'bash ~/.local/share/omarchy/fedora/install-user.sh'
 
+echo "==> First boot: update before the login screen (fedora/doxia/first-boot-update)"
+# A root-owned copy: the service runs it as root, and the checkout is the user's.
+install -Dm755 "$checkout/fedora/doxia/first-boot-update" /usr/libexec/doxia/first-boot-update
+sed "s/@USER@/$user/" "$checkout/fedora/doxia/doxia-first-boot.service" > /etc/systemd/system/doxia-first-boot.service
+install -d /var/lib/doxia
+touch /var/lib/doxia/first-boot-pending
+systemctl enable doxia-first-boot.service
+
 echo "==> Boot splash (Fedora's spinner with the DoxIA watermark)"
 theme=/usr/share/plymouth/themes/doxia
 install -d "$theme"
