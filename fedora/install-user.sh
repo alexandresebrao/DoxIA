@@ -58,8 +58,8 @@ mkdir -p ~/.config/omarchy/branding
 mkdir -p ~/.bashrc.d
 ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" ~/.bashrc.d/doxia.sh
 
-echo "==> DoxIA bar (∞ menu button, workspace icons, Now Playing and screen share by the clock)"
-for plugin in doxia.emblem doxia.workspaces alexandre.media alexandre.screenshare; do
+echo "==> DoxIA bar (∞ menu button, workspace icons, Now Playing and screen share by the clock, usage)"
+for plugin in doxia.emblem doxia.workspaces doxia.usage alexandre.media alexandre.screenshare; do
   seed "fedora/doxia/plugins/$plugin" ~/.config/omarchy/plugins/$plugin
 done
 shell_json=~/.config/omarchy/shell.json
@@ -70,6 +70,7 @@ jq '.bar.layout |= (
       (map(.id) | index("omarchy.clock")) as $i | .[:$i] + [{id: "alexandre.media"}] + .[$i:] end)
   | .center |= (if any(.[]; .id == "alexandre.screenshare") then . else
       (map(.id) | index("omarchy.clock")) as $i | .[:$i + 1] + [{id: "alexandre.screenshare"}] + .[$i + 1:] end)
+  | .right |= (if any(.[]; .id == "doxia.usage") then . else [{id: "doxia.usage"}] + . end)
   )' "$shell_json" > "$shell_json.tmp"
 mv "$shell_json.tmp" "$shell_json"
 

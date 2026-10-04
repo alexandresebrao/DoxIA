@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "doxia.usage",
+  "name": "DoxIA Usage",
+  "version": "1.0.0",
+  "author": "alexandre",
+  "license": "MIT",
+  "description": "Uso de CPU, memória e bateria em barras finas com percentual, como o card de uso do web console do RHEL.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Usage.qml" },
+  "barWidget": {
+    "displayName": "DoxIA Usage",
+    "description": "CPU, memória e bateria (só quando há bateria). Clique abre o btop.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": { "intervalSec": 2 },
+    "schema": [
+      { "key": "intervalSec", "type": "number", "label": "Intervalo (s)", "defaultValue": 2 }
+    ]
+  }
+}

@@ -41,6 +41,9 @@
       ],
       "right": [
         {
+          "id": "doxia.usage"
+        },
+        {
           "id": "omarchy.tray"
         },
         {
