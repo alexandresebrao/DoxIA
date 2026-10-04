@@ -69,6 +69,11 @@ dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 # install; Omarchy 4 needs quickshell >= 0.3.1.
 dnf upgrade -y --refresh quickshell uwsm
 
+echo "==> Voxtype dictation (RPM from the upstream release; Fedora has no package)"
+# A GitHub hiccup must not fail the whole install: install-user.sh and the next
+# Atualizar try again.
+bash "$omarchy_path/fedora/doxia/install-voxtype" --rpm || echo "  Voxtype was not installed; Atualizar will retry."
+
 # Document viewer and office suite from Flathub instead of the RPMs;
 # evince-thumbnailer above keeps PDF thumbnails in Nautilus. ONLYOFFICE replaces
 # LibreOffice, which Fedora's spins install (removing it also drops the JDK only it

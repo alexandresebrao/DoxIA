@@ -123,6 +123,19 @@ echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
 bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
 
+echo "==> Voxtype dictation (once: Remover > Ditado must stick)"
+# Installs made before the ISO set it up never got it (the ISO skips the first-run
+# invitation). A failed download only warns, and the next Atualizar retries.
+if ! omarchy-done check doxia-voxtype; then
+  if omarchy-pkg-present voxtype && [[ -f $HOME/.config/voxtype/config.toml ]]; then
+    omarchy-done mark doxia-voxtype
+  elif bash "$OMARCHY_PATH/fedora/doxia/install-voxtype"; then
+    omarchy-done mark doxia-voxtype
+  else
+    echo "  Voxtype setup failed; the next Atualizar will retry."
+  fi
+fi
+
 echo "==> Run on every Atualizar (omarchy-update's post-update hook)"
 bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
 

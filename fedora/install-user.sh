@@ -204,6 +204,13 @@ fi
 echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
 bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
 
+echo "==> Voxtype dictation (config, Whisper model, user service; F9 to dictate)"
+if bash "$OMARCHY_PATH/fedora/doxia/install-voxtype"; then
+  omarchy-done mark doxia-voxtype
+else
+  echo "  Voxtype setup failed; Atualizar will retry."
+fi
+
 echo
 echo "Done. Log out of KDE and pick \"DoxIA (Hyprland uwsm)\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the menu."
