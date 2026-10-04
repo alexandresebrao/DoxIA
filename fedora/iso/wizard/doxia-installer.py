@@ -34,30 +34,8 @@ BUS_ADDRESS = Path("/run/anaconda/bus.address")
 TASK_IFACE = "org.fedoraproject.Anaconda.Task"
 VERSION = os.environ.get("DOXIA_VERSION", "44")
 
-# name shown, then its regions: (region, locale, keyboard index, time zone)
-LANGUAGES = [
-    ("Português", "Portuguese", [
-        ("Português (Brasil)", "pt_BR.UTF-8", 0, "America/Sao_Paulo"),
-        ("Português (Portugal)", "pt_PT.UTF-8", 1, "Europe/Lisbon"),
-    ]),
-    ("English", "English", [
-        ("English (United States)", "en_US.UTF-8", 2, "America/New_York"),
-        ("English (United Kingdom)", "en_GB.UTF-8", 4, "Europe/London"),
-    ]),
-    ("Español", "Spanish", [
-        ("Español (España)", "es_ES.UTF-8", 5, "Europe/Madrid"),
-        ("Español (México)", "es_MX.UTF-8", 6, "America/Mexico_City"),
-        ("Español (Argentina)", "es_AR.UTF-8", 6, "America/Argentina/Buenos_Aires"),
-    ]),
-    ("Français", "French", [
-        ("Français (France)", "fr_FR.UTF-8", 7, "Europe/Paris"),
-        ("Français (Canada)", "fr_CA.UTF-8", 8, "America/Toronto"),
-    ]),
-    ("Deutsch", "German", [
-        ("Deutsch (Deutschland)", "de_DE.UTF-8", 9, "Europe/Berlin"),
-        ("Deutsch (Österreich)", "de_AT.UTF-8", 9, "Europe/Vienna"),
-    ]),
-]
+# DoxIA is Brazilian Portuguese only: shown, locale, time zone
+LANGUAGE = ("Português (Brasil)", "pt_BR.UTF-8", "America/Sao_Paulo")
 
 # shown, console keymap, X layout, X variant
 KEYBOARDS = [
@@ -237,7 +215,6 @@ class Wizard(Gtk.Window):
         self.set_default_size(1024, 768)
         self.connect("delete-event", lambda *_: True)
 
-        self.lang = LANGUAGES[0][2][0]
         self.keyboard = 0
         self.disks = list_disks()
         self.disk = None
@@ -391,45 +368,26 @@ class Wizard(Gtk.Window):
         box = self.page(
             f"Bem-vindo à Instalação do DoxIA {VERSION}",
             "Este assistente vai instalar o DoxIA no seu computador. A instalação leva de "
-            "30 a 45 minutos e precisa de internet.\n\nEscolha o idioma e o teclado e clique em Avançar.")
+            "30 a 45 minutos e precisa de internet.\n\nO DoxIA é em português do Brasil. "
+            "Escolha o layout do seu teclado e clique em Avançar.")
 
-        lists = Gtk.Box(spacing=8, homogeneous=True)
-        self.lang_store = Gtk.ListStore(str, str, int)
-        for i, (native, english, _) in enumerate(LANGUAGES):
-            self.lang_store.append([native, english, i])
-        self.lang_view = Gtk.TreeView(model=self.lang_store, headers_visible=False)
-        for col, cls in ((0, None), (1, "dim")):
-            r = Gtk.CellRendererText()
-            if cls:
-                r.set_property("foreground-rgba", Gdk.RGBA(0.62, 0.63, 0.66, 1))
-            self.lang_view.append_column(Gtk.TreeViewColumn("", r, text=col))
-        self.region_store = Gtk.ListStore(str, int)
-        self.region_view = Gtk.TreeView(model=self.region_store, headers_visible=False)
-        self.region_view.append_column(Gtk.TreeViewColumn("", Gtk.CellRendererText(), text=0))
-        for view in (self.lang_view, self.region_view):
-            sw = Gtk.ScrolledWindow()
-            sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-            sw.get_style_context().add_class("well")
-            sw.set_size_request(-1, 190)
-            sw.add(view)
-            lists.pack_start(sw, True, True, 0)
-        box.pack_start(lists, False, False, 0)
-
-        kb = Gtk.Box(spacing=10)
-        kb.pack_start(Gtk.Label(label="Teclado:"), False, False, 0)
-        self.kb_combo = Gtk.ComboBoxText()
-        for k in KEYBOARDS:
-            self.kb_combo.append_text(k[0])
-        self.kb_combo.set_active(0)
-        self.kb_combo.connect("changed", self.on_keyboard)
-        kb.pack_start(self.kb_combo, True, True, 0)
-        box.pack_start(kb, False, False, 0)
+        self.kb_store = Gtk.ListStore(str, int)
+        for i, k in enumerate(KEYBOARDS):
+            self.kb_store.append([k[0], i])
+        self.kb_view = Gtk.TreeView(model=self.kb_store, headers_visible=False)
+        self.kb_view.append_column(Gtk.TreeViewColumn("", Gtk.CellRendererText(), text=0))
+        sw = Gtk.ScrolledWindow()
+        sw.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sw.get_style_context().add_class("well")
+        sw.set_size_request(-1, 220)
+        sw.add(self.kb_view)
+        box.pack_start(bevel_label("Teclado:"), False, False, 0)
+        box.pack_start(sw, False, False, 0)
         box.pack_start(bevel_label("Teste o teclado aqui:", "dim"), False, False, 0)
-        box.pack_start(Gtk.Entry(placeholder_text="ç á ã é ê ó õ ú @ / ?"), False, False, 0)
+        box.pack_start(Gtk.Entry(placeholder_text="ç á ã é ê ó õ ú @ / ? |"), False, False, 0)
 
-        self.lang_view.get_selection().connect("changed", self.on_language)
-        self.region_view.get_selection().connect("changed", self.on_region)
-        self.lang_view.get_selection().select_path(Gtk.TreePath(0))
+        self.kb_view.get_selection().connect("changed", self.on_keyboard)
+        self.kb_view.get_selection().select_path(Gtk.TreePath(0))
         return box
 
     def _page_network(self):
@@ -686,26 +644,11 @@ class Wizard(Gtk.Window):
 
     # Welcome
 
-    def on_language(self, selection):
+    def on_keyboard(self, selection):
         model, it = selection.get_selected()
         if not it:
             return
-        regions = LANGUAGES[model[it][2]][2]
-        self.region_store.clear()
-        for i, r in enumerate(regions):
-            self.region_store.append([r[0], i])
-        self._regions = regions
-        self.region_view.get_selection().select_path(Gtk.TreePath(0))
-
-    def on_region(self, selection):
-        model, it = selection.get_selected()
-        if not it:
-            return
-        self.lang = self._regions[model[it][1]]
-        self.kb_combo.set_active(self.lang[2])
-
-    def on_keyboard(self, combo):
-        self.keyboard = max(0, combo.get_active())
+        self.keyboard = model[it][1]
         _, _, layout, variant = KEYBOARDS[self.keyboard]
         # gnome-kiosk follows localed, so the entries here type with the chosen layout
         run_quiet("localectl", "--no-convert", "set-x11-keymap", layout, "", variant, "")
@@ -886,8 +829,8 @@ class Wizard(Gtk.Window):
         disk = f"{d['model']} ({human_size(d['size'])}) — inteiro, Btrfs"
         if self.encrypt.get_active():
             disk += ", criptografado"
-        rows = (("Idioma:", self.lang[0]), ("Teclado:", KEYBOARDS[self.keyboard][0]),
-                ("Fuso horário:", self.lang[3]), ("Disco:", disk),
+        rows = (("Idioma:", LANGUAGE[0]), ("Teclado:", KEYBOARDS[self.keyboard][0]),
+                ("Fuso horário:", LANGUAGE[2]), ("Disco:", disk),
                 ("Usuário:", f"{self.username.get_text()} (administrador)"),
                 ("Computador:", self.hostname.get_text()))
         for i, (k, v) in enumerate(rows):
@@ -928,9 +871,9 @@ class Wizard(Gtk.Window):
         xlayout = f"{layout} ({variant})" if variant else layout
         lines = [
             "# Written by the DoxIA installer wizard",
-            f"lang {self.lang[1]}",
+            f"lang {LANGUAGE[1]}",
             f"keyboard --vckeymap={vc} --xlayouts={q(xlayout)}",
-            f"timezone {self.lang[3]} --utc",
+            f"timezone {LANGUAGE[2]} --utc",
             f"network --hostname={self.hostname.get_text()}",
             f"ignoredisk --only-use={d['name']}",
             "zerombr",
@@ -1028,9 +971,25 @@ class Wizard(Gtk.Window):
         log = SYSROOT / "root/doxia-install.log"
         if not DEMO and log.exists():
             # DoxIA's own %post: clone and run the install scripts (the last ~20%)
-            steps = [ln[4:].strip() for ln in log.read_text(errors="replace").splitlines() if ln.startswith("==> ")]
-            self.set_status("Configurando o DoxIA", steps[-1] if steps else "Baixando o DoxIA")
-            self.set_progress(0.82 + 0.17 * (1 - 0.92 ** len(steps)))
+            lines = log.read_text(errors="replace").splitlines()
+            steps = [ln[4:].strip() for ln in lines if ln.startswith("==> ")]
+            detail = steps[-1] if steps else "Baixando o DoxIA"
+            done = 0.0
+            # dnf's "[ 12/378] ..." lines since the last step, so a long package
+            # install shows it is moving instead of sitting on one percentage
+            for ln in reversed(lines):
+                if ln.startswith("==> "):
+                    break
+                m = re.match(r"\[\s*(\d+)/(\d+)\]\s+(.*?)\s+\d+%", ln) or re.match(r"\[\s*(\d+)/(\d+)\]\s+(.*)", ln)
+                if m:
+                    n, total = int(m.group(1)), int(m.group(2))
+                    done = n / max(1, total)
+                    detail = f"{detail}: {m.group(3).strip()} ({n} de {total})"
+                    break
+            k = len(steps)
+            here, nxt = (0.82 + 0.17 * (1 - 0.92 ** i) for i in (k, k + 1))
+            self.set_status("Configurando o DoxIA", detail)
+            self.set_progress(here + (nxt - here) * done)
         elif self.fraction >= 0.80:
             self.set_progress(self.fraction + (0.99 - self.fraction) * 0.002)
         elif self.fraction < 0.04:
