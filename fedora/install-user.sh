@@ -201,6 +201,9 @@ o.exec_on_start("systemctl --user start omarchy-sleep-lock.service")
 EOF
 fi
 
+echo "==> User units (Bluetooth pairing agent, crash notifier, internal monitor recovery)"
+bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
+
 echo
 echo "Done. Log out of KDE and pick \"DoxIA (Hyprland uwsm)\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the menu."
