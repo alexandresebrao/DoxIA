@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Google Chrome as DoxIA's browser: Google's dnf repo and package plus the managed
+# policy directory the theme color goes in (as root), then what omarchy-install-browser
+# chrome does for the user (Wayland flags, Copy URL and yt-dlp extensions, theme
+# color) and Chrome as the default browser unless one is already picked.
+#
+#   sudo fedora/doxia/install-chrome --system   # as root: repo, package, policy dir (install-system.sh)
+#   fedora/doxia/install-chrome                 # as the user: package via sudo when missing, then the rest
+
+set -euo pipefail
+
+omarchy_path=${OMARCHY_PATH:-$(cd "$(dirname "$0")/../.." && pwd)}
+
+if [[ ${1:-} == "--system" ]]; then
+  # Google's package rewrites this file itself on updates; this only gets the first install going.
+  if [[ ! -f /etc/yum.repos.d/google-chrome.repo ]]; then
+    cat > /etc/yum.repos.d/google-chrome.repo <<'REPO'
+[google-chrome]
+name=google-chrome
+baseurl=https://dl.google.com/linux/chrome/rpm/stable/x86_64
+skip_if_unavailable=True
+gpgcheck=1
+gpgkey=https://dl.google.com/linux/linux_signing_key.pub
+enabled=1
+REPO
+  fi
+  # Fedora Workstation ships the same repo disabled.
+  dnf config-manager setopt google-chrome.enabled=1 >/dev/null
+  rpm -q google-chrome-stable &>/dev/null || dnf install -y google-chrome-stable
+
+  source "$omarchy_path/install/helpers/browser-policy.sh"
+  browser_policy_setup_dir /etc/opt/chrome/policies/managed
+  exit 0
+fi
+
+if (( EUID == 0 )); then
+  echo "Run as your user, not root (or with --system for the system part only)." >&2
+  exit 1
+fi
+
+if ! rpm -q google-chrome-stable &>/dev/null || [[ ! -d /etc/opt/chrome/policies/managed ]]; then
+  sudo bash "$omarchy_path/fedora/doxia/install-chrome" --system
+fi
+
+mkdir -p "$HOME/.config"
+cp -f "$omarchy_path/config/chromium-flags.conf" "$HOME/.config/chrome-flags.conf"
+omarchy-install-chromium-copy-url
+omarchy-install-chromium-ytdlp
+# The color policy needs root; without a password (the installer) the next theme change writes it.
+omarchy-theme-set-browser </dev/null || true
+
+# Only when no browser was picked by hand (Setup > Defaults > Browser writes this file).
+if ! grep -qs '^x-scheme-handler/https=' "$HOME/.config/mimeapps.list"; then
+  env -u BROWSER xdg-settings set default-web-browser google-chrome.desktop
+fi

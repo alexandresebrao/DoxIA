@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Claude Code, DoxIA's default coding agent (fedora/doxia/default-agent), from
+# Anthropic's native installer: ~/.local/bin/claude, which keeps itself up to date.
+# omarchy-default-agent takes that as the user's own install and leaves it alone.
+# Run as the user by install-user.sh and fedora/update.sh.
+
+set -euo pipefail
+
+if (( EUID == 0 )); then
+  echo "Run as your user, not root." >&2
+  exit 1
+fi
+
+if [[ ! -x $HOME/.local/bin/claude ]]; then
+  curl -fsSL https://claude.ai/install.sh | bash
+fi

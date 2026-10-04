@@ -123,6 +123,26 @@ echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
 bash "$OMARCHY_PATH/fedora/doxia/install-user-units"
 
+# Chrome and Claude Code come with the ISO; older installs get them once, so
+# removing either sticks. A failure only warns, and the next Atualizar retries.
+echo "==> Google Chrome (once)"
+if ! omarchy-done check doxia-chrome; then
+  if bash "$OMARCHY_PATH/fedora/doxia/install-chrome"; then
+    omarchy-done mark doxia-chrome
+  else
+    echo "  Chrome setup failed; the next Atualizar will retry."
+  fi
+fi
+
+echo "==> Claude Code (once)"
+if ! omarchy-done check doxia-claude; then
+  if bash "$OMARCHY_PATH/fedora/doxia/install-claude"; then
+    omarchy-done mark doxia-claude
+  else
+    echo "  Claude Code was not installed; the next Atualizar will retry."
+  fi
+fi
+
 echo "==> Voxtype dictation (once: Remover > Ditado must stick)"
 # Installs made before the ISO set it up never got it (the ISO skips the first-run
 # invitation). A failed download only warns, and the next Atualizar retries.
