@@ -2,8 +2,8 @@
 
 # Installs nvm (Node.js versions) in ~/.config/nvm and SDKMAN! (Java and JVM tools)
 # in ~/.sdkman for the current user, with the Node.js LTS and SDKMAN!'s default JDK
-# as the defaults: node and java come from them, not from Fedora's packages (the
-# only JDK DoxIA keeps from dnf is the one LibreOffice depends on). Loads both in
+# as the defaults: node and java come from them, not from Fedora's packages
+# (install-system.sh drops LibreOffice and, with it, Fedora's JDK). Loads both in
 # every bash through ~/.bashrc.d/dev-tools.sh (fedora/doxia/dev-tools.sh). Skips
 # what is already installed; neither installer touches ~/.bashrc. Run as the user by
 # install-user.sh and fedora/update.sh.

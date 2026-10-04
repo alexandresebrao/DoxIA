@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # RHEL 8 theme (the DoxIA default), branding, nvm and SDKMAN!, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
-# name, the SDDM theme, the GRUB boot menu theme and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice) and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins are refreshed and the missing widgets added; the rest of the bar,
 # personal plugins included, stays as it is).
 #
@@ -198,6 +198,21 @@ fi
 echo "==> Boot menu (graphical GRUB with the DoxIA theme, sudo)"
 # Regenerates grub.cfg only when the theme or its settings changed.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-grub-theme" "$OMARCHY_PATH"
+
+echo "==> Office suite: ONLYOFFICE from Flathub in Brazilian Portuguese instead of LibreOffice (sudo)"
+# Removing LibreOffice also drops the JDK only it needed: java and node come from
+# SDKMAN! and nvm (fedora/doxia/install-dev-tools).
+sudo bash -s <<'ROOT'
+set -euo pipefail
+office_rpms=$(rpm -qa --qf '%{NAME}\n' 'libreoffice*' unoconv)
+if [[ -n $office_rpms ]]; then
+  dnf remove -y $office_rpms
+fi
+# Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
+# language from LANG, and ships the pt-BR translation and spell checker itself.
+flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR org.onlyoffice.desktopeditors
+flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
+ROOT
 
 echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'

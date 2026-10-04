@@ -66,14 +66,24 @@ dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 # install; Omarchy 4 needs quickshell >= 0.3.1.
 dnf upgrade -y --refresh quickshell uwsm
 
-# Document viewer from Flathub instead of the RPM; evince-thumbnailer above keeps
-# PDF thumbnails in Nautilus.
-echo "==> Installing Flatpak apps"
+# Document viewer and office suite from Flathub instead of the RPMs;
+# evince-thumbnailer above keeps PDF thumbnails in Nautilus. ONLYOFFICE replaces
+# LibreOffice, which Fedora's spins install (removing it also drops the JDK only it
+# needed: java and node come from SDKMAN! and nvm, fedora/doxia/install-dev-tools).
+echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese)"
+office_rpms=$(rpm -qa --qf '%{NAME}\n' 'libreoffice*' unoconv)
+if [[ -n $office_rpms ]]; then
+  dnf remove -y $office_rpms
+fi
+flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors)
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+# Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
+# language from LANG, and ships the pt-BR translation and spell checker itself.
+flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR org.onlyoffice.desktopeditors
 if systemd-detect-virt --quiet --chroot; then
   # The installer's chroot can't run bwrap (the install fails after downloading
   # ~1 GB of runtimes), so the installed system does it on its first boot online.
-  cat > /etc/systemd/system/doxia-flatpak-apps.service <<'UNIT'
+  cat > /etc/systemd/system/doxia-flatpak-apps.service <<UNIT
 [Unit]
 Description=DoxIA: install the Flatpak apps the installer could not
 Wants=network-online.target
@@ -83,7 +93,7 @@ ConditionPathExists=!/var/lib/doxia/flatpak-apps-done
 [Service]
 Type=oneshot
 StateDirectory=doxia
-ExecStart=/usr/bin/flatpak install -y --noninteractive flathub org.gnome.Evince
+ExecStart=/usr/bin/flatpak install -y --noninteractive flathub ${flatpak_apps[*]}
 ExecStartPost=/usr/bin/touch /var/lib/doxia/flatpak-apps-done
 
 [Install]
@@ -91,7 +101,7 @@ WantedBy=multi-user.target
 UNIT
   systemctl enable doxia-flatpak-apps.service
 else
-  flatpak install -y --noninteractive flathub org.gnome.Evince
+  flatpak install -y --noninteractive flathub "${flatpak_apps[@]}"
 fi
 
 # Fedora ships tuned-ppd (same D-Bus API as power-profiles-daemon, which conflicts
