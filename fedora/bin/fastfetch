@@ -13,28 +13,10 @@ for arg; do
 done
 [[ -f $HOME/.config/fastfetch/config.jsonc ]] && exec "$real" "$@"
 
-if [[ -t 1 ]] && protocol=$("$omarchy_path/fedora/doxia/term-graphics") &&
-  read -r type rows brand < <("$omarchy_path/fedora/doxia/brand-image" "$protocol") && [[ -n $brand ]]; then
+if [[ -t 1 ]] && "$omarchy_path/fedora/doxia/term-graphics" >/dev/null; then
   # As wide as the ASCII logo (46 columns), so omarchy-launch-about's window fit
   # still holds; the image is about half its height, hence the extra top padding.
-  if [[ $type == "kitty" ]]; then
-    exec "$real" --logo "$brand" --logo-type kitty --logo-width 46 --logo-padding-top 14 "$@"
-  fi
-
-  # Sixel: fastfetch lays the modules out around a blank logo the image's size,
-  # then the image is drawn into that hole (fastfetch's own Sixel would paint
-  # the transparent parts black). Only when it all fits on screen, since the
-  # cursor has to climb back up to the hole.
-  blank=$(for (( i = 0; i < rows; i++ )); do printf '%46s.\n' ''; done | sed 's/\.$//')
-  out=$("$real" --pipe false --logo-type data --logo "$blank" --logo-width 46 --logo-height "$rows" \
-    --logo-padding-top 14 --logo-padding-left 2 "$@")
-  lines=$(( $(printf '%s\n' "$out" | wc -l) ))
-  read -r screen_rows _ < <(stty size </dev/tty)
-  if (( lines < screen_rows )); then
-    printf '%s\n\e7\e[%dA\r\e[2C' "$out" $(( lines - 14 ))
-    cat "$brand"
-    printf '\e8'
-    exit 0
-  fi
+  exec "$real" --logo "$omarchy_path/default/sddm/omarchy/brand.png" --logo-type kitty \
+    --logo-width 46 --logo-padding-top 14 "$@"
 fi
 exec "$real" "$@"

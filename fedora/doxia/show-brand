@@ -1,24 +1,16 @@
 #!/bin/bash
 
 # Draws the DoxIA brand image on its own lines, INDENT columns in (default 0), and
-# fails without printing anything when the terminal shows no images, so the
-# caller can print the ASCII wordmark instead. Used by the terminal greeting and
-# omarchy-show-logo.
+# fails without printing anything when the terminal shows no Kitty graphics, so
+# the caller can print the ASCII wordmark instead. Used by the terminal greeting
+# and omarchy-show-logo.
 
 indent=${1:-0}
 dir=$(dirname "$(readlink -f "$0")")
+brand=$(dirname "$(dirname "$dir")")/default/sddm/omarchy/brand.png
 
 [[ -t 1 ]] || exit 1
-protocol=$("$dir/term-graphics") || exit 1
-read -r type rows brand < <("$dir/brand-image" "$protocol")
-[[ -n ${brand:-} ]] || exit 1
+"$dir/term-graphics" >/dev/null || exit 1
 
-if [[ $type == "file-raw" ]]; then
-  # Sixel escapes from chafa: drawn at the cursor, which then sits below the image
-  printf '%*s' "$indent" ''
-  cat "$brand"
-  echo
-else
-  /usr/bin/fastfetch --logo "$brand" --logo-type "$type" --logo-width 46 \
-    --logo-position top --logo-padding-left "$indent" --logo-padding-top 0 --structure break
-fi
+/usr/bin/fastfetch --logo "$brand" --logo-type kitty --logo-width 46 \
+  --logo-position top --logo-padding-left "$indent" --logo-padding-top 0 --structure break

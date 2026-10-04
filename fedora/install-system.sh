@@ -38,7 +38,7 @@ packages=(
   gtk4-layer-shell
 
   # Terminal + default apps
-  kitty foot nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
+  kitty nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
   gnome-keyring yaru-icon-theme yaru-theme
   # Red folders of the DoxIA theme (themes/rhel-8/make-icons.sh) and applying
   # them without a session (install-user.sh)
@@ -51,7 +51,7 @@ packages=(
 
   # CLI toolbox used by Omarchy scripts and TUIs
   btop fastfetch gum jq socat inotify-tools fzf util-linux-script eza zoxide ripgrep fd-find bat tmux
-  ImageMagick chafa vips-tools ffmpegthumbnailer qrencode zbar tesseract tldr inxi plocate
+  ImageMagick vips-tools ffmpegthumbnailer qrencode zbar tesseract tldr inxi plocate
   python3-gobject tree-sitter-cli nss-mdns
 
   # Fonts

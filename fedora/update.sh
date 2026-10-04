@@ -61,11 +61,9 @@ if [[ ${1:-} != "--no-pull" ]]; then
   exec bash "$OMARCHY_PATH/fedora/update.sh" --no-pull
 fi
 
-echo "==> Brand image in terminals (chafa renders it, ImageMagick sizes it)"
-omarchy-pkg-add chafa ImageMagick
-
-echo "==> Kitty as the default terminal"
+echo "==> Kitty as the default terminal (foot and chafa are no longer used)"
 omarchy-pkg-add kitty
+omarchy-pkg-drop foot chafa
 # Older installs pinned foot in ~/.config/hyprland-xdg-terminals.list, which beats
 # both the system order and a terminal picked with omarchy-default-terminal.
 if [[ -e $HOME/.config/hyprland-xdg-terminals.list ]]; then

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Prints the image protocol the terminal on /dev/tty draws, "kitty" or "sixel",
-# or nothing (and fails) when it draws none. Asks the terminal itself, since foot
-# and others report TERM=xterm-256color: a Kitty graphics query followed by
-# Primary Device Attributes, which every terminal answers and which lists 4 when
-# it does Sixel. tmux would swallow the image, so it counts as none.
+# Prints "kitty" when the terminal on /dev/tty draws Kitty graphics (Kitty,
+# Ghostty), and fails otherwise. Asks the terminal itself, with a Kitty graphics
+# query followed by Primary Device Attributes, which every terminal answers, so
+# one that ignores the query still replies. tmux would swallow the image, so it
+# counts as none.
 
 # Run from $(...), so the terminal is reached through /dev/tty, not stdout.
 [[ -z ${TMUX:-} && ${TERM:-dumb} != @(dumb|linux) ]] || exit 1
@@ -21,10 +21,5 @@ while IFS= read -rs -d c -t 0.3 chunk </dev/tty; do
   [[ $chunk == *$'\e['\?* ]] && break
 done
 
-if [[ $reply == *"_Gi=31;OK"* ]]; then
-  echo kitty
-elif [[ ${reply##*$'\e[?'} =~ (^|;)4(;|$) ]]; then
-  echo sixel
-else
-  exit 1
-fi
+[[ $reply == *"_Gi=31;OK"* ]] || exit 1
+echo kitty

@@ -32,7 +32,7 @@ seed() {
 echo "==> Seeding Omarchy configs into ~/.config"
 # Skipped on purpose (they would also change KDE): autostart, fcitx5, wireplumber,
 # git, chromium, environment.d.
-for item in hypr omarchy foot alacritty ghostty kitty btop imv lazygit tmux starship.toml; do
+for item in hypr omarchy alacritty ghostty kitty btop imv lazygit tmux starship.toml; do
   seed "config/$item" "$HOME/.config/$item"
 done
 # The terminal order (Kitty first) is system-wide, from install-system.sh, so
