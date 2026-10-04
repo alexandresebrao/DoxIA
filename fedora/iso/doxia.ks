@@ -5,7 +5,7 @@
 # /tmp/doxia/answers.ks, included below. Anaconda then installs without its own
 # interface (cmdline) while the wizard shows the progress. The %post clones the
 # latest of this repository's fedora branch, runs the same scripts as a manual
-# install (minus the personal setup) and upgrades every package.
+# install and upgrades every package.
 
 cmdline
 # Without it, cmdline mode ends at "Press ENTER to quit" on tty1 and never reboots.
@@ -68,7 +68,7 @@ SUDO_USER=$user bash "$checkout/fedora/install-system.sh"
 # while it ran, and the COPRs install-system.sh enabled.
 echo "==> Updating every package"
 dnf upgrade -y --refresh
-runuser -l "$user" -c 'bash ~/.local/share/omarchy/fedora/install-user.sh --no-personal'
+runuser -l "$user" -c 'bash ~/.local/share/omarchy/fedora/install-user.sh'
 
 echo "==> Boot splash (Fedora's spinner with the DoxIA watermark)"
 theme=/usr/share/plymouth/themes/doxia

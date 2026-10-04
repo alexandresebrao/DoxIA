@@ -5,9 +5,9 @@ do ∞ (nos terminais, chapado).
 
 Saídas (rode da raiz do repositório depois de mudar a marca):
   logo.txt, icon.txt                         terminal, 8 linhas (icon.txt com $1/$2 de cor)
-  fedora/personal/omarchy/branding/about.txt tela Sobre (fastfetch), igual ao icon.txt
-  fedora/personal/omarchy/branding/logo.ansi omarchy-show-logo, em cores 24 bits
-  fedora/personal/omarchy/branding/screensaver.txt  versão grande, 12 linhas
+  fedora/doxia/branding/about.txt tela Sobre (fastfetch), igual ao icon.txt
+  fedora/doxia/branding/logo.ansi omarchy-show-logo, em cores 24 bits
+  fedora/doxia/branding/screensaver.txt  versão grande, 12 linhas
   fedora/doxia/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
   default/plymouth/doxia/watermark.png     marca no rodapé do boot splash
   default/sddm/omarchy/brand.png             marca no rodapé da tela de login
@@ -139,10 +139,10 @@ def main():
     write("logo.txt", render(medium, "", ""))
     icon = render(medium, "$1", "$2")
     write("icon.txt", icon)
-    write("fedora/personal/omarchy/branding/about.txt", icon)
+    write("fedora/doxia/branding/about.txt", icon)
     ansi_light, ansi_red = "\x1b[1;38;2;240;240;240m", "\x1b[1;38;2;238;0;0m"
-    write("fedora/personal/omarchy/branding/logo.ansi", render(medium, ansi_light, ansi_red, "\x1b[0m"))
-    write("fedora/personal/omarchy/branding/screensaver.txt", render(blocks(12), "", ""))
+    write("fedora/doxia/branding/logo.ansi", render(medium, ansi_light, ansi_red, "\x1b[0m"))
+    write("fedora/doxia/branding/screensaver.txt", render(blocks(12), "", ""))
     write("fedora/doxia/brand.ansi", render(blocks(8), ansi_light, ansi_red, "\x1b[0m"))
 
     # Boot splash: a altura (43 px) e o arranjo ícone + nome da marca do Fedora, com a

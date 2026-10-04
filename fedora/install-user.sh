@@ -3,8 +3,7 @@
 # Fedora port of Omarchy: per-user setup (run as your user, after install-system.sh).
 # Seeds ~/.config the way Omarchy's /etc/skel would, but only with configs that
 # don't change the KDE session. Existing files are backed up, never clobbered.
-# The installer ISO runs it from its kickstart with --no-personal, before the
-# user's first login.
+# The installer ISO runs it from its kickstart, before the user's first login.
 
 set -euo pipefail
 
@@ -16,8 +15,6 @@ fi
 export OMARCHY_PATH="$HOME/.local/share/omarchy"
 export PATH="$OMARCHY_PATH/bin:$PATH"
 backup_suffix=".bak-omarchy-$(date +%Y%m%d%H%M%S)"
-personal=true
-[[ ${1:-} == "--no-personal" ]] && personal=false
 
 seed() {
   local src="$OMARCHY_PATH/$1" dest="$2"
@@ -53,12 +50,13 @@ fi
 
 echo "==> DoxIA branding (About and screensaver logos, terminal greeting)"
 mkdir -p ~/.config/omarchy/branding
-[[ -f ~/.config/omarchy/branding/about.txt ]] || cp "$OMARCHY_PATH/icon.txt" ~/.config/omarchy/branding/about.txt
-[[ -f ~/.config/omarchy/branding/screensaver.txt ]] || cp "$OMARCHY_PATH/logo.txt" ~/.config/omarchy/branding/screensaver.txt
+for file in about.txt screensaver.txt logo.ansi; do
+  [[ -f ~/.config/omarchy/branding/$file ]] || cp "$OMARCHY_PATH/fedora/doxia/branding/$file" ~/.config/omarchy/branding/$file
+done
 mkdir -p ~/.bashrc.d
 ln -sfn "$OMARCHY_PATH/fedora/doxia/greeting.sh" ~/.bashrc.d/doxia.sh
 
-echo "==> DoxIA bar (∞ menu button, workspace icons, Now Playing, screen share, usage)"
+echo "==> DoxIA bar (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
 echo "==> Run fedora/update.sh on every Atualizar (post-update hook)"
@@ -69,6 +67,18 @@ seed fedora/doxia/hypr/xdph.conf ~/.config/hypr/xdph.conf
 if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
+
+echo "==> Hyprland window rules (Xwayland video bridge, services log window)"
+if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua; then
+  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
+fi
+if ! grep -q "org.omarchy.services-log" ~/.config/hypr/hyprland.lua; then
+  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/services-rule.lua"; } >> ~/.config/hypr/hyprland.lua
+fi
+
+echo "==> Menu extensions and default agent"
+seed fedora/doxia/omarchy-menu.jsonc ~/.config/omarchy/extensions/omarchy-menu.jsonc
+seed fedora/doxia/default-agent ~/.config/omarchy/defaults/agent
 
 echo "==> nvm and SDKMAN! (Node.js and Java versions)"
 bash "$OMARCHY_PATH/fedora/doxia/install-dev-tools"
@@ -128,8 +138,8 @@ for migration in "$OMARCHY_PATH"/migrations/*.sh; do
 done
 
 echo "==> GTK apps in the theme's colors and red folder icons (DoxIA default)"
-for tpl in "$OMARCHY_PATH"/fedora/personal/omarchy/themed/*.tpl; do
-  seed "fedora/personal/omarchy/themed/$(basename "$tpl")" ~/.config/omarchy/themed/"$(basename "$tpl")"
+for tpl in "$OMARCHY_PATH"/fedora/doxia/themed/*.tpl; do
+  seed "fedora/doxia/themed/$(basename "$tpl")" ~/.config/omarchy/themed/"$(basename "$tpl")"
 done
 gtk_css=~/.config/gtk-4.0/gtk.css
 mkdir -p "$(dirname "$gtk_css")"
@@ -189,11 +199,6 @@ if ! grep -q omarchy-sleep-lock ~/.config/hypr/autostart.lua; then
 -- Fedora port: lock the screen before suspend (Omarchy enables this unit globally).
 o.exec_on_start("systemctl --user start omarchy-sleep-lock.service")
 EOF
-fi
-
-if $personal; then
-  echo "==> Personal setup (plugins, bar layout, window rules)"
-  bash "$OMARCHY_PATH/fedora/install-personal.sh"
 fi
 
 echo

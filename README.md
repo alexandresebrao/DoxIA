@@ -25,6 +25,11 @@ Commands, paths and config files keep their Omarchy names (`omarchy-*`,
   with **Versões do Node e do Java** in the launcher to pick the default version, install and
   remove versions, and install a JDK from a file (zip, tar.gz, rpm… like Oracle's) or a folder
 - ONLYOFFICE from Flathub, in pt-BR, instead of LibreOffice
+- A **services panel** in the bar (server icon between the agents and network icons) to
+  start/stop Node.js and Java dev services, switch their git branch (running configured
+  build steps on checkout), pick the Node.js (nvm) or Java (SDKMAN!) version and open the
+  log. Services are added with the `/servicos` Claude Code skill or `~/.config/omarchy/services.json`;
+  `svc` drives them from the terminal
 - zsh as the login shell, with Oh My Zsh, zsh-autosuggestions, zsh-syntax-highlighting and the
   DoxIA theme (folder, git branch, and the Node.js and Java versions in use); an existing
   `~/.zshrc` keeps its theme and plugins
@@ -51,7 +56,7 @@ with lorax under the DoxIA name, with the generic logos instead of Fedora's and 
 installer theme in the login screen's colors. Its kickstart sets pt-BR, the Brazilian
 keyboard and São Paulo time, leaves the disk, network and user account to the
 installer, and clones the latest of this repository's fedora branch to run the
-install scripts above (without the personal setup), then upgrades every package, so
+install scripts above, then upgrades every package, so
 the first boot is already up to date. Installing needs internet.
 
 ```bash
@@ -61,19 +66,6 @@ sudo bash ~/.local/share/omarchy/fedora/iso/build.sh ~/doxia-iso
 
 Create a user account in the installer: the desktop is set up for that user.
 `fedora/iso/make-installer-art.py` regenerates the installer images.
-
-### Personal setup
-
-`fedora/personal/` holds my own Omarchy customizations. `install-user.sh` installs
-them through `fedora/install-personal.sh`, which can also be re-run on its own:
-
-- **alexandre.fortivpn**: openfortivpn profiles and a connect toggle in the bar (installs
-  `openfortivpn` and a polkit helper; credentials stay in `/etc/openfortivpn`)
-- **alexandre.javaservers**: start/stop Tomcat 8.5 and JBoss 4.0.2 with the Oracle JDK 8 from SDKMAN
-- **alexandre.media**: MPRIS now-playing widget with album art and playback controls
-- Bar layout (`shell.json`), default agent and Hyprland window rules
-
-After changing plugins or the bar, run `fedora/sync-personal.sh` and commit.
 
 The user script backs up any existing config it replaces (`*.bak-omarchy-<date>`)
 and leaves KDE's autostart, environment and Chromium settings alone.

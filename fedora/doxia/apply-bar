@@ -4,7 +4,10 @@
 # fedora/doxia/plugins to ~/.config/omarchy/plugins (replacing older copies) and
 # adds their widgets to ~/.config/omarchy/shell.json where they are missing:
 # the ∞ menu button and workspace icons on the left, Now Playing and the screen
-# share indicator around the clock, CPU/memory/battery usage on the right.
+# share indicator around the clock, CPU/memory/battery usage on the right and
+# the services panel (alexandre.services) between the agents and network icons.
+# The panel's svc script goes on the PATH and its /servicos Claude Code skill to
+# ~/.claude/skills.
 # Widgets already placed (or moved) stay where they are, and the old Xi widgets
 # become their DoxIA versions. Run by install-user.sh and fedora/update.sh.
 
@@ -19,6 +22,16 @@ for plugin in "$omarchy_path"/fedora/doxia/plugins/*/; do
   name=$(basename "$plugin")
   rm -rf "${plugins:?}/$name"
   cp -a "$plugin" "$plugins/$name"
+done
+
+mkdir -p "$HOME/.local/bin"
+ln -sfn "$plugins/alexandre.services/svc" "$HOME/.local/bin/svc"
+skills=$HOME/.claude/skills
+mkdir -p "$skills"
+for skill in "$omarchy_path"/fedora/doxia/claude/skills/*/; do
+  name=$(basename "$skill")
+  rm -rf "${skills:?}/$name"
+  cp -a "$skill" "$skills/$name"
 done
 
 if [[ ! -f $shell_json ]]; then
@@ -46,5 +59,14 @@ jq '
     | .center |= (by_clock("alexandre.media"; 0) | by_clock("alexandre.screenshare"; 1))
     | if (.left + .center + .right | has("doxia.usage")) then .
       else .right |= [{id: "doxia.usage"}] + . end
+    # Services right after the agents icon (before the network group without it).
+    | if (.left + .center + .right | has("alexandre.services")) then .
+      else .right |= (
+        (map(.id) | index("omarchy.agents")) as $a
+        | (map(.id == "omarchy.network" or (.members // [] | index("omarchy.network") != null)) | index(true)) as $n
+        | if $a != null then .[:$a + 1] + [{id: "alexandre.services"}] + .[$a + 1:]
+          elif $n != null then .[:$n] + [{id: "alexandre.services"}] + .[$n:]
+          else . + [{id: "alexandre.services"}] end)
+      end
   )' "$shell_json" > "$shell_json.tmp"
 mv "$shell_json.tmp" "$shell_json"

@@ -4,8 +4,8 @@
 # RHEL 8 theme (the DoxIA default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
 # name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice) and the DoxIA bar widgets (fedora/doxia/apply-bar: the
-# DoxIA plugins are refreshed and the missing widgets added; the rest of the bar,
-# personal plugins included, stays as it is).
+# DoxIA plugins, the services panel included, are refreshed and the missing widgets
+# added; the rest of the bar stays as it is).
 #
 # Everything it replaces or moves aside goes to ~/.local/state/omarchy/doxia-backup-<date>/.
 #
@@ -21,7 +21,7 @@ fi
 
 export OMARCHY_PATH="$HOME/.local/share/omarchy"
 export PATH="$OMARCHY_PATH/bin:$PATH"
-personal="$OMARCHY_PATH/fedora/personal"
+doxia="$OMARCHY_PATH/fedora/doxia"
 backup_dir="$HOME/.local/state/omarchy/doxia-backup-$(date +%Y%m%d%H%M%S)"
 
 # Moves a path into the backup dir, keeping its place relative to $HOME.
@@ -82,7 +82,7 @@ fi
 
 echo "==> Branding (About, screensaver and terminal logos, terminal greeting)"
 for file in about.txt screensaver.txt logo.ansi; do
-  place "$personal/omarchy/branding/$file" "$HOME/.config/omarchy/branding/$file"
+  place "$doxia/branding/$file" "$HOME/.config/omarchy/branding/$file"
 done
 mkdir -p "$HOME/.bashrc.d"
 # The greeting used to be linked as fedorai.sh, before the FedorAI → DoxIA rename.
@@ -115,21 +115,24 @@ if [[ $(getent passwd "$USER" | cut -d: -f7) != */zsh ]]; then
 fi
 
 echo "==> Menu extensions, default agent and editor"
-place "$personal/omarchy/extensions/omarchy-menu.jsonc" "$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
-place "$personal/omarchy/defaults/agent" "$HOME/.config/omarchy/defaults/agent"
+place "$doxia/omarchy-menu.jsonc" "$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
+place "$doxia/default-agent" "$HOME/.config/omarchy/defaults/agent"
 mkdir -p "$HOME/.local/state/omarchy/defaults"
 echo nano > "$HOME/.local/state/omarchy/defaults/editor"
 
 echo "==> Run on every Atualizar (omarchy-update's post-update hook)"
 bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
 
-echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage)"
+echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
 echo "==> Screen share picker and Hyprland window rules"
 place "$OMARCHY_PATH/fedora/doxia/hypr/xdph.conf" "$HOME/.config/hypr/xdph.conf"
 if ! grep -q "xwaylandvideobridge" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
-  { echo; cat "$personal/hypr/window-rules.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
+  { echo; cat "$doxia/hypr/window-rules.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
+fi
+if ! grep -q "org.omarchy.services-log" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
+  { echo; cat "$doxia/hypr/services-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
 if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
@@ -149,7 +152,7 @@ if $reapply_theme; then
     [[ -e $theme ]] && backup "$theme"
   done
 fi
-for tpl in "$personal"/omarchy/themed/*.tpl; do
+for tpl in "$doxia"/themed/*.tpl; do
   place "$tpl" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
 done
 [[ -d $HOME/.local/share/icons/Papirus-Tela-Red ]] || bash "$OMARCHY_PATH/themes/rhel-8/make-icons.sh"
