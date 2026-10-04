@@ -265,7 +265,7 @@ flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
 flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
 ROOT
 
-echo "==> System: /etc/motd, About screen, session name and login screen (sudo)"
+echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
 set -euo pipefail
 omarchy_path=$1
@@ -286,6 +286,7 @@ install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omar
 install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
 restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
+bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
 ROOT
 
 if [[ -d $backup_dir ]]; then

@@ -125,6 +125,9 @@ if [[ ! -x /usr/bin/powerprofilesctl ]]; then
   install -Dm755 "$omarchy_path/fedora/bin/powerprofilesctl" /usr/local/bin/powerprofilesctl
 fi
 
+# Theme color in Chromium-family browsers (the helper and its passwordless sudoers rule)
+bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
+
 # zsh as the login shell (Oh My Zsh and the DoxIA theme: install-user.sh)
 if [[ $(getent passwd "$target_user" | cut -d: -f7) != */zsh ]]; then
   usermod -s /usr/bin/zsh "$target_user"
