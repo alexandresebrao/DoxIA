@@ -48,6 +48,9 @@ packages=(
   brightnessctl pamixer playerctl wireplumber wl-clipboard wtype grim slurp cliphist
   gpu-screen-recorder libnotify upower udiskie xdg-user-dirs xdg-terminal-exec
   bluez-tools NetworkManager-tui wiremix
+  # pactl for the omarchy-audio-* scripts (volume keys, output/input switching);
+  # tuned-ppd serves the power profiles fedora/bin/powerprofilesctl talks to
+  pulseaudio-utils tuned-ppd
 
   # CLI toolbox used by Omarchy scripts and TUIs
   btop fastfetch gum jq socat inotify-tools fzf util-linux-script eza zoxide ripgrep fd-find bat tmux
@@ -68,6 +71,9 @@ dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 # Fedora's own quickshell (0.2.x) and uwsm can win over the COPR builds on first
 # install; Omarchy 4 needs quickshell >= 0.3.1.
 dnf upgrade -y --refresh quickshell uwsm
+
+# Not every spin enables these presets (the Workstation one does).
+systemctl enable tuned.service tuned-ppd.service
 
 echo "==> Voxtype dictation (RPM from the upstream release; Fedora has no package)"
 # A GitHub hiccup must not fail the whole install: install-user.sh and the next
