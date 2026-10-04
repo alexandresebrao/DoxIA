@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Lets theme changes paint Chrome, Chromium, Edge and Brave in the theme's color, as
+# the omarchy package does on Arch: omarchy-theme-set-browser-policy at the path its
+# sudoers rule names, plus that rule, which runs it without a password (a theme
+# switch has no terminal to ask in).
+# A root-owned copy, never a link into the checkout: the user can write there, and a
+# passwordless rule on a file they can edit would hand them root.
+# Run as root by install-system.sh and fedora/update.sh.
+
+set -euo pipefail
+
+if (( EUID != 0 )); then
+  echo "Run as root." >&2
+  exit 1
+fi
+
+omarchy_path=${1:?usage: install-browser-policy <omarchy checkout>}
+
+install -m 0755 -o root -g root "$omarchy_path/bin/omarchy-theme-set-browser-policy" /usr/bin/omarchy-theme-set-browser-policy
+
+# Checked before it goes live: a broken file in sudoers.d breaks sudo altogether.
+staged=$(mktemp)
+trap 'rm -f "$staged"' EXIT
+cp "$omarchy_path/etc/sudoers.d/omarchy-theme-browser" "$staged"
+visudo -cqf "$staged"
+install -m 0440 -o root -g root "$staged" /etc/sudoers.d/omarchy-theme-browser
