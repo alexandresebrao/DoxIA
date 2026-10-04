@@ -209,8 +209,12 @@ if [[ -n $office_rpms ]]; then
   dnf remove -y $office_rpms
 fi
 # Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
-# language from LANG, and ships the pt-BR translation and spell checker itself.
-flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR org.onlyoffice.desktopeditors
+# language from LANG, and ships the pt-BR translation and spell checker itself. Its
+# Qt and GTK default to IBus inside Flatpak, whose portal fails without ibus-daemon
+# (which DoxIA doesn't run) and uwsm's fumon reports that as a failed unit: use
+# their built-in input (dead keys and compose included), as they fall back to anyway.
+flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
+  --env=QT_IM_MODULE=compose --env=GTK_IM_MODULE=gtk-im-context-simple org.onlyoffice.desktopeditors
 flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
 ROOT
 

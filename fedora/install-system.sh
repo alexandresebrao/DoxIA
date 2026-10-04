@@ -78,8 +78,12 @@ fi
 flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors)
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 # Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
-# language from LANG, and ships the pt-BR translation and spell checker itself.
-flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR org.onlyoffice.desktopeditors
+# language from LANG, and ships the pt-BR translation and spell checker itself. Its
+# Qt and GTK default to IBus inside Flatpak, whose portal fails without ibus-daemon
+# (which DoxIA doesn't run) and uwsm's fumon reports that as a failed unit: use
+# their built-in input (dead keys and compose included), as they fall back to anyway.
+flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
+  --env=QT_IM_MODULE=compose --env=GTK_IM_MODULE=gtk-im-context-simple org.onlyoffice.desktopeditors
 if systemd-detect-virt --quiet --chroot; then
   # The installer's chroot can't run bwrap (the install fails after downloading
   # ~1 GB of runtimes), so the installed system does it on its first boot online.
