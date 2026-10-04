@@ -61,6 +61,9 @@ if [[ ${1:-} != "--no-pull" ]]; then
   exec bash "$OMARCHY_PATH/fedora/update.sh" --no-pull
 fi
 
+echo "==> Brand image in terminals (chafa renders it, ImageMagick sizes it)"
+omarchy-pkg-add chafa ImageMagick
+
 echo "==> Icon font (∞ glyph)"
 mkdir -p "$HOME/.local/share/fonts/omarchy"
 cp -f "$OMARCHY_PATH/default/fonts/omarchy/omarchy.ttf" "$HOME/.local/share/fonts/omarchy/"
