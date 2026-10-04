@@ -56,6 +56,8 @@ packages=(
   # SDKMAN! (fedora/doxia/install-dev-tools) needs zip and unzip; its window
   # (fedora/doxia/dev-versions) runs on GTK 4 and libadwaita and unpacks rpm JDKs with cpio
   zip unzip gtk4 libadwaita cpio
+  # The DoxIA shell: zsh with Oh My Zsh (fedora/doxia/install-zsh)
+  zsh
 
   # Fonts
   google-noto-sans-fonts google-noto-emoji-fonts google-noto-sans-cjk-fonts
@@ -113,6 +115,11 @@ fi
 # with it) but no powerprofilesctl, which Omarchy's power menu relies on.
 if [[ ! -x /usr/bin/powerprofilesctl ]]; then
   install -Dm755 "$omarchy_path/fedora/bin/powerprofilesctl" /usr/local/bin/powerprofilesctl
+fi
+
+# zsh as the login shell (Oh My Zsh and the DoxIA theme: install-user.sh)
+if [[ $(getent passwd "$target_user" | cut -d: -f7) != */zsh ]]; then
+  usermod -s /usr/bin/zsh "$target_user"
 fi
 
 # Boot menu entries titled DoxIA instead of Fedora Linux, for the kernels already

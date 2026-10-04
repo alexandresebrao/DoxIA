@@ -73,6 +73,9 @@ fi
 echo "==> nvm and SDKMAN! (Node.js and Java versions)"
 bash "$OMARCHY_PATH/fedora/doxia/install-dev-tools"
 
+echo "==> zsh with Oh My Zsh and the DoxIA theme (folder, git, Node.js and Java versions)"
+bash "$OMARCHY_PATH/fedora/doxia/install-zsh"
+
 echo "==> nano as the default editor (omarchy-launch-editor, \$EDITOR) instead of nvim"
 mkdir -p ~/.local/state/omarchy/defaults
 echo nano > ~/.local/state/omarchy/defaults/editor

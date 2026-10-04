@@ -1,5 +1,5 @@
-# DoxIA greeting for interactive bash shells. Linked from ~/.bashrc.d/doxia.sh
-# by fedora/update.sh, so a git pull updates it.
+# DoxIA greeting for interactive bash and zsh shells. Linked from ~/.bashrc.d/doxia.sh
+# by fedora/update.sh and sourced by fedora/doxia/zsh/zshrc, so a git pull updates it.
 [[ $- == *i* ]] || return 0
 
 _doxia_tips=(
@@ -13,11 +13,12 @@ _doxia_tips=(
   "8 ou 80? Não, ∞."
 )
 
-_doxia_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+# zsh sets $0 to the sourced file; bash only has BASH_SOURCE
+_doxia_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]:-$0}")")
 echo
 # The brand as an image where the terminal draws one, the ASCII version elsewhere
 "$_doxia_dir/show-brand" 2 || sed 's/^/  /' "$_doxia_dir/brand.ansi"
 printf '\n  \e[38;2;240;240;240mBem-vindo ao Dox\e[38;2;238;0;0mIA\e[38;2;240;240;240m %s (Oito Deitado)\e[0m\n' "$(rpm -E %fedora)"
 printf '  \e[2mUptime: %s: mais tempo deitado que o próprio 8.\e[0m\n' "$(uptime -p | sed 's/^up //')"
-printf '  \e[38;2;210;210;210m💡 %s\e[0m\n\n' "${_doxia_tips[RANDOM % ${#_doxia_tips[@]}]}"
+printf '  \e[38;2;210;210;210m💡 %s\e[0m\n\n' "${_doxia_tips[@]:(RANDOM % ${#_doxia_tips[@]}):1}"
 unset _doxia_tips _doxia_dir

@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# zsh with Oh My Zsh, the DoxIA theme (fedora/doxia/zsh/doxia.zsh-theme: folder, git
+# branch, Node.js and Java versions) and the zsh-autosuggestions and
+# zsh-syntax-highlighting plugins, cloned the Oh My Zsh way into custom/plugins.
+# Writes ~/.zshrc when there is none; an existing one only gets the line that
+# sources fedora/doxia/zsh/doxia.zsh (PATH, nvm and SDKMAN!, greeting), saved next
+# to it first, and keeps its theme and plugins. The zsh package and making it the
+# login shell are install-system.sh's (root) and update.sh's. Run as the user by
+# install-user.sh and fedora/update.sh.
+
+set -euo pipefail
+
+omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
+omz=$HOME/.oh-my-zsh
+custom=$omz/custom
+line='source ~/.local/share/omarchy/fedora/doxia/zsh/doxia.zsh'
+
+if [[ ! -f $omz/oh-my-zsh.sh ]]; then
+  echo "  Oh My Zsh"
+  git clone -q --depth 1 https://github.com/ohmyzsh/ohmyzsh.git "$omz"
+fi
+for plugin in zsh-autosuggestions zsh-syntax-highlighting; do
+  if [[ ! -d $custom/plugins/$plugin ]]; then
+    echo "  $plugin"
+    git clone -q --depth 1 "https://github.com/zsh-users/$plugin.git" "$custom/plugins/$plugin"
+  fi
+done
+mkdir -p "$custom/themes" "$HOME/.zshrc.d"
+ln -sfn "$omarchy_path/fedora/doxia/zsh/doxia.zsh-theme" "$custom/themes/doxia.zsh-theme"
+
+rc=$HOME/.zshrc
+if [[ ! -e $rc ]]; then
+  cat > "$rc" <<EOF
+# Oh My Zsh: https://github.com/ohmyzsh/ohmyzsh/wiki
+export ZSH="\$HOME/.oh-my-zsh"
+
+# DoxIA's theme shows the folder, the git branch and the Node.js and Java in use
+ZSH_THEME="doxia"
+
+# Plugins in ~/.oh-my-zsh/plugins (built in) and ~/.oh-my-zsh/custom/plugins;
+# zsh-syntax-highlighting has to stay last
+plugins=(git sudo zsh-autosuggestions zsh-syntax-highlighting)
+
+source "\$ZSH/oh-my-zsh.sh"
+
+# DoxIA: PATH, nvm and SDKMAN!, greeting (updated with the repo)
+$line
+
+# Your own settings go below, or in ~/.zshrc.d/*.zsh
+EOF
+elif ! grep -qxF "$line" "$rc"; then
+  cp -a "$rc" "$rc.bak-doxia-$(date +%Y%m%d%H%M%S)"
+  printf '\n# DoxIA: PATH, nvm and SDKMAN!, greeting (updated with the repo)\n%s\n' "$line" >> "$rc"
+fi

@@ -25,6 +25,9 @@ Commands, paths and config files keep their Omarchy names (`omarchy-*`,
   with **Versões do Node e do Java** in the launcher to pick the default version, install and
   remove versions, and install a JDK from a file (zip, tar.gz, rpm… like Oracle's) or a folder
 - ONLYOFFICE from Flathub, in pt-BR, instead of LibreOffice
+- zsh as the login shell, with Oh My Zsh, zsh-autosuggestions, zsh-syntax-highlighting and the
+  DoxIA theme (folder, git branch, and the Node.js and Java versions in use); an existing
+  `~/.zshrc` keeps its theme and plugins
 
 ### Install
 

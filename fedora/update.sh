@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
-# RHEL 8 theme (the DoxIA default), branding, nvm and SDKMAN!, the salsicha screensaver, the icon font, menu extensions, default
+# RHEL 8 theme (the DoxIA default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
 # name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice) and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins are refreshed and the missing widgets added; the rest of the bar,
@@ -104,6 +104,14 @@ if grep -qxF 'export NVM_DIR="$HOME/.config/nvm"' "$HOME/.bashrc" 2>/dev/null; t
   sed -i -e '\|^export NVM_DIR="$HOME/.config/nvm"$|d' \
     -e '\|^\[ -s "$NVM_DIR/nvm.sh" \] && \\. "$NVM_DIR/nvm.sh"|d' \
     -e '\|^\[ -s "$NVM_DIR/bash_completion" \] && \\. "$NVM_DIR/bash_completion"|d' "$HOME/.bashrc"
+fi
+
+echo "==> zsh with Oh My Zsh and the DoxIA theme (folder, git, Node.js and Java versions)"
+omarchy-pkg-add zsh
+bash "$OMARCHY_PATH/fedora/doxia/install-zsh"
+if [[ $(getent passwd "$USER" | cut -d: -f7) != */zsh ]]; then
+  echo "  zsh as the login shell (sudo; takes effect at the next login)"
+  sudo usermod -s /usr/bin/zsh "$USER"
 fi
 
 echo "==> Menu extensions, default agent and editor"
