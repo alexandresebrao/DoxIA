@@ -8,6 +8,9 @@
 # first session has bluetooth pairing, sleep lock, etc. live immediately
 # instead of waiting for the next login. ConditionPath* in the unit files
 # keep the enabled units inert on hardware they don't apply to.
+#
+# DoxIA: no omarchy-fcitx5; GTK, Qt and Chromium read ~/.XCompose themselves,
+# and fcitx5 between the keyboard and every app risks the ABNT2 dead keys.
 
 set -euo pipefail
 
@@ -17,5 +20,4 @@ systemctl --user enable --now \
   omarchy-recover-internal-monitor.service \
   omarchy-sleep-lock.service \
   omarchy-migrate-notify.service \
-  omarchy-fcitx5.service \
   omarchy-crash-watch.service
