@@ -51,7 +51,7 @@ packages=(
 
   # CLI toolbox used by Omarchy scripts and TUIs
   btop fastfetch gum jq socat inotify-tools fzf util-linux-script eza zoxide ripgrep fd-find bat tmux
-  ImageMagick vips-tools ffmpegthumbnailer qrencode zbar tesseract tldr inxi plocate
+  ImageMagick chafa vips-tools ffmpegthumbnailer qrencode zbar tesseract tldr inxi plocate
   python3-gobject tree-sitter-cli nss-mdns
 
   # Fonts
