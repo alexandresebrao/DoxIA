@@ -2,5 +2,8 @@
 
 # omarchy:summary=Detect whether Vulkan is available.
 
+# Fedora always ships Mesa's ICDs, including the CPU-only lavapipe, so also
+# require a GPU render node before reporting Vulkan as available.
 [[ -d /usr/share/vulkan/icd.d ]] &&
-  find /usr/share/vulkan/icd.d -maxdepth 1 -name "*.json" -print -quit | grep -q .
+  find /usr/share/vulkan/icd.d -maxdepth 1 -name "*.json" -print -quit | grep -q . &&
+  compgen -G "/dev/dri/renderD*" >/dev/null
