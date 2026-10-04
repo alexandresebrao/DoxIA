@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# kernel-install plugin: titles the boot menu entries "DoxIA 44 (6.19.10-...)"
+# instead of the "Fedora Linux (6.19.10-...) 44 (Workstation Edition)" that
+# 90-loaderentry takes from /etc/os-release, which fedora-release owns.
+# install-system.sh copies it to /etc/kernel/install.d and runs it once with
+# "retitle" for the entries the installer already wrote.
+
+command=${1:-}
+[[ $command == @(add|retitle) ]] || exit 0
+
+entries=${KERNEL_INSTALL_BOOT_ROOT:-/boot}/loader/entries
+for entry in "$entries"/*.conf; do
+  [[ -f $entry ]] || continue
+  sed -i -E 's/^title Fedora Linux \((.*)\) ([0-9]+)( \(.*\))?$/title DoxIA \2 (\1)/' "$entry"
+done
+exit 0

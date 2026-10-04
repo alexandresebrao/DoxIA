@@ -98,6 +98,12 @@ if [[ ! -x /usr/bin/powerprofilesctl ]]; then
   install -Dm755 "$omarchy_path/fedora/bin/powerprofilesctl" /usr/local/bin/powerprofilesctl
 fi
 
+# Boot menu entries titled DoxIA instead of Fedora Linux, for the kernels already
+# installed and every later one (copied: kernel-install runs confined by SELinux).
+install -Dm755 "$omarchy_path/fedora/doxia/kernel-install/95-doxia-title.install" \
+  /etc/kernel/install.d/95-doxia-title.install
+/etc/kernel/install.d/95-doxia-title.install retitle
+
 # The DoxIA brand as an image instead of ASCII in terminals that draw images.
 ln -sfn "$omarchy_path/fedora/bin/fastfetch" /usr/local/bin/fastfetch
 
