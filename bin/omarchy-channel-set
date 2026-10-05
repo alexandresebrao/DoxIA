@@ -96,4 +96,5 @@ if [[ -z $dev_checkout ]]; then
   fi
 fi
 
-omarchy-update -y
+# --now: the switch applies right away, whatever the "mode" preference says.
+omarchy-update -y --now
