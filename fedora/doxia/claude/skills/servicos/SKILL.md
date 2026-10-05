@@ -100,6 +100,16 @@ Regras de execução que importam para escrever a config:
    - gradle: `{"name":"Compilar","run":"./gradlew -q assemble"}`.
    - Instruções que o usuário der ("ao trocar, rode scripts/migrate.sh") viram
      passos na ordem dita.
+   - Não duplique o que o `start` já faz. Abra o script de verdade
+     (`jq .scripts package.json`, Makefile, `run.sh`) e siga os `&&`: se ele já
+     gera/compila algo antes de subir, esse passo não entra em `onBranchChange`,
+     mesmo que o usuário peça "ao trocar, rode X". Depois da troca, o serviço
+     religa (ou roda X no próximo start, se estava parado), então X rodaria duas
+     vezes. Exemplo: no kplace-erp, `start` é
+     `pnpm run createRoutes && pnpm run dev-server`, então um passo
+     `pnpm run createRoutes` faz as rotas serem criadas duas vezes por troca.
+     Diga isso ao usuário e só adicione o passo se ele insistir (por exemplo,
+     quer as rotas geradas sem ligar o serviço).
 3. Edite `~/.config/omarchy/services.json` preservando os outros serviços (crie
    com `{"services":[]}` se não existir). Use `jq` ou Edit; mantenha 2 espaços.
 4. Valide: `svc validate`.
