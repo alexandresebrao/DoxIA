@@ -25,6 +25,10 @@ Panel {
   property var branches: ({})
   property var runtimes: ({ node: [], java: [] })
   property real now: Date.now() / 1000
+  // Dropdowns abertos (branch, versão). Enquanto houver algum, o keyCatcher
+  // fica bloqueado para a busca receber as teclas (j/k/h/l/x, espaço, Enter…).
+  property int openPopups: 0
+  function trackPopup(isOpen) { openPopups = Math.max(0, openPopups + (isOpen ? 1 : -1)) }
 
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
@@ -193,6 +197,7 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      blocked: root.openPopups > 0
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
 
@@ -462,6 +467,10 @@ Panel {
         opacity: enabled ? 1 : 0.5
         fontFamily: root.bar.fontFamily
         placeholderText: "Buscar branch…"
+        // Sem busca: as 10 mais recentes; com busca: até 10 entre todas.
+        maxResults: 10
+        onPopupOpenChanged: root.trackPopup(popupOpen)
+        Component.onDestruction: if (popupOpen) root.trackPopup(false)
         emptyText: "Nenhuma branch"
         value: row.branch
         options: root.branchOptions(row.serviceId, row.branch)
@@ -492,6 +501,8 @@ Panel {
       Dropdown {
         anchors.verticalCenter: parent.verticalCenter
         width: line2.runtimeWidth
+        onPopupOpenChanged: root.trackPopup(popupOpen)
+        Component.onDestruction: if (popupOpen) root.trackPopup(false)
         showLabel: false
         enabled: !row.busy
         opacity: enabled ? 1 : 0.5

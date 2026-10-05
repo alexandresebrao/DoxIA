@@ -348,9 +348,10 @@ cmd_branches() {
   {
     git -C "$dir" for-each-ref --sort=-committerdate --format='%(refname:short)' refs/heads
     git -C "$dir" for-each-ref --sort=-committerdate --format='%(refname:lstrip=3)' refs/remotes | { grep -vx HEAD || true; }
-  } | awk '!seen[$0]++ && ++n <= 200' | jq -Rsc 'split("\n") | map(select(length > 0))'
-  # O limite fica no awk: com `head`, o resto do pipe levava SIGPIPE e, com
-  # pipefail, a função falhava mesmo tendo impresso a lista.
+  } | awk '!seen[$0]++' | jq -Rsc 'split("\n") | map(select(length > 0))'
+  # Todas, da mais recente para a mais antiga: o painel mostra as 10 primeiras
+  # e a busca procura no resto. Sem `head` aqui: ele levava o pipe a SIGPIPE e,
+  # com pipefail, a função falhava mesmo tendo impresso a lista.
 }
 
 cmd_branches_all() {
