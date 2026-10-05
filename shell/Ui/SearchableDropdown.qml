@@ -10,6 +10,8 @@ import qs.Commons
 // Filtering is case-insensitive substring against each option's label.
 // Options can be string[] or [{ value, label, description? }] — the same
 // shape Dropdown accepts. The filter clears whenever the popup closes.
+// maxResults > 0 caps the list: the first N options with an empty filter,
+// the first N matches (searched across every option) while typing.
 //
 // Keyboard: Tab to focus the trigger, Enter/Space opens (search focused
 // immediately). Down arrow from the search jumps to the first match;
@@ -35,6 +37,7 @@ Item {
   property int popupRowHeight: Style.spacing.popupRowHeight
   property int popupMinHeight: Style.spacing.searchablePopupMinHeight
   property bool showLabel: true
+  property int maxResults: 0
 
   // Panel-cursor flag. When true, the trigger renders the shared
   // hover-cursor state. Active Qt focus defaults to the same visuals.
@@ -73,9 +76,10 @@ Item {
   property var filtered: options
   function recomputeFiltered() {
     var q = searchField.text.toLowerCase()
-    if (!q) { filtered = options; return }
+    var cap = maxResults > 0 ? maxResults : options.length
+    if (!q) { filtered = options.slice(0, cap); return }
     var out = []
-    for (var i = 0; i < options.length; i++) {
+    for (var i = 0; i < options.length && out.length < cap; i++) {
       var lbl = optionLabel(options[i]).toLowerCase()
       var desc = optionDescription(options[i]).toLowerCase()
       if (lbl.indexOf(q) !== -1 || desc.indexOf(q) !== -1) out.push(options[i])
