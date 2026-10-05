@@ -26,6 +26,14 @@ omarchy-update-requires-free-space
 [[ ${1:-} != "-y" ]] || export OMARCHY_UPDATE_UNATTENDED=1
 
 if [[ ${1:-} == "-y" ]] || omarchy-update-confirm; then
+  # One password for the whole update. sudo forgets it after 5 minutes, and the
+  # package upgrade alone often takes longer, so every later step would ask
+  # again: ask once here and keep it fresh in the background until the end.
+  sudo -v || exit 1
+  ( while kill -0 $$ 2>/dev/null; do sudo -n -v 2>/dev/null; sleep 50; done ) &
+  sudo_keepalive=$!
+  trap 'kill "$sudo_keepalive" 2>/dev/null; omarchy-update-stay-awake stop' EXIT
+
   # Before the snapshot: the cache is on the snapshotted subvolume, so pruning
   # after it frees nothing until that snapshot ages out.
   omarchy-update-pkg-prune
@@ -58,6 +66,7 @@ if [[ ${1:-} == "-y" ]] || omarchy-update-confirm; then
   # reboot can terminate this process before its EXIT trap gets a chance to
   # remove the persistent Stay Awake marker.
   omarchy-update-stay-awake stop
+  kill "$sudo_keepalive" 2>/dev/null
   trap - EXIT
 
   omarchy-update-restart
