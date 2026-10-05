@@ -1,213 +1,123 @@
 #!/bin/bash
 
+# omarchy-update-check (dnf, Flatpak and the DoxIA checkout, as JSON) and
+# omarchy-update-available (its one-line-per-source summary), with stubbed
+# dnf, rpm, flatpak and git.
+
 set -euo pipefail
 
 source "$(dirname "$0")/base-test.sh"
+
+require_command jq
 
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
 
 stub_bin="$test_tmp/bin"
 git_log="$test_tmp/git.log"
-mkdir -p "$stub_bin"
+mkdir -p "$stub_bin" "$test_tmp/home"
 
-cat >"$stub_bin/checkupdates" <<'SH'
+cat >"$stub_bin/dnf" <<'SH'
 #!/bin/bash
-case "${TEST_CHECKUPDATES:-updates}" in
+case "${TEST_DNF:-updates}" in
   updates)
-    printf 'linux 6.1-1 -> 6.1-2\nomarchy 4.0.0-1 -> 4.0.1-1\nomarchy-settings 4.0.0-1 -> 4.0.1-1\nomarchy-dev 4.1.0-1 -> 4.1.1-1\nomarchy-settings-dev 4.1.0-1 -> 4.1.1-1\n'
-    exit 0
+    printf 'Upgrades\nflatpak.x86_64                1.18.4-1.fc44 updates\nflatpak-libs.x86_64           1.18.4-1.fc44 updates\nrsync.x86_64                  3.5.1-1.fc44  updates\n'
+    exit 100
     ;;
-  none)
-    exit 2
-    ;;
-  fail)
-    echo "check failed" >&2
-    exit 1
-    ;;
+  none) exit 0 ;;
+  fail) echo "repo down" >&2; exit 1 ;;
 esac
 SH
-chmod +x "$stub_bin/checkupdates"
 
-cat >"$stub_bin/pacman" <<'SH'
+cat >"$stub_bin/rpm" <<'SH'
 #!/bin/bash
-case "$1" in
-  -Qq)
-    case "${TEST_INSTALLED_PACKAGE:-omarchy}" in
-      omarchy)
-        [[ $2 == "omarchy" ]]; exit $?
-        ;;
-      omarchy-dev)
-        [[ $2 == "omarchy-dev" ]]; exit $?
-        ;;
-      both)
-        [[ $2 == "omarchy" || $2 == "omarchy-dev" ]]; exit $?
-        ;;
-      none)
-        exit 1
-        ;;
-    esac
-    ;;
-esac
-exit 0
+printf 'flatpak.x86_64 1.18.2-1.fc44\nflatpak-libs.x86_64 1.18.2-1.fc44\nrsync.x86_64 3.5.0-2.fc44\n'
 SH
-chmod +x "$stub_bin/pacman"
+
+cat >"$stub_bin/flatpak" <<'SH'
+#!/bin/bash
+case "${TEST_FLATPAK:-none}" in
+  updates) printf 'app/com.spotify.Client/x86_64/stable\tSpotify\nruntime/org.freedesktop.Platform/x86_64/25.08\tFreedesktop Platform\n' ;;
+  none) ;;
+esac
+SH
 
 cat >"$stub_bin/git" <<'SH'
 #!/bin/bash
-
 printf '%s\n' "$*" >>"$TEST_GIT_LOG"
-
-[[ $1 == "-C" ]] || exit 1
 shift 2
-
 case "$1" in
-  fetch)
-    [[ ${TEST_GIT_FETCH:-ok} == "ok" ]]
-    ;;
+  fetch) exit 0 ;;
   rev-parse)
-    case "$2" in
-      --is-inside-work-tree)
-        [[ ${TEST_GIT_CHECKOUT:-yes} == "yes" ]] || exit 1
-        echo true
-        ;;
-      --abbrev-ref)
-        [[ ${TEST_GIT_UPSTREAM:-origin/quattro} != "none" ]] || exit 1
-        echo "${TEST_GIT_UPSTREAM:-origin/quattro}"
-        ;;
-      *)
-        exit 1
-        ;;
-    esac
+    [[ $2 == "--short" ]] && { echo abc1234; exit 0; }
+    [[ ${TEST_GIT_UPSTREAM:-origin/fedora} != "none" ]] || exit 1
+    echo "${TEST_GIT_UPSTREAM:-origin/fedora}"
     ;;
-  rev-list)
-    echo "${TEST_GIT_BEHIND:-0}"
-    ;;
-  *)
-    exit 1
+  log)
+    for ((i = 1; i <= ${TEST_GIT_BEHIND:-0}; i++)); do echo "Commit $i"; done
     ;;
 esac
 SH
-chmod +x "$stub_bin/git"
+chmod +x "$stub_bin"/*
 
-run_checker() {
-  OMARCHY_PATH="${TEST_OMARCHY_PATH:-/usr/share/omarchy}" \
-    TEST_GIT_LOG="$git_log" \
-    PATH="$stub_bin:$PATH" \
-    "$ROOT/bin/omarchy-update-available"
+# run <tool> [VAR=value...] [args...]
+run() {
+  local tool=$1 vars=() args=()
+  shift
+  for a in "$@"; do
+    if [[ $a == *=* ]]; then vars+=("$a"); else args+=("$a"); fi
+  done
+  env HOME="$test_tmp/home" TEST_GIT_LOG="$git_log" PATH="$stub_bin:$PATH" \
+    OMARCHY_PATH="$test_tmp/checkout" "${vars[@]}" "$ROOT/bin/$tool" "${args[@]}"
 }
 
-capture_checker() {
-  local stdout_file="$1"
-  local stderr_file="$2"
-  shift 2
+out="$test_tmp/out"
 
-  set +e
-  (
-    export "$@"
-    run_checker
-  ) >"$stdout_file" 2>"$stderr_file"
-  local status=$?
-  set -e
-  return "$status"
-}
+# dnf updates: listed with installed and new versions
+run omarchy-update-check TEST_DNF=updates >"$out" && status=0 || status=$?
+(( status == 0 )) || fail "update check exits 0 when dnf has updates"
+[[ $(jq '.system | length' "$out") == 3 ]] || fail "update check lists each dnf package" "$(cat "$out")"
+[[ $(jq -r '.system[] | select(.name == "rsync") | "\(.from) \(.to)"' "$out") == "3.5.0-2.fc44 3.5.1-1.fc44" ]] ||
+  fail "update check pairs the installed and new versions" "$(cat "$out")"
+[[ -s $test_tmp/home/.cache/omarchy/update-status.json ]] || fail "update check keeps a cached copy"
+pass "update check lists dnf updates with versions"
 
-stdout="$test_tmp/stdout"
-stderr="$test_tmp/stderr"
+# --cached reads the copy without asking dnf again
+run omarchy-update-check TEST_DNF=fail --cached >"$out" && status=0 || status=$?
+[[ $(jq '.system | length' "$out") == 3 ]] || fail "update check --cached prints the last summary"
+pass "update check --cached reuses the last summary"
 
-if capture_checker "$stdout" "$stderr" TEST_CHECKUPDATES=updates TEST_INSTALLED_PACKAGE=omarchy; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 0 ]] || fail "update checker exits successfully when omarchy update is available"
-grep -q '^omarchy ' "$stdout" || fail "update checker prints omarchy updates"
-! grep -q '^omarchy-settings ' "$stdout" || fail "update checker ignores omarchy-settings updates"
-! grep -q '^linux ' "$stdout" || fail "update checker ignores non-Omarchy package updates"
-! grep -q '^omarchy-dev ' "$stdout" || fail "update checker ignores omarchy-dev when omarchy is installed"
-pass "update checker detects installed omarchy package updates"
+# Flatpak apps and runtimes
+run omarchy-update-check TEST_DNF=none TEST_FLATPAK=updates >"$out" && status=0 || status=$?
+(( status == 0 )) || fail "update check exits 0 when only Flatpak has updates"
+[[ $(jq -r '.flatpak.apps[0].name' "$out") == "Spotify" && $(jq '.flatpak.runtimes' "$out") == 1 ]] ||
+  fail "update check separates Flatpak apps and runtimes" "$(cat "$out")"
+pass "update check lists Flatpak apps and runtimes"
 
-if capture_checker "$stdout" "$stderr" TEST_CHECKUPDATES=updates TEST_INSTALLED_PACKAGE=omarchy-dev; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 0 ]] || fail "update checker exits successfully when omarchy-dev update is available"
-grep -q '^omarchy-dev ' "$stdout" || fail "update checker prints omarchy-dev updates"
-! grep -q '^omarchy-settings-dev ' "$stdout" || fail "update checker ignores omarchy-settings-dev updates"
-! grep -q '^omarchy ' "$stdout" || fail "update checker ignores omarchy when omarchy-dev is installed"
-pass "update checker detects installed omarchy-dev package updates"
+# A dnf failure is reported, not mistaken for "up to date" silently
+run omarchy-update-check TEST_DNF=fail >"$out" && status=0 || status=$?
+[[ $(jq '.errors | length' "$out") == 1 ]] || fail "update check reports a dnf failure" "$(cat "$out")"
+pass "update check reports a repository failure"
 
-if capture_checker "$stdout" "$stderr" TEST_CHECKUPDATES=updates TEST_INSTALLED_PACKAGE=both; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 0 ]] || fail "update checker prefers omarchy-dev when both packages are installed"
-grep -q '^omarchy-dev ' "$stdout" || fail "update checker prints omarchy-dev when both packages are installed"
-! grep -q '^omarchy ' "$stdout" || fail "update checker ignores omarchy when omarchy-dev is installed"
-pass "update checker prefers omarchy-dev over omarchy"
-
-if capture_checker "$stdout" "$stderr" TEST_CHECKUPDATES=updates TEST_INSTALLED_PACKAGE=none; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 1 ]] || fail "update checker exits non-zero when no Omarchy package is installed"
-[[ ! -s $stderr ]] || fail "update checker is quiet when no Omarchy package is installed"
-pass "update checker ignores systems without omarchy or omarchy-dev installed"
-
-if capture_checker "$stdout" "$stderr" TEST_CHECKUPDATES=none TEST_INSTALLED_PACKAGE=omarchy; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 1 ]] || fail "update checker exits non-zero when no updates are available"
-grep -q '^DoxIA is up to date$' "$stdout" || fail "update checker prints up-to-date message"
-pass "update checker reports up-to-date Omarchy packages"
-
+# DoxIA commits
 : >"$git_log"
-if capture_checker "$stdout" "$stderr" \
-  TEST_CHECKUPDATES=none \
-  TEST_INSTALLED_PACKAGE=none \
-  TEST_OMARCHY_PATH="$test_tmp/checkout" \
-  TEST_GIT_BEHIND=2; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 0 ]] || fail "update checker exits successfully when dev commits are available"
-grep -Fx 'omarchy-dev-checkout 2 new commits on origin/quattro' "$stdout" >/dev/null ||
-  fail "update checker reports available dev commits" "$(cat "$stdout")"
+run omarchy-update-available TEST_DNF=none TEST_GIT_BEHIND=2 >"$out" && status=0 || status=$?
+(( status == 0 )) || fail "update checker exits successfully when dev commits are available"
+grep -Fx 'omarchy-dev-checkout 2 new commits on origin/fedora' "$out" >/dev/null ||
+  fail "update checker reports available dev commits" "$(cat "$out")"
 grep -Fx -- "-C $test_tmp/checkout fetch --quiet" "$git_log" >/dev/null ||
   fail "update checker fetches the dev checkout upstream" "$(cat "$git_log")"
 pass "update checker detects new commits in the dev checkout"
 
-if capture_checker "$stdout" "$stderr" \
-  TEST_CHECKUPDATES=none \
-  TEST_INSTALLED_PACKAGE=none \
-  TEST_OMARCHY_PATH="$test_tmp/checkout" \
-  TEST_GIT_BEHIND=0; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 1 ]] || fail "update checker exits non-zero when the dev checkout is current"
-grep -q '^DoxIA is up to date$' "$stdout" || fail "update checker reports a current dev checkout"
-pass "update checker ignores a current dev checkout"
+# Summary lines per source
+run omarchy-update-available TEST_DNF=updates TEST_FLATPAK=updates >"$out" && status=0 || status=$?
+(( status == 0 )) || fail "update checker exits successfully when updates are available"
+grep -Fx '3 system package(s)' "$out" >/dev/null || fail "update checker counts system packages" "$(cat "$out")"
+grep -Fx '1 Flatpak app(s)' "$out" >/dev/null || fail "update checker counts Flatpak apps" "$(cat "$out")"
+pass "update checker summarizes each source"
 
-if capture_checker "$stdout" "$stderr" \
-  TEST_CHECKUPDATES=none \
-  TEST_INSTALLED_PACKAGE=none \
-  TEST_OMARCHY_PATH="$test_tmp/checkout" \
-  TEST_GIT_BEHIND=1 \
-  TEST_GIT_FETCH=fail; then
-  status=0
-else
-  status=$?
-fi
-[[ $status -eq 0 ]] || fail "update checker uses cached upstream state when fetch fails"
-grep -Fx 'omarchy-dev-checkout 1 new commit on origin/quattro' "$stdout" >/dev/null ||
-  fail "update checker reports cached dev commits after a fetch failure" "$(cat "$stdout")"
-[[ ! -s $stderr ]] || fail "update checker keeps dev fetch failures quiet" "$(cat "$stderr")"
-pass "update checker uses cached dev state when fetching is unavailable"
+# Nothing to do
+run omarchy-update-available TEST_DNF=none TEST_GIT_UPSTREAM=none >"$out" && status=0 || status=$?
+(( status == 1 )) || fail "update checker exits non-zero when no updates are available"
+grep -q '^DoxIA is up to date$' "$out" || fail "update checker prints up-to-date message"
+pass "update checker reports an up-to-date system"

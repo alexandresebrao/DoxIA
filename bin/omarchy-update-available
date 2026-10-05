@@ -1,44 +1,20 @@
 #!/bin/bash
 
 # omarchy:summary=Check whether Omarchy updates are available.
+# Fedora port: omarchy-update-check reads dnf, Flatpak and the DoxIA checkout;
+# this keeps the old one-line-per-update output and exit status.
 
 set -euo pipefail
 
-updates=()
-
-if [[ $OMARCHY_PATH != "/usr/share/omarchy" ]]; then
-  upstream=$(git -C "$OMARCHY_PATH" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)
-  if [[ -n $upstream ]]; then
-    GIT_TERMINAL_PROMPT=0 timeout 10 git -C "$OMARCHY_PATH" fetch --quiet 2>/dev/null || true
-
-    behind=$(git -C "$OMARCHY_PATH" rev-list --count "HEAD..$upstream" 2>/dev/null || echo 0)
-    if (( behind > 0 )); then
-      commit_label=commits
-      (( behind == 1 )) && commit_label=commit
-      updates+=("omarchy-dev-checkout $behind new $commit_label on $upstream")
-    fi
-  fi
-fi
-
-package=""
-if pacman -Qq omarchy-dev >/dev/null 2>&1; then
-  package=omarchy-dev
-elif pacman -Qq omarchy >/dev/null 2>&1; then
-  package=omarchy
-fi
-
-if [[ -n $package ]]; then
-  update=$(checkupdates --nocolor 2>/dev/null | awk -v package="$package" '$1 == package { print; exit }' || true)
-fi
-
-if [[ -n ${update:-} ]]; then
-  updates+=("$update")
-fi
-
-if (( ${#updates[@]} > 0 )); then
-  printf '%s\n' "${updates[@]}"
-  exit 0
-else
+if ! status=$(omarchy-update-check "$@"); then
   echo "DoxIA is up to date"
   exit 1
 fi
+
+jq -r '
+  (if .staged.pending then "Update downloaded, waiting for the reboot" else empty end),
+  (if (.system | length) > 0 then "\(.system | length) system package(s)" else empty end),
+  (if (.flatpak.apps | length) > 0 then "\(.flatpak.apps | length) Flatpak app(s)" else empty end),
+  (if .flatpak.runtimes > 0 then "\(.flatpak.runtimes) Flatpak runtime(s)" else empty end),
+  (if .doxia.behind > 0 then "omarchy-dev-checkout \(.doxia.behind) new \(if .doxia.behind == 1 then "commit" else "commits" end) on \(.doxia.upstream)" else empty end)
+' <<<"$status"
