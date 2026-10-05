@@ -1,0 +1,158 @@
+#!/usr/bin/python3
+
+# omarchy:summary=Record the progress of a running update for the update window
+# omarchy:args=<begin|step|frac|add|set|askpass|finish|show> [args...]
+# omarchy:hidden=true
+
+"""omarchy-update calls this at each step when it runs for the update window
+(omarchy-update --gui). The window and the bar popup read the JSON file it keeps:
+
+  $XDG_RUNTIME_DIR/omarchy-update/state.json   the run in progress (gone on reboot)
+  ~/.local/state/omarchy/update-last.json      a copy of the last finished run
+
+  begin <mode> <step-id:label:weight>...   start a run with its steps in order
+  step <id> <run|done|skip|fail> [detail]  move a step on
+  frac <id> <0..1> [detail]                progress inside the running step
+  add <id> <label> <weight> [after-id]     append a step decided on the way
+  set <key> <json>                         any other field (rootCommands, reboot...)
+  askpass <wait|retry|done> [prompt]       the password window, see omarchy-update-askpass
+  finish <ok|staged|failed|canceled> [message]
+  abandon                                  finish as failed if the run never finished
+  show                                     print the state
+"""
+
+import fcntl
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+RUN_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "omarchy-update"
+STATE = RUN_DIR / "state.json"
+LAST = Path.home() / ".local/state/omarchy/update-last.json"
+
+
+def load():
+    try:
+        return json.loads(STATE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def save(state, path=STATE):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(state))
+    tmp.replace(path)
+
+
+def progress(state):
+    steps = state.get("steps", [])
+    total = sum(s["weight"] for s in steps) or 1
+    done = 0.0
+    for s in steps:
+        if s["state"] in ("done", "skip", "fail"):
+            done += s["weight"]
+        elif s["state"] == "run":
+            done += s["weight"] * s.get("frac", 0)
+    return round(100 * done / total)
+
+
+def find(state, step_id):
+    for s in state.get("steps", []):
+        if s["id"] == step_id:
+            return s
+    return None
+
+
+def main(args):
+    if not args:
+        sys.exit(__doc__)
+    cmd, rest = args[0], args[1:]
+
+    if cmd == "show":
+        print(json.dumps(load()))
+        return
+
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
+    with open(RUN_DIR / "state.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        state = load()
+        now = int(time.time())
+
+        if cmd == "begin":
+            steps = []
+            for spec in rest[1:]:
+                step_id, label, weight = spec.split(":", 2)
+                steps.append({"id": step_id, "label": label, "weight": float(weight), "state": "todo", "detail": ""})
+            state = {"running": True, "mode": rest[0], "startedAt": now, "steps": steps,
+                     "current": "", "result": "", "message": "", "reboot": "",
+                     "askpass": {"waiting": False, "attempt": 0}, "rootCommands": [], "summary": {}}
+        elif cmd == "step":
+            s = find(state, rest[0])
+            if s:
+                s["state"] = rest[1]
+                if len(rest) > 2:
+                    s["detail"] = rest[2]
+                if rest[1] == "run":
+                    s["frac"] = 0
+                    s["startedAt"] = now
+                    state["current"] = s["id"]
+                else:
+                    s["seconds"] = now - s.get("startedAt", now)
+        elif cmd == "frac":
+            s = find(state, rest[0])
+            if s:
+                s["frac"] = max(0.0, min(1.0, float(rest[1])))
+                if len(rest) > 2:
+                    s["detail"] = rest[2]
+        elif cmd == "add":
+            if not find(state, rest[0]):
+                step = {"id": rest[0], "label": rest[1], "weight": float(rest[2]), "state": "todo", "detail": ""}
+                steps = state.setdefault("steps", [])
+                after = find(state, rest[3]) if len(rest) > 3 else None
+                steps.insert(steps.index(after) + 1 if after else len(steps), step)
+        elif cmd == "set":
+            try:
+                state[rest[0]] = json.loads(rest[1])
+            except ValueError:
+                state[rest[0]] = rest[1]
+        elif cmd == "askpass":
+            ask = state.setdefault("askpass", {"waiting": False, "attempt": 0})
+            if rest[0] in ("wait", "retry"):
+                ask["waiting"] = True
+                ask["attempt"] = ask.get("attempt", 0) + 1
+                ask["prompt"] = rest[1] if len(rest) > 1 else ""
+            else:
+                ask["waiting"] = False
+        elif cmd == "abandon":
+            if not state.get("running"):
+                return
+            cmd, rest = "finish", ["failed", "A atualização foi interrompida."]
+            state["running"] = False
+            state["result"], state["message"], state["finishedAt"] = rest[0], rest[1], now
+            for s in state.get("steps", []):
+                if s["state"] == "run":
+                    s["state"] = "fail"
+        elif cmd == "finish":
+            state["running"] = False
+            state["result"] = rest[0]
+            state["message"] = rest[1] if len(rest) > 1 else ""
+            state["finishedAt"] = now
+            state.setdefault("askpass", {})["waiting"] = False
+            for s in state.get("steps", []):
+                if s["state"] == "run":
+                    s["state"] = "fail" if rest[0] in ("failed", "canceled") else "done"
+        else:
+            sys.exit(f"Unknown command: {cmd}")
+
+        state["progress"] = progress(state)
+        state["updatedAt"] = now
+        save(state)
+        if cmd == "finish":
+            state["seen"] = False
+            save(state, LAST)
+
+
+main(sys.argv[1:])

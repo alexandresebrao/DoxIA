@@ -1,0 +1,21 @@
+# DoxIA: finish an update that dnf offline installed on this boot
+# (fedora/doxia/update-finish). bin/omarchy-update-offline installs and enables it
+# when it arms the update and leaves /var/lib/doxia/update-finish-pending, which
+# the finish removes.
+[Unit]
+Description=DoxIA: finish the update before the login
+ConditionPathExists=/var/lib/doxia/update-finish-pending
+Wants=network-online.target
+After=network-online.target
+# No logins (graphical, console or ssh) until it is done
+Before=display-manager.service systemd-user-sessions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/doxia/update-finish
+# The temporary sudo rule goes even if the finish is killed
+ExecStopPost=/usr/bin/rm -f /etc/sudoers.d/90-doxia-update-finish
+TimeoutStartSec=60min
+
+[Install]
+WantedBy=multi-user.target

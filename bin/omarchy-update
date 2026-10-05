@@ -1,11 +1,19 @@
 #!/bin/bash
 
 # omarchy:summary=Update Omarchy and system packages
-# omarchy:args=[-y]
-# omarchy:examples=omarchy update | omarchy update -y
+# omarchy:args=[-y] [--now|--boot|--flatpak] [--gui]
+# omarchy:examples=omarchy update | omarchy update -y | omarchy update --now | omarchy update --boot
 # omarchy:requires-sudo=true
 
-set -e
+# --now      install the system packages right away (the original behavior)
+# --boot     download them now and install them on the next reboot (dnf offline)
+# --flatpak  only the Flatpak apps: no password, no reboot
+# Without one, the "mode" preference decides (omarchy-update-pref, set in the
+# Atualizar DoxIA window). --gui is how that window runs it (omarchy-update-run):
+# no prompts, the password comes through omarchy-update-askpass, and each step
+# is recorded with omarchy-update-state for the window and the bar icon.
+
+set -eE
 
 if [[ -z ${OMARCHY_UPDATE_LOGGED:-} ]] && command -v script >/dev/null; then
   script_command=$(printf '%q ' "$0" "$@")
@@ -16,58 +24,220 @@ if ! omarchy-update-lock held; then
   exec omarchy-update-lock run "$0" "$@"
 fi
 
-trap 'echo ""; echo -e "\033[0;31mSomething went wrong during the update!\n\nPlease review the output above carefully, correct the error, and retry the update.\n\nIf you need assistance, get help from the community at https://omarchy.org/discord\033[0m"' ERR
-trap 'omarchy-update-stay-awake stop' EXIT
+assume_yes=0
+gui=0
+mode=""
+for arg in "$@"; do
+  case $arg in
+    -y) assume_yes=1 ;;
+    --now) mode=now ;;
+    --boot) mode=boot ;;
+    --flatpak) mode=flatpak ;;
+    --gui) gui=1 assume_yes=1 ;;
+  esac
+done
+[[ -n $mode ]] || mode=$(omarchy-update-pref get mode)
+[[ $mode == "boot" ]] && ! omarchy-cmd-present dnf5 && mode=now
 
-omarchy-update-requires-free-space
+autoremove=$(omarchy-update-pref get autoremoveOrphans)
+snapshot=$(omarchy-update-pref get snapshot)
+omarchy-cmd-present snapper || snapshot=false
+
+state() { (( gui )) && omarchy-update-state "$@"; true; }
+
+current_step=""
+run_step() {
+  current_step=$1
+  shift
+  state step "$current_step" run
+  "$@"
+  state step "$current_step" done
+}
+
+skip_step() { state step "$1" skip "${2:-}"; }
+
+finish_failed() {
+  echo ""
+  echo -e "\033[0;31mSomething went wrong during the update!\n\nPlease review the output above carefully, correct the error, and retry the update.\n\nIf you need assistance, get help from the community at https://omarchy.org/discord\033[0m"
+  state step "$current_step" fail
+  state finish failed "$current_step"
+}
+
+trap finish_failed ERR
+trap 'omarchy-update-stay-awake stop' EXIT
+trap 'state finish canceled; exit 130' TERM INT
 
 # -y is a promise not to ask anything. Steps that would need an answer report
 # and move on instead of waiting on a prompt nobody is here to give.
-[[ ${1:-} != "-y" ]] || export OMARCHY_UPDATE_UNATTENDED=1
+(( assume_yes )) && export OMARCHY_UPDATE_UNATTENDED=1
+(( gui )) && export OMARCHY_UPDATE_GUI=1
 
-if [[ ${1:-} == "-y" ]] || omarchy-update-confirm; then
+case $mode in
+  now)
+    state begin now space:"Espaço livre":1 prune:"Limpar cache":1 snapshot:Snapshot:2 doxia:DoxIA:2 \
+      system:"Pacotes do sistema":30 migrate:"Migrações":4 hooks:"Configuração do DoxIA":10 \
+      flatpak:"Apps Flatpak":8 mise:"Ferramentas (mise)":3 orphans:"Pacotes órfãos":2
+    ;;
+  boot)
+    state begin boot space:"Espaço livre":1 prune:"Limpar cache":1 snapshot:Snapshot:2 doxia:DoxIA:2 \
+      flatpak:"Apps Flatpak":8 mise:"Ferramentas (mise)":3 download:"Baixar pacotes do sistema":25 \
+      arm:"Preparar o reinício":2
+    ;;
+  flatpak)
+    state begin flatpak flatpak:"Apps Flatpak":1
+    run_step flatpak omarchy-update-aur-pkgs
+    omarchy-update-status
+    state finish ok
+    exit 0
+    ;;
+esac
+
+run_step space omarchy-update-requires-free-space
+
+if (( assume_yes )) || omarchy-update-confirm "$mode"; then
+  # The exact commands the password authorizes, shown in the update window.
+  root_commands=("dnf clean packages")
+  [[ $snapshot == "true" ]] && root_commands+=("snapper create  (omarchy-snapshot create)")
+  root_commands+=("flatpak update -y --noninteractive")
+  if [[ $mode == "boot" ]]; then
+    root_commands+=("dnf upgrade --offline --refresh -y" "omarchy-update-offline arm  (prepara o reinício)"
+      "no reinício: migrações e fedora/update.sh  (doxia-update-finish.service)")
+    [[ $autoremove == "true" ]] && root_commands+=("no reinício: dnf autoremove -y")
+  else
+    root_commands+=("dnf upgrade --refresh -y" "migrações e fedora/update.sh  (podem usar sudo)")
+    [[ $autoremove == "true" ]] && root_commands+=("dnf autoremove -y")
+  fi
+  state set rootCommands "$(printf '%s\n' "${root_commands[@]}" | jq -R . | jq -sc .)"
+
   # One password for the whole update. sudo forgets it after 5 minutes, and the
   # package upgrade alone often takes longer, so every later step would ask
   # again: ask once here and keep it fresh in the background until the end.
-  sudo -v || exit 1
+  if (( gui )); then
+    run_dir="${XDG_RUNTIME_DIR:-/tmp}/omarchy-update"
+    rm -f "$run_dir/askpass.fifo" "$run_dir/askpass.count"
+    mkfifo -m 0600 "$run_dir/askpass.fifo"
+    sudo -k
+    if ! SUDO_ASKPASS="$OMARCHY_PATH/bin/omarchy-update-askpass" sudo -A -v 2>/dev/null; then
+      rm -f "$run_dir/askpass.fifo"
+      trap - ERR
+      state finish canceled "Senha não confirmada"
+      exit 1
+    fi
+    rm -f "$run_dir/askpass.fifo"
+  else
+    sudo -v || exit 1
+  fi
   ( while kill -0 $$ 2>/dev/null; do sudo -n -v 2>/dev/null; sleep 50; done ) &
   sudo_keepalive=$!
   trap 'kill "$sudo_keepalive" 2>/dev/null; omarchy-update-stay-awake stop' EXIT
 
   # Before the snapshot: the cache is on the snapshotted subvolume, so pruning
   # after it frees nothing until that snapshot ages out.
-  omarchy-update-pkg-prune
+  run_step prune omarchy-update-pkg-prune
 
   # 127 means Snapper is deliberately absent. Any other failure already said
   # what went wrong, and a missing snapshot is not worth blocking an update
   # over, but it must not pass for one either.
-  omarchy-snapshot create || (($? == 127)) ||
-    echo -e "\e[33mContinuing the update without a snapshot.\e[0m" >&2
+  if [[ $snapshot == "true" ]]; then
+    current_step=snapshot
+    state step snapshot run
+    if omarchy-snapshot create; then
+      state step snapshot done
+    else
+      echo -e "\e[33mContinuing the update without a snapshot.\e[0m" >&2
+      state step snapshot skip "falhou"
+    fi
+  elif omarchy-cmd-present snapper; then
+    skip_step snapshot "desligado"
+  else
+    skip_step snapshot "sem Snapper"
+  fi
 
   omarchy-update-stay-awake start
 
-  omarchy-update-dev
+  old_head=$(git -C "$OMARCHY_PATH" rev-parse HEAD 2>/dev/null || true)
+  run_step doxia omarchy-update-dev
   omarchy-update-keyring
+  if [[ -n $old_head ]] && ! git -C "$OMARCHY_PATH" diff --quiet "$old_head" HEAD -- shell 2>/dev/null; then
+    export OMARCHY_UPDATE_SHELL_CHANGED=1
+  fi
 
-  # Migrations ship with the packages installed here and are written against
-  # them, so everything below waits on this finishing. An upgrade that stopped
-  # takes the update with it rather than migrating against what is still on disk.
-  omarchy-update-system-pkgs
-  omarchy-migrate
-  omarchy-hook post-update
-  omarchy-update-aur-pkgs
-  omarchy-update-mise
-  omarchy-update-orphan-pkgs
+  packages=$(omarchy-update-check --cached 2>/dev/null | jq '.system | length' 2>/dev/null || echo 0)
+  migrations=$(omarchy-migrate --pending 2>/dev/null | grep -c . || true)
+
+  finish_live() {
+    # Migrations ship with the packages installed here and are written against
+    # them, so everything below waits on this finishing. An upgrade that stopped
+    # takes the update with it rather than migrating against what is still on disk.
+    run_step migrate omarchy-migrate
+    run_step hooks omarchy-hook post-update
+    [[ $mode == "now" ]] && run_step flatpak omarchy-update-aur-pkgs
+    [[ $mode == "now" ]] && run_step mise omarchy-update-mise
+    if [[ $autoremove == "true" ]]; then
+      run_step orphans omarchy-update-orphan-pkgs --auto
+    else
+      run_step orphans omarchy-update-orphan-pkgs
+    fi
+  }
+
+  if [[ $mode == "boot" ]]; then
+    # Flatpak and mise stay out of the system, so they update now either way.
+    run_step flatpak omarchy-update-aur-pkgs
+    run_step mise omarchy-update-mise
+    run_step download omarchy-update-system-pkgs --offline
+
+    offline_status=$(sed -n 's/^status = "\(.*\)"/\1/p' /usr/lib/sysimage/libdnf5/offline/offline-transaction-state.toml 2>/dev/null)
+    if [[ $offline_status == "download-complete" ]]; then
+      current_step=arm
+      state step arm run
+      staged_list=$(mktemp)
+      omarchy-update-check --cached 2>/dev/null |
+        jq --argjson now "$(date +%s)" '{packages: [.system[] | "\(.name) \(.from) → \(.to)"], stagedAt: $now}' > "$staged_list"
+      sudo "$OMARCHY_PATH/bin/omarchy-update-offline" arm "$USER" "$staged_list"
+      rm -f "$staged_list"
+      state step arm done
+      state set summary "{\"packages\": $packages}"
+      omarchy-update-status
+      kill "$sudo_keepalive" 2>/dev/null
+      omarchy-update-stay-awake stop
+      trap - EXIT ERR
+      state finish staged
+
+      if (( ! assume_yes )); then
+        echo
+        gum confirm "A atualização instala no próximo reinício. Reiniciar agora?" && omarchy-system-reboot
+      else
+        echo "The update installs on the next reboot."
+      fi
+      exit 0
+    fi
+
+    # Nothing for dnf: what came in (DoxIA commits) applies now, no reboot.
+    state step download skip "nada novo"
+    state step arm skip "sem reinício"
+    state add migrate "Migrações" 4 arm
+    state add hooks "Configuração do DoxIA" 10 migrate
+    state add orphans "Pacotes órfãos" 2 hooks
+    packages=0
+    finish_live
+  else
+    run_step system omarchy-update-system-pkgs
+    finish_live
+  fi
 
   omarchy-update-analyze-logs
   omarchy-update-status
+  state set summary "{\"packages\": $packages, \"migrations\": $migrations}"
 
   # Release update-owned inhibitors before offering a reboot. A confirmed
   # reboot can terminate this process before its EXIT trap gets a chance to
   # remove the persistent Stay Awake marker.
   omarchy-update-stay-awake stop
   kill "$sudo_keepalive" 2>/dev/null
-  trap - EXIT
+  trap - EXIT ERR
 
+  # Records a needed reboot for the window (OMARCHY_UPDATE_GUI) before the run
+  # is marked finished, and restarts the shell last.
   omarchy-update-restart
+  state finish ok
 fi
