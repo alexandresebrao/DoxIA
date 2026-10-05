@@ -593,9 +593,8 @@ Item {
           Button {
             visible: root.view === "idle"
             iconText: ""
-            text: "Verificar"
+            text: root.checking ? "Verificando\u2026" : "Verificar"
             bordered: true
-            iconSpinning: root.checking
             onClicked: root.check(true)
           }
           Button {
@@ -749,12 +748,6 @@ Item {
     font.pixelSize: Style.font.caption
   }
 
-  component PrimaryButton: Button {
-    background: Color.accent
-    foreground: Color.background
-    accent: Color.background
-  }
-
   component SourceRow: Rectangle {
     id: src
     property string glyph: ""
@@ -821,7 +814,12 @@ Item {
       color: banner.toneColor
       font.family: root.family
       font.pixelSize: Style.font.body
-      RotationAnimation on rotation { running: banner.spinning && banner.visible; from: 0; to: 360; duration: 1200; loops: Animation.Infinite }
+      SequentialAnimation on opacity {
+        running: banner.spinning && banner.visible
+        loops: Animation.Infinite
+        NumberAnimation { to: 0.3; duration: 700; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 1; duration: 700; easing.type: Easing.InOutSine }
+      }
     }
     Text {
       textFormat: Text.PlainText

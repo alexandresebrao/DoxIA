@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "../../update"
 import "../../update/UpdateModel.js" as Model
 
 // Bar icon for Atualizar DoxIA. Shows while there is something to update, an
@@ -185,11 +186,13 @@ Panel {
       : "Atualizações do DoxIA disponíveis"
     onPressed: root.toggle()
 
-    RotationAnimation on textRotation {
-      running: root.phase === "running"
-      from: 0; to: 360; duration: 1600
+    // A soft pulse while an update runs; a spinning glyph wobbles off-center.
+    SequentialAnimation on opacity {
+      running: root.phase === "running" || root.phase === "password"
       loops: Animation.Infinite
-      onRunningChanged: if (!running) button.textRotation = 0
+      NumberAnimation { to: 0.35; duration: 800; easing.type: Easing.InOutSine }
+      NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+      onRunningChanged: if (!running) button.opacity = 1.0
     }
   }
 
@@ -324,11 +327,9 @@ Panel {
             bordered: true
             onClicked: root.openWindow()
           }
-          Button {
+          PrimaryButton {
             text: root.phase === "available" ? "Atualizar" : root.phase === "staged" ? "Reiniciar" : "Abrir"
-            background: Color.accent
-            foreground: Color.background
-            accent: Color.background
+            fontFamily: root.bar ? root.bar.fontFamily : Style.font.family
             onClicked: {
               if (root.phase === "staged") { root.close(); Quickshell.execDetached(["omarchy-system-reboot"]) }
               else root.openWindow()
