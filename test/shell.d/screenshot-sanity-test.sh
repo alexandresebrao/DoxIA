@@ -69,6 +69,16 @@ exit 0
 SH
 chmod +x "$stub_bin/omarchy-update-available"
 
+# The bar icon reads omarchy-update-check's cached summary.
+cat >"$stub_bin/omarchy-update-check" <<'SH'
+#!/bin/bash
+status='{"checkedAt":1,"system":[{"name":"test","arch":"noarch","from":"1-1","to":"1-2","repo":"test"}],"flatpak":{"apps":[],"runtimes":0},"doxia":{"behind":0,"upstream":"","head":"","commits":[]},"staged":{"pending":false,"packages":[]},"snapper":false,"errors":[]}'
+mkdir -p "$HOME/.cache/omarchy"
+printf '%s\n' "$status" >"$HOME/.cache/omarchy/update-status.json"
+printf '%s\n' "$status"
+SH
+chmod +x "$stub_bin/omarchy-update-check"
+
 cat >"$stub_bin/curl" <<'SH'
 #!/bin/bash
 

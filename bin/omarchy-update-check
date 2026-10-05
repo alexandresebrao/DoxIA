@@ -1,0 +1,145 @@
+#!/usr/bin/python3
+
+# omarchy:summary=List what an update would change: dnf packages, Flatpak apps and DoxIA commits
+# omarchy:args=[--refresh] [--cached]
+# omarchy:examples=omarchy update check | omarchy update check --refresh
+
+"""Prints a JSON summary and keeps a copy in ~/.cache/omarchy/update-status.json
+for the update window and the bar icon. Exits 0 when there is something to do
+(including an update downloaded and waiting for the reboot), 1 otherwise.
+
+  --refresh  make dnf download fresh repository metadata first
+  --cached   print the last summary without checking again
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+CACHE = Path.home() / ".cache/omarchy/update-status.json"
+STAGED = Path("/var/lib/doxia/update-staged.json")
+FINISH_PENDING = Path("/var/lib/doxia/update-finish-pending")
+OMARCHY_PATH = os.environ.get("OMARCHY_PATH", "")
+PKG_LINE = re.compile(r"^(\S+)\.(\w+)\s+(\S+)\s+(\S+)\s*$")
+
+
+def run(cmd, timeout=180):
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return p.returncode, p.stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return -1, ""
+
+
+def system_updates(refresh, errors):
+    cmd = ["dnf", "-q", "check-update"] + (["--refresh"] if refresh else [])
+    code, out = run(cmd)
+    if code not in (0, 100):
+        errors.append("Não foi possível consultar os repositórios do dnf.")
+        return []
+    pkgs, section = [], "Upgrades"
+    for line in out.splitlines():
+        if line and not line[0].isspace() and " " not in line.strip():
+            section = line.strip()
+            continue
+        m = PKG_LINE.match(line)
+        if m and section == "Upgrades":
+            pkgs.append({"name": m[1], "arch": m[2], "to": m[3], "repo": m[4], "from": ""})
+    if pkgs:
+        code, out = run(["rpm", "-q", "--qf", "%{NAME}.%{ARCH} %{VERSION}-%{RELEASE}\n"] +
+                        [f"{p['name']}.{p['arch']}" for p in pkgs], timeout=30)
+        installed = dict(line.split(" ", 1) for line in out.splitlines() if " " in line)
+        for p in pkgs:
+            p["from"] = installed.get(f"{p['name']}.{p['arch']}", "")
+    return pkgs
+
+
+def flatpak_updates(errors):
+    apps, runtimes = [], 0
+    code, out = run(["flatpak", "remote-ls", "--updates", "--columns=ref,name"])
+    if code != 0:
+        if code != -1 or Path("/usr/bin/flatpak").exists():
+            errors.append("Não foi possível consultar o Flathub.")
+        return {"apps": apps, "runtimes": runtimes}
+    for line in out.splitlines():
+        ref, _, name = line.partition("\t")
+        if ref.startswith("app/"):
+            apps.append({"id": ref.split("/")[1], "name": name.strip() or ref.split("/")[1]})
+        elif ref.startswith("runtime/"):
+            runtimes += 1
+    return {"apps": apps, "runtimes": runtimes}
+
+
+def doxia_updates():
+    info = {"behind": 0, "upstream": "", "head": "", "commits": []}
+    if not OMARCHY_PATH or OMARCHY_PATH == "/usr/share/omarchy":
+        return info
+    git = ["git", "-C", OMARCHY_PATH]
+    _, upstream = run(git + ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], 10)
+    _, head = run(git + ["rev-parse", "--short", "HEAD"], 10)
+    info["upstream"], info["head"] = upstream.strip(), head.strip()
+    if not info["upstream"]:
+        return info
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    try:
+        subprocess.run(git + ["fetch", "--quiet"], env=env, timeout=20, capture_output=True)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    _, log = run(git + ["log", "--format=%s", f"HEAD..{info['upstream']}"], 10)
+    info["commits"] = [line for line in log.splitlines() if line]
+    info["behind"] = len(info["commits"])
+    return info
+
+
+def staged():
+    pending = os.path.islink("/system-update") or FINISH_PENDING.exists()
+    data = {"pending": pending, "packages": [], "stagedAt": 0, "finishing": FINISH_PENDING.exists()}
+    if pending:
+        try:
+            saved = json.loads(STAGED.read_text())
+            data["packages"] = saved.get("packages", [])
+            data["stagedAt"] = saved.get("stagedAt", 0)
+        except (OSError, ValueError):
+            pass
+    return data
+
+
+def snapper_present():
+    return any(Path(d, "snapper").exists() for d in os.environ.get("PATH", "/usr/bin").split(":"))
+
+
+def main(args):
+    if "--cached" in args:
+        try:
+            status = json.loads(CACHE.read_text())
+        except (OSError, ValueError):
+            sys.exit(1)
+    else:
+        errors = []
+        stage = staged()
+        status = {
+            "checkedAt": int(time.time()),
+            # A stored offline transaction already holds the system updates.
+            "system": [] if stage["pending"] else system_updates("--refresh" in args, errors),
+            "flatpak": flatpak_updates(errors),
+            "doxia": doxia_updates(),
+            "staged": stage,
+            "snapper": snapper_present(),
+            "errors": errors,
+        }
+        CACHE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = CACHE.with_name(CACHE.name + ".tmp")
+        tmp.write_text(json.dumps(status))
+        tmp.replace(CACHE)
+
+    print(json.dumps(status))
+    pending = (status["system"] or status["flatpak"]["apps"] or status["flatpak"]["runtimes"]
+               or status["doxia"]["behind"] or status["staged"]["pending"])
+    sys.exit(0 if pending else 1)
+
+
+main(sys.argv[1:])
