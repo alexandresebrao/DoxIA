@@ -242,6 +242,9 @@ Item {
   FloatingWindow {
     id: window
     title: "Atualizar DoxIA"
+    // keepLoaded: the plugin loads with the shell, so start hidden or every
+    // shell restart pops the window. open() shows it.
+    visible: false
     color: Color.background
     implicitWidth: 560
     implicitHeight: 620
