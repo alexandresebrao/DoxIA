@@ -7,7 +7,7 @@ up to date on the first boot, before the login screen, and clears the pending fi
 below; when it could not (no internet, say), this screen does it on the login. It is
 the installer wizard again (same window, sidebar and progress strip, imported
 from fedora/iso/wizard), asks for the user's password once, runs the Atualizar
-menu's update (omarchy-update -y, which ends with fedora/update.sh) and lets the
+menu's update right away (omarchy-update -y --now, which ends with fedora/update.sh) and lets the
 Finalizar button through to the desktop.
 
 install-user.sh leaves ~/.local/state/omarchy/doxia-first-boot-pending and starts
@@ -278,7 +278,7 @@ class FirstBoot(Gtk.Window):
                 "for i in $(seq 1 40); do echo \"[$i/40] Instalando demo-$i.rpm 100%\"; sleep 0.05; done; "
                 "for s in 'Kitty as the default terminal' 'Branding' 'Theme (DoxIA, the default)'; do echo \"==> $s\"; sleep 0.6; done; "
                 "echo 'Update Flatpak apps'; sleep 0.5")
-        command = ["bash", "-c", demo] if DEMO else ["omarchy-update", "-y"]
+        command = ["bash", "-c", demo] if DEMO else ["omarchy-update", "-y", "--now"]
         env = dict(os.environ, SUDO_PROMPT=SUDO_PROMPT, TERM="dumb", COLUMNS="200", NO_COLOR="1")
         pid, fd = pty.fork()
         if pid == 0:
