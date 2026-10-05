@@ -33,6 +33,9 @@ troca de branch e build rodam em `svc-<id>-task.service`. Toda saída vai para
       "node": "v20.18.0",               // opcional (node): versão/alias do nvm
       "pullOnCheckout": false,          // opcional: git pull --ff-only depois do checkout
       "restartOnBranchChange": "auto",  // "auto" = religa só se estava rodando; "always" = sempre liga
+      "logs": [                         // opcional: vários servidores → `svc log` abre abas no kitty
+        { "name": "JBoss", "file": "~/.local/state/omarchy-services/erp-jboss.log" }
+      ],                                // (uma aba por item + a aba "Build" com o log do svc)
       "onBranchChange": [               // passos em ordem, no dir, com o ambiente do serviço
         { "name": "Instalar deps", "run": "npm ci", "ifChanged": ["package.json", "package-lock.json"] },
         { "name": "Compilar", "run": "./mvnw -q -DskipTests package" }
