@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# omarchy:summary=Run an update for the Atualizar DoxIA window
+# omarchy:args=<start <now|boot|flatpak>|answer|stop|cancel-staged|active>
+# omarchy:hidden=true
+
+# start         omarchy-update --gui in a transient user unit, so the run
+#               survives the shell restarting (the window lives in the shell)
+# answer        pass the password on stdin to the waiting omarchy-update-askpass
+# stop          give up at the password: the run finishes as canceled
+# cancel-staged drop an update waiting for the reboot (pkexec: no terminal here)
+# active        exit 0 while a run is going
+
+set -euo pipefail
+
+unit=omarchy-update-run
+run_dir="${XDG_RUNTIME_DIR:-/tmp}/omarchy-update"
+fifo=$run_dir/askpass.fifo
+
+case "${1:-}" in
+  start)
+    mode=${2:?usage: omarchy-update-run start <now|boot|flatpak>}
+    [[ $mode == "now" || $mode == "boot" || $mode == "flatpak" ]] || { echo "Unknown mode: $mode" >&2; exit 1; }
+    if systemctl --user is-active --quiet "$unit"; then
+      echo "An update is already running." >&2
+      exit 1
+    fi
+    systemctl --user reset-failed "$unit" 2>/dev/null || true
+    mkdir -p "$run_dir"
+    omarchy-update-state begin "$mode"
+
+    env_args=()
+    for var in PATH OMARCHY_PATH LANG WAYLAND_DISPLAY DISPLAY HYPRLAND_INSTANCE_SIGNATURE DBUS_SESSION_BUS_ADDRESS; do
+      [[ -n ${!var:-} ]] && env_args+=("--setenv=$var=${!var}")
+    done
+
+    # The unit always exits cleanly: the result lives in the state file, which
+    # the window and the bar report, and a failed unit would also raise the
+    # generic "Failed unit detected" toast for a canceled password.
+    systemd-run --user --quiet --collect --unit="$unit" "${env_args[@]}" \
+      --property=ExecStopPost="$OMARCHY_PATH/bin/omarchy-update-state abandon" \
+      /bin/bash -c '"$0" "$@" || true' "$OMARCHY_PATH/bin/omarchy-update" --gui "--$mode"
+    ;;
+  answer)
+    [[ -p $fifo ]] || { echo "No update is waiting for a password." >&2; exit 1; }
+    IFS= read -r password || true
+    printf '%s\n' "$password" > "$fifo"
+    ;;
+  stop)
+    [[ -p $fifo ]] && printf '\n' > "$fifo"
+    ;;
+  cancel-staged)
+    pkexec "$OMARCHY_PATH/bin/omarchy-update-offline" cancel
+    omarchy-update-check >/dev/null || true
+    omarchy-shell -q omarchy.system-update refresh
+    ;;
+  active)
+    systemctl --user is-active --quiet "$unit"
+    ;;
+  *)
+    echo "Usage: omarchy-update-run <start <now|boot|flatpak>|answer|stop|cancel-staged|active>" >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# omarchy:summary=SUDO_ASKPASS for updates started from the update window
+# omarchy:args=[prompt]
+# omarchy:hidden=true
+
+# omarchy-update --gui runs `sudo -A -v` once with this as SUDO_ASKPASS. It
+# marks the state as waiting (the update window then shows its password field,
+# listing every command the update runs as root) and reads the answer from a
+# FIFO the window writes to. A second call in the same run means sudo rejected
+# the password. Silence for 10 minutes, or an empty answer (Cancelar), fails.
+
+set -uo pipefail
+
+run_dir="${XDG_RUNTIME_DIR:-/tmp}/omarchy-update"
+fifo="$run_dir/askpass.fifo"
+count_file="$run_dir/askpass.count"
+
+[[ -p $fifo ]] || exit 1
+
+count=$(( $(cat "$count_file" 2>/dev/null || echo 0) + 1 ))
+echo "$count" > "$count_file"
+
+if (( count == 1 )); then
+  omarchy-update-state askpass wait "${1:-}"
+else
+  omarchy-update-state askpass retry "${1:-}"
+fi
+
+# Opened read-write so the open does not block until the window connects.
+exec 3<>"$fifo"
+password=""
+read -r -t 600 password <&3
+status=$?
+exec 3<&-
+
+omarchy-update-state askpass done
+
+(( status == 0 )) && [[ -n $password ]] || exit 1
+printf '%s\n' "$password"

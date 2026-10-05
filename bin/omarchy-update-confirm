@@ -1,10 +1,15 @@
 #!/bin/bash
 
 # omarchy:summary=Prompt for confirmation before starting an update
+# omarchy:args=[now|boot]
+
+when="• System packages install right away"
+[[ ${1:-} == "boot" ]] && when="• System packages download now and install on the next reboot"
 
 gum style --border normal --padding "1 2" \
   "Ready to update?" \
   "" \
+  "$when" \
   "• You cannot stop the update once you start!" \
   "• Make sure you're connected to power or have a full battery" \
   "" \

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Review and optionally remove orphaned system packages after updates
+# omarchy:args=[--auto]
 # omarchy:requires-sudo=true
 # Fedora port: dnf's unneeded dependencies instead of pacman -Qtdq.
 
@@ -13,7 +14,16 @@ echo -e "\e[32m\nOrphan system packages\e[0m"
 printf '  %s\n' "${orphans[@]}"
 echo
 
+# --auto: the "Remover pacotes órfãos automaticamente" preference is on.
+if [[ ${1:-} == "--auto" ]]; then
+  [[ -n ${OMARCHY_UPDATE_GUI:-} ]] && omarchy-update-state frac orphans 0 "${#orphans[@]}"
+  sudo dnf autoremove -y
+  echo
+  exit 0
+fi
+
 if [[ ${OMARCHY_UPDATE_UNATTENDED:-} == 1 || ! -t 0 || ! -t 1 ]]; then
+  [[ -n ${OMARCHY_UPDATE_GUI:-} ]] && omarchy-update-state frac orphans 0 "${#orphans[@]} mantidos"
   echo "${#orphans[@]} orphaned package(s) found. Re-run omarchy-update-orphan-pkgs in a terminal to review/remove them."
   echo
   exit 0

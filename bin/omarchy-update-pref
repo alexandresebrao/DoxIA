@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+
+# omarchy:summary=Read or change the update preferences (Atualizar DoxIA > Preferências)
+# omarchy:args=[json | get <key> | set <key> <value>]
+# omarchy:examples=omarchy update pref get mode | omarchy update pref set autoremoveOrphans false
+
+"""The preferences live in ~/.config/omarchy/update.json; a missing file or key
+means the default below. The update window writes them with `set`, and
+omarchy-update, omarchy-update-check and the boot-time finish read them."""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+PATH = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "omarchy/update.json"
+
+DEFAULTS = {
+    # "boot": system packages are downloaded now and installed on the next
+    # reboot (dnf offline). "now": installed right away, as omarchy-update always did.
+    "mode": "boot",
+    "autoremoveOrphans": True,
+    "snapshot": True,
+    "checkHours": 6,
+    "autoFlatpak": False,
+}
+
+
+def load():
+    prefs = dict(DEFAULTS)
+    try:
+        stored = json.loads(PATH.read_text())
+        if isinstance(stored, dict):
+            prefs.update({k: v for k, v in stored.items() if k in DEFAULTS})
+    except (OSError, ValueError):
+        pass
+    return prefs
+
+
+def parse(key, raw):
+    default = DEFAULTS[key]
+    if isinstance(default, bool):
+        if raw.lower() in ("1", "true", "yes", "on"):
+            return True
+        if raw.lower() in ("0", "false", "no", "off"):
+            return False
+        sys.exit(f"{key} takes true or false")
+    if isinstance(default, int):
+        try:
+            return max(1, int(raw))
+        except ValueError:
+            sys.exit(f"{key} takes a number")
+    if key == "mode" and raw not in ("boot", "now"):
+        sys.exit("mode takes boot or now")
+    return raw
+
+
+def main(args):
+    if not args or args == ["json"]:
+        print(json.dumps(load()))
+        return
+    if args[0] == "get" and len(args) == 2 and args[1] in DEFAULTS:
+        value = load()[args[1]]
+        print(str(value).lower() if isinstance(value, bool) else value)
+        return
+    if args[0] == "set" and len(args) == 3 and args[1] in DEFAULTS:
+        prefs = load()
+        prefs[args[1]] = parse(args[1], args[2])
+        PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = PATH.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(prefs, indent=2) + "\n")
+        tmp.replace(PATH)
+        return
+    sys.exit("Usage: omarchy-update-pref [json | get <key> | set <key> <value>]\nKeys: " + ", ".join(DEFAULTS))
+
+
+main(sys.argv[1:])

@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# omarchy:summary=Arm or cancel the system update that installs on the next reboot
+# omarchy:args=<arm <user> <packages.json>|cancel>
+# omarchy:requires-sudo=true
+# omarchy:hidden=true
+
+# Run as root by omarchy-update (Atualizar DoxIA set to "No próximo reinício").
+#
+# arm: `dnf upgrade --offline` has downloaded and tested the transaction. dnf5
+# only triggers it from `dnf5 offline reboot`, which reboots on the spot; this
+# does the same preparation (the /system-update link systemd boots into
+# system-update.target with, and the "ready" status dnf5 offline _execute wants)
+# without rebooting, so any later reboot or poweroff installs it, as GNOME's
+# offline updates do. It also installs doxia-update-finish.service, which runs
+# the DoxIA migrations and post-update hook on that boot, before the login.
+#
+# cancel: drops the stored transaction and its downloads.
+
+set -euo pipefail
+
+datadir=/usr/lib/sysimage/libdnf5/offline
+state_file=$datadir/offline-transaction-state.toml
+state_dir=/var/lib/doxia
+
+(( EUID == 0 )) || { echo "Run as root" >&2; exit 1; }
+
+case "${1:-}" in
+  arm)
+    user=${2:?usage: omarchy-update-offline arm <user> <packages.json>}
+    packages=${3:?usage: omarchy-update-offline arm <user> <packages.json>}
+    home=$(getent passwd "$user" | cut -d: -f6)
+    checkout=$home/.local/share/omarchy
+
+    status=$(sed -n 's/^status = "\(.*\)"/\1/p' "$state_file" 2>/dev/null)
+    if [[ $status != "download-complete" && $status != "ready" ]]; then
+      echo "No offline transaction is ready to install (status: ${status:-none})" >&2
+      exit 1
+    fi
+
+    # Root-owned copies: the checkout belongs to the user and changes under a pull.
+    install -D -m 0755 "$checkout/fedora/doxia/update-finish" /usr/libexec/doxia/update-finish
+    install -m 0644 "$checkout/fedora/doxia/doxia-update-finish.service" /etc/systemd/system/doxia-update-finish.service
+    systemctl daemon-reload
+    systemctl enable --quiet doxia-update-finish.service
+
+    mkdir -p "$state_dir"
+    install -m 0644 "$packages" "$state_dir/update-staged.json"
+    echo "$user" > "$state_dir/update-finish-pending"
+
+    sed -i 's/^status = ".*"/status = "ready"/' "$state_file"
+    ln -sfn "$datadir" /system-update
+    echo "The update installs on the next reboot."
+    ;;
+  cancel)
+    rm -f /system-update "$state_dir/update-finish-pending" "$state_dir/update-staged.json"
+    dnf5 -q offline clean
+    echo "The update waiting for the reboot was canceled."
+    ;;
+  *)
+    echo "Usage: omarchy-update-offline <arm <user> <packages.json>|cancel>" >&2
+    exit 1
+    ;;
+esac

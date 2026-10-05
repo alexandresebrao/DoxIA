@@ -5,7 +5,13 @@
 
 if omarchy-cmd-present flatpak && [[ -n $(flatpak list --columns=application 2>/dev/null) ]]; then
   echo -e "\e[32m\nUpdate Flatpak apps\e[0m"
-  sudo flatpak update -y --noninteractive
+  # Polkit lets the active user update system-wide apps without a password, so
+  # Atualizar DoxIA's Flatpak-only update asks for none; sudo when it is at hand.
+  if sudo -n true 2>/dev/null; then
+    sudo flatpak update -y --noninteractive
+  else
+    flatpak update --system -y --noninteractive
+  fi
   flatpak update --user -y --noninteractive 2>/dev/null || true
   echo
 fi

@@ -1,10 +1,43 @@
 #!/bin/bash
 
 # omarchy:summary=Update system packages with dnf
+# omarchy:args=[--offline]
 # omarchy:requires-sudo=true
 # Fedora port: dnf instead of pacman.
+# --offline downloads and tests the upgrade, which then installs on a reboot
+# (omarchy-update-offline arms it). From the update window (OMARCHY_UPDATE_GUI)
+# dnf's "[ 12/380]" lines move the step's progress bar.
 
 set -e
 
+offline=()
+[[ ${1:-} == "--offline" ]] && offline=(--offline)
+
+if [[ -n ${OMARCHY_UPDATE_GUI:-} ]]; then
+  step=system
+  (( ${#offline[@]} )) && step=download
+  echo -e "\e[32m\nUpdate system packages\e[0m"
+  sudo dnf upgrade --refresh -y "${offline[@]}" 2>&1 | {
+    # Downloads fill the first half and the transaction the second; an offline
+    # run stops after the downloads and its test transaction.
+    phase_start=0 phase_size=0.5 last=-1
+    (( ${#offline[@]} )) && phase_size=1
+    while IFS= read -r line; do
+      echo "$line"
+      [[ $line == "Running transaction"* ]] && phase_start=0.5
+      if [[ $line =~ ^\[\ *([0-9]+)/([0-9]+)\]\ +(.*) ]]; then
+        pct=$(( 100 * BASH_REMATCH[1] / BASH_REMATCH[2] ))
+        if (( pct != last )); then
+          last=$pct
+          item=${BASH_REMATCH[3]%% *}
+          omarchy-update-state frac "$step" "$(awk -v s="$phase_start" -v z="$phase_size" -v p="$pct" 'BEGIN { print s + z * p / 100 }')" \
+            "${BASH_REMATCH[1]}/${BASH_REMATCH[2]} · $item"
+        fi
+      fi
+    done
+  }
+  exit "${PIPESTATUS[0]}"
+fi
+
 echo -e "\e[32m\nUpdate system packages\e[0m"
-sudo dnf upgrade --refresh -y
+sudo dnf upgrade --refresh -y "${offline[@]}"

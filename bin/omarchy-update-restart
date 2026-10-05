@@ -5,6 +5,9 @@
 echo
 
 confirm_reboot() {
+  # The update window shows its own Reiniciar agora button.
+  [[ -n ${OMARCHY_UPDATE_GUI:-} ]] && omarchy-update-state set reboot "\"$2\""
+
   # omarchy-update -y promises not to ask: say a reboot is due and let the caller offer it.
   if [[ ${OMARCHY_UPDATE_UNATTENDED:-} == 1 ]]; then
     echo "Reboot required: $1"
@@ -28,14 +31,14 @@ for kernel in /usr/lib/modules/*/vmlinuz; do
 done
 
 if [[ $kernel_updated == "true" ]]; then
-  confirm_reboot "Linux kernel has been updated. Reboot?"
+  confirm_reboot "Linux kernel has been updated. Reboot?" "O kernel foi atualizado"
 elif [[ -f $HOME/.local/state/omarchy/reboot-required ]]; then
-  confirm_reboot "Updates require reboot. Ready?"
+  confirm_reboot "Updates require reboot. Ready?" "A atualização pede um reinício"
 fi
 
 running_hyprland=$(readlink /proc/$(pgrep -x Hyprland)/exe 2>/dev/null)
 if [[ $running_hyprland == *"(deleted)"* ]]; then
-  confirm_reboot "Hyprland has been updated. Reboot?"
+  confirm_reboot "Hyprland has been updated. Reboot?" "O Hyprland foi atualizado"
 fi
 
 for file in "$HOME"/.local/state/omarchy/restart-*-required; do
@@ -47,6 +50,10 @@ for file in "$HOME"/.local/state/omarchy/restart-*-required; do
     omarchy-restart-"$service"
   fi
 done
+
+# From the update window, only when the update changed the shell: the restart
+# closes the window, which then reopens on the result.
+[[ -n ${OMARCHY_UPDATE_GUI:-} && -z ${OMARCHY_UPDATE_SHELL_CHANGED:-} ]] && exit 0
 
 # Updates routinely replace the shell's QML, and a stale process can lazy-load
 # new files into old code. A restart failure (locked session, ssh, TTY) only

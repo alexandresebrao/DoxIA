@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# DoxIA: finishes an update installed on this boot. With Atualizar DoxIA set to
+# "No próximo reinício", omarchy-update downloads the system packages and arms a
+# dnf offline transaction (bin/omarchy-update-offline); systemd installs it in
+# system-update.target and reboots. On the boot after that, this runs what
+# omarchy-update would have run after the packages: the DoxIA migrations, the
+# post-update hook (fedora/update.sh) and, when the preference is on, the orphan
+# package cleanup. The boot splash keeps its "updates" mode with the percentage
+# bar meanwhile, and the result goes to ~/.local/state/omarchy/update-last.json,
+# which the update window and the bar icon show after the login.
+#
+# Run as root by doxia-update-finish.service, from the root-owned copy in
+# /usr/libexec/doxia. Like fedora/doxia/first-boot-update, it runs before
+# systemd-user-sessions.service, so no one is logged in while the user's own
+# steps briefly get passwordless sudo.
+
+set -uo pipefail
+
+pending=/var/lib/doxia/update-finish-pending
+staged=/var/lib/doxia/update-staged.json
+grant=/etc/sudoers.d/90-doxia-update-finish
+log=/var/log/doxia-update-finish.log
+
+user=$(<"$pending")
+home=$(getent passwd "$user" | cut -d: -f6)
+checkout=$home/.local/share/omarchy
+result_file=$home/.local/state/omarchy/update-last.json
+
+exec > >(tee -a "$log") 2>&1
+echo "== DoxIA update finish, $(date)"
+
+splash() { plymouth --ping 2>/dev/null && plymouth "$@" 2>/dev/null; true; }
+progress() { splash system-update --progress="$1"; }
+
+as_user() {
+  runuser -u "$user" -- env HOME="$home" USER="$user" LOGNAME="$user" \
+    OMARCHY_PATH="$checkout" PATH="$checkout/bin:$home/.local/bin:/usr/local/bin:/usr/bin:/usr/sbin" \
+    "$@"
+}
+
+cleanup() { rm -f "$grant"; }
+trap cleanup EXIT
+
+packages=$(jq '.packages | length' "$staged" 2>/dev/null || echo 0)
+steps='[]'
+
+add_step() {
+  steps=$(jq -c --arg id "$1" --arg label "$2" --arg state "$3" --arg detail "${4:-}" \
+    '. + [{id: $id, label: $label, state: $state, detail: $detail, weight: 1}]' <<<"$steps")
+}
+
+write_result() {
+  local result=$1 message=$2 migrations=${3:-0} orphans=${4:-0}
+  jq -n --arg result "$result" --arg message "$message" --argjson steps "$steps" \
+    --argjson packages "$packages" --argjson migrations "$migrations" --argjson orphans "$orphans" \
+    --argjson now "$(date +%s)" \
+    '{running: false, mode: "boot", result: $result, message: $message, finishedAt: $now,
+      seen: false, progress: 100, steps: $steps,
+      summary: {packages: $packages, migrations: $migrations, orphans: $orphans}}' |
+    as_user bash -c 'mkdir -p "$(dirname "$1")" && cat > "$1"' _ "$result_file"
+}
+
+finish() {
+  rm -f "$pending" "$staged"
+  echo "== Done ($1), $(date)"
+}
+
+offline=$(dnf5 offline status 2>&1)
+if [[ $offline != *"No offline transaction is stored"* ]]; then
+  echo "$offline"
+  add_step system "Pacotes do sistema" fail
+  if [[ $offline == *"did not finish"* ]]; then
+    write_result failed "A instalação dos pacotes não terminou. O sistema continua na versão anterior. Veja o motivo com: sudo dnf5 offline log"
+  else
+    write_result failed "A atualização não foi instalada neste reinício. Abra o Atualizar DoxIA e prepare de novo."
+  fi
+  dnf5 -q offline clean || true
+  finish failed
+  exit 0
+fi
+add_step system "$packages pacotes instalados" done
+
+splash change-mode --updates
+progress 5
+
+staged_rule=$(mktemp)
+printf '%s\n' "# fedora/doxia/update-finish: only while an update finishes, before any login." \
+  "$user ALL=(ALL) NOPASSWD: ALL" > "$staged_rule"
+visudo -cqf "$staged_rule" && install -m 0440 -o root -g root "$staged_rule" "$grant"
+rm -f "$staged_rule"
+
+echo "==> Migrations"
+migrations=$(as_user omarchy-migrate --pending 2>/dev/null | grep -c . || true)
+if as_user omarchy-migrate; then
+  add_step migrate "Migrações" done "$migrations"
+else
+  add_step migrate "Migrações" fail
+  write_result failed "Uma migração do DoxIA falhou. Veja $log." "$migrations"
+  finish failed
+  exit 0
+fi
+progress 30
+
+echo "==> Post-update hook (fedora/update.sh)"
+# A throwaway session bus for the gsettings calls (no one is logged in).
+if as_user dbus-run-session -- omarchy-hook post-update; then
+  add_step hooks "Configuração do DoxIA" done
+else
+  add_step hooks "Configuração do DoxIA" fail
+fi
+progress 85
+
+orphans=0
+if [[ $(as_user omarchy-update-pref get autoremoveOrphans) == "true" ]]; then
+  echo "==> Orphan packages"
+  orphans=$(dnf -q repoquery --unneeded --qf '%{name}\n' 2>/dev/null | sort -u | grep -c . || true)
+  if (( orphans > 0 )); then
+    dnf autoremove -y && add_step orphans "Pacotes órfãos" done "$orphans" || add_step orphans "Pacotes órfãos" fail
+  else
+    add_step orphans "Pacotes órfãos" skip "nenhum"
+  fi
+fi
+rm -f "$grant"
+progress 100
+
+write_result ok "" "$migrations" "$orphans"
+finish ok
