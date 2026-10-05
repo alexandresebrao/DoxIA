@@ -209,31 +209,65 @@ Fallbacks:
   explicitly runs that hook; without a package-update marker, the only pending
   state we can derive is missing per-user migration markers.
 
-## Shell update indicator
+## Shell update indicator and the Atualizar DoxIA window
 
-The bar widget `omarchy.system-update` runs:
+Fedora port. `omarchy-update-check` lists what an update would change, as JSON:
+dnf packages (installed and new versions), Flatpak apps and runtimes, new
+commits for the dev-linked checkout, and an update downloaded and waiting for
+the reboot. It keeps a copy in `~/.cache/omarchy/update-status.json` and exits
+`0` when there is something to do. `omarchy-update-available` keeps the old
+one-line-per-source output on top of it.
 
-```bash
-omarchy-update-available
-```
+The bar widget `omarchy.system-update` runs the check on shell startup and every
+`checkHours` (preference, default 6). Its popup summarizes the state and opens
+the window; it also runs the background Flatpak update (`autoFlatpak`) and sends
+the notification when an update finishes.
 
-`omarchy-update-available` checks the active Omarchy sources for updates:
+The window is the `omarchy.update` panel plugin, opened by
+`omarchy-launch-update` (Menu > Atualizar > DoxIA, and the bar popup). It shows
+each source and when it installs, the password prompt with every command the
+update runs as root, the progress, the result, and the preferences
+(`omarchy-update-pref`, stored in `~/.config/omarchy/update.json`):
 
-- new upstream commits for the active dev-linked checkout
-- `omarchy-dev`, when installed
-- otherwise `omarchy`, when installed
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `mode` | `boot` | `boot`: system packages download now and install on the next reboot. `now`: installed right away. |
+| `autoremoveOrphans` | `true` | `dnf autoremove -y` at the end, without asking. |
+| `snapshot` | `true` | Snapper snapshot before updating (ignored without Snapper). |
+| `checkHours` | `6` | How often the bar checks. |
+| `autoFlatpak` | `false` | Update Flatpak apps in the background. |
 
-The dev check fetches the checkout's configured upstream before comparing it
-with `HEAD`. A failed fetch is quiet and falls back to the existing remote-
-tracking state.
+### How the window runs an update
 
-Exit codes:
+`omarchy-update-run start <now|boot|flatpak>` starts `omarchy-update --gui` in
+the transient user unit `omarchy-update-run.service`, so the run survives a
+shell restart. `omarchy-update` still runs under `script(1)`, which gives sudo
+a terminal: `sudo -A -v` asks once through `omarchy-update-askpass` (the window
+writes the answer into a FIFO, never argv) and the usual keepalive covers the
+rest. Each step is recorded with `omarchy-update-state`:
 
-- `0` — Omarchy updates are available; stdout is the update list.
-- non-zero — no Omarchy updates are available; stdout says Omarchy is up to date.
+| Path | Purpose |
+| --- | --- |
+| `$XDG_RUNTIME_DIR/omarchy-update/state.json` | The run in progress: steps, progress, password prompt. |
+| `~/.local/state/omarchy/update-last.json` | The last finished run (or boot finish); `seen` / `notified` flags. |
 
-The widget runs this check on shell startup and every six hours. Clicking the
-update icon launches `omarchy-update` in a floating terminal.
+`--flatpak` needs no password: polkit lets the active user update system-wide
+Flatpak apps.
+
+### Installing on the next reboot
+
+With `mode` = `boot`, Flatpak, mise and new DoxIA commits apply right away, and
+`omarchy-update-system-pkgs --offline` runs `dnf upgrade --offline`, which
+downloads and tests the transaction. `omarchy-update-offline arm` (root) then
+prepares it the way `dnf5 offline reboot` does (the `/system-update` link and
+the `ready` status) without rebooting, so the next reboot or poweroff installs
+it in `system-update.target`, with the boot splash in its "updates" mode. It
+also installs `doxia-update-finish.service`, which on the following boot, before
+any login, runs the migrations, the post-update hook and the orphan cleanup
+(`fedora/doxia/update-finish`, like `first-boot-update`) and writes the result
+for the window. When dnf has nothing to download, the rest applies right away
+and no reboot is needed. `omarchy-update-run cancel-staged` (pkexec) drops a
+waiting update.
 
 ## Update-related binaries
 

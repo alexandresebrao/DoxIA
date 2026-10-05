@@ -12,3 +12,6 @@ hl.layer_rule({ match = { namespace = "^(omarchy-menu|omarchy-image-selector|oma
 -- Dev gallery is the main shell workbench; open it maximized like
 -- SUPER+ALT+F so component previews have the whole workspace.
 o.window({ class = "^org.quickshell$", title = "^Omarchy shell – dev gallery$" }, { maximize = true })
+
+-- Atualizar DoxIA (plugins/update) is a dialog: float it, centered.
+o.window({ class = "^org.quickshell$", title = "^Atualizar DoxIA$" }, { float = true, center = true, size = { 560, 620 } })
