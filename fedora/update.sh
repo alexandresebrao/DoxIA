@@ -80,11 +80,20 @@ fi
 echo "==> GNOME Shell out (ISO installs got it through the yaru-theme metapackage)"
 # Only Yaru's icons are used. The keyring PAM module came in as one of GNOME
 # Shell's dependencies but unlocks the keyring at the SDDM login, so it is marked
-# as wanted before dnf drops the rest (GDM, Mutter, GNOME Settings...).
+# as wanted before dnf drops the rest (GDM, Mutter, GNOME Settings...). So are
+# malcontent (its polkit policy lets flatpak read the parental controls; without
+# it every flatpak dies with "Not allowed to query parental controls data") and
+# tuned/tuned-ppd, installed just above, which dnf would otherwise sweep away too.
 if omarchy-pkg-present yaru-theme; then
-  sudo dnf mark user -y gnome-keyring gnome-keyring-pam yaru-icon-theme >/dev/null
+  keep=()
+  for pkg in gnome-keyring gnome-keyring-pam yaru-icon-theme malcontent tuned tuned-ppd; do
+    omarchy-pkg-present "$pkg" && keep+=("$pkg")
+  done
+  sudo dnf mark user -y "${keep[@]}" >/dev/null
   omarchy-pkg-drop yaru-theme gnome-shell-theme-yaru gnome-shell-extension-user-theme gnome-shell
 fi
+# Installs updated before that fix lost malcontent along with GNOME Shell.
+omarchy-pkg-add malcontent
 
 echo "==> Icon font (∞ glyph)"
 mkdir -p "$HOME/.local/share/fonts/omarchy"
