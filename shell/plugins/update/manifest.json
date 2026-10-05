@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "omarchy.update",
+  "name": "Atualizar DoxIA",
+  "version": "1.0.0",
+  "author": "Omarchy",
+  "description": "Update window: what an update changes, when each part installs, its progress and preferences. Open with omarchy-launch-update.",
+  "kinds": [
+    "panel"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "panel": "UpdateWindow.qml"
+  }
+}
