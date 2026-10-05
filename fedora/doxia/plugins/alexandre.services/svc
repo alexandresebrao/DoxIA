@@ -15,7 +15,7 @@
 #   svc start|stop|restart <id>
 #   svc checkout <id> <branch> troca de branch e roda os passos de onBranchChange
 #   svc build <id>             roda os passos de onBranchChange sem trocar de branch
-#   svc log <id>               abre um terminal com o log do serviço
+#   svc log <id>               abre um terminal com o log do serviço (abas, com "logs")
 #   svc validate               confere a config
 
 set -uo pipefail
@@ -386,9 +386,26 @@ cmd_runtime() {
 }
 
 cmd_log() {
-  local id="$1"; svc_json "$id" >/dev/null
+  local id="$1" json; json="$(svc_json "$id")" || exit 1
   local log; log="$(log_file "$id")"
   touch "$log"
+
+  # Serviço com "logs" (vários servidores, cada um com seu arquivo): uma aba do
+  # kitty por log, na ordem da config, e por último a do svc (start, stop, build).
+  if [[ $(jq '(.logs // []) | length' <<<"$json") -gt 0 ]] && command -v kitty >/dev/null; then
+    local session="$STATE_DIR/$id.kitty-session" name file focus=focus
+    : >"$session"
+    while IFS=$'\t' read -r name file; do
+      file="$(expand_dir "$file")"
+      touch "$file"
+      # "focus" só na primeira: é a aba que abre na frente.
+      printf 'new_tab %s\nlaunch --title %q bash -c %q\n%s\n\n' "$name" "$name" "tail -n 1000 -F '$file'" "$focus" >>"$session"
+      focus=""
+    done < <(jq -r '.logs[] | "\(.name)\t\(.file)"' <<<"$json")
+    printf 'new_tab Build\nlaunch --title Build bash -c %q\n' "tail -n 1000 -F '$log'" >>"$session"
+    exec setsid uwsm-app -- kitty --class=org.omarchy.services-log --title="log: $id" --session "$session"
+  fi
+
   exec setsid uwsm-app -- xdg-terminal-exec --app-id=org.omarchy.services-log --title="log: $id" \
     -e bash -c "tail -n 1000 -F '$log'"
 }
@@ -412,6 +429,8 @@ cmd_validate() {
     git -C "$dir" rev-parse --git-dir >/dev/null 2>&1 || echo "! $id: $dir não é repositório git (sem troca de branch)"
     jq -e '(.onBranchChange // []) | all(.run? | type == "string")' <<<"$json" >/dev/null \
       || { echo "✗ $id: todo passo de onBranchChange precisa de run"; ok=1; }
+    jq -e '(.logs // []) | all((.name? | type == "string") and (.file? | type == "string"))' <<<"$json" >/dev/null \
+      || { echo "✗ $id: todo item de logs precisa de name e file"; ok=1; }
   done < <(jq -c '.services[]?' "$CONFIG")
   dup="$(jq -r '[.services[].id] | group_by(.) | map(select(length > 1) | .[0]) | .[]' "$CONFIG")"
   [[ -z $dup ]] || { echo "✗ ids repetidos: $dup"; ok=1; }
