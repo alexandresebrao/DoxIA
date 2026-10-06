@@ -1,5 +1,10 @@
 # DoxIA
 
+<p align="center">
+  <a href="docs/media/doxia-intro.mp4"><img src="docs/media/doxia-intro.gif" alt="Vídeo de apresentação do DoxIA" width="640"></a>
+  <br><sub><a href="docs/media/doxia-intro.mp4">Assista ao vídeo com som</a></sub>
+</p>
+
 DoxIA é um desktop Hyprland + Quickshell para **Fedora**, todo em **português do Brasil**,
 pensado para quem desenvolve: Node.js e Java já vêm gerenciados, a barra tem um painel
 para subir os serviços do dia a dia e há uma ISO própria de instalação. Ele pode ser
