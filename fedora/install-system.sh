@@ -91,12 +91,12 @@ bash "$omarchy_path/fedora/doxia/install-chrome" --system || echo "  Chrome was 
 # evince-thumbnailer above keeps PDF thumbnails in Nautilus. ONLYOFFICE replaces
 # LibreOffice, which Fedora's spins install (removing it also drops the JDK only it
 # needed: java and node come from SDKMAN! and nvm, fedora/doxia/install-dev-tools).
-echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese)"
+echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese, Thunderbird)"
 office_rpms=$(rpm -qa --qf '%{NAME}\n' 'libreoffice*' unoconv)
 if [[ -n $office_rpms ]]; then
   dnf remove -y $office_rpms
 fi
-flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors)
+flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors org.mozilla.Thunderbird)
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 # Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
 # language from LANG, and ships the pt-BR translation and spell checker itself. Its
@@ -128,6 +128,10 @@ UNIT
 else
   flatpak install -y --noninteractive flathub "${flatpak_apps[@]}"
 fi
+
+# Thunderbird is every user's default mail client (mailto: links, .eml files);
+# ~/.config/mimeapps.list still wins for anyone who picks another one.
+install -Dm644 "$omarchy_path/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
 
 # Fedora ships tuned-ppd (same D-Bus API as power-profiles-daemon, which conflicts
 # with it) but no powerprofilesctl, which Omarchy's power menu relies on.

@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
-# name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice) and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice), Thunderbird as the default mail client and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
 # added; the rest of the bar stays as it is).
 #
@@ -292,6 +292,10 @@ flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
   --env=QT_IM_MODULE=compose --env=GTK_IM_MODULE=gtk-im-context-simple org.onlyoffice.desktopeditors
 flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
 ROOT
+
+echo "==> Mail: Thunderbird from Flathub as every user's default mail client (sudo)"
+sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.Thunderbird
+sudo install -Dm644 "$OMARCHY_PATH/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
 
 echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
