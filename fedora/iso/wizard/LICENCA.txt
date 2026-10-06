@@ -59,6 +59,7 @@ Project e nos sites de cada projeto. Entre os principais:
     MIT
   - ONLYOFFICE Desktop Editors (Flathub): AGPL-3.0
   - Evince (Flathub): GPL-2.0 ou posterior
+  - Thunderbird (Flathub): MPL-2.0
   - nvm (versões do Node.js): MIT
   - SDKMAN! (versões do Java): Apache-2.0
   - Oh My Zsh: MIT

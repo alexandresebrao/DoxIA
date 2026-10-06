@@ -1,0 +1,7 @@
+# DoxIA: aplicativos padrão do sistema (todos os usuários); instalado em /etc/xdg/mimeapps.list.
+# Cada usuário pode trocar em ~/.config/mimeapps.list, que tem prioridade.
+[Default Applications]
+x-scheme-handler/mailto=org.mozilla.Thunderbird.desktop
+x-scheme-handler/mid=org.mozilla.Thunderbird.desktop
+message/rfc822=org.mozilla.Thunderbird.desktop
+application/x-extension-eml=org.mozilla.Thunderbird.desktop
