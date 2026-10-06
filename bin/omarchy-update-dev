@@ -18,4 +18,16 @@ if [[ -z $upstream ]]; then
 fi
 
 echo -e "\e[32m\nUpdate Omarchy dev checkout\e[0m"
-git -C "$OMARCHY_PATH" pull --ff-only
+# --autostash keeps uncommitted local edits across the pull. When they clash with
+# upstream, git still exits 0 but leaves conflict markers, which the update scripts
+# would then run: put the upstream version of those files back, and leave the local
+# edits in the stash.
+git -C "$OMARCHY_PATH" pull --ff-only --autostash
+conflicted=$(git -C "$OMARCHY_PATH" diff --name-only --diff-filter=U)
+if [[ -n $conflicted ]]; then
+  mapfile -t files <<<"$conflicted"
+  git -C "$OMARCHY_PATH" checkout HEAD -- "${files[@]}"
+  git -C "$OMARCHY_PATH" reset -q
+  echo -e "\e[33mLocal changes to these files clashed with the update and were set aside in $(git -C "$OMARCHY_PATH" rev-parse --short stash@{0}) (git stash list):\e[0m"
+  printf '  %s\n' "${files[@]}"
+fi
