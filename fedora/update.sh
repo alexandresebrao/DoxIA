@@ -197,6 +197,9 @@ fi
 if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
+if ! grep -q "scroll_focus" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
+  { echo; cat "$doxia/hypr/scroll-focus.lua"; } >> "$HOME/.config/hypr/bindings.lua"
+fi
 
 echo "==> Theme (DoxIA, the default)"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
