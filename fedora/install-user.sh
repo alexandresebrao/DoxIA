@@ -178,8 +178,11 @@ bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
 # Lucide icons for the system (DoxIA's icons.theme), redone in the theme's text
 # color on every theme change by the theme-set hook.
 bash "$OMARCHY_PATH/fedora/doxia/lucide/make-theme"
-mkdir -p ~/.config/omarchy/hooks/theme-set.d
-cp "$OMARCHY_PATH/fedora/doxia/hooks/theme-set.d/lucide-icons" ~/.config/omarchy/hooks/theme-set.d/
+# The shell's Nerd Font icons redrawn with Lucide (DoxIA Shell font, used only
+# by Quickshell), redone by the font-set hook when the font changes.
+python3 "$OMARCHY_PATH/fedora/doxia/lucide/make-shell-font"
+mkdir -p ~/.config/omarchy/hooks
+cp -r "$OMARCHY_PATH/fedora/doxia/hooks/." ~/.config/omarchy/hooks/
 
 echo "==> Theme (DoxIA, the default)"
 mkdir -p ~/.config/omarchy/themes

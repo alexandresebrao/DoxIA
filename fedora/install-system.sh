@@ -65,6 +65,8 @@ packages=(
   gtk3
   # The DoxIA shell: zsh with Oh My Zsh (fedora/doxia/install-zsh)
   zsh
+  # Builds the DoxIA Shell font, the shell's icons in Lucide (fedora/doxia/lucide/make-shell-font)
+  python3-fonttools
   # FortiVPN bar widget (fedora/doxia/plugins/doxia.fortivpn)
   openfortivpn
 

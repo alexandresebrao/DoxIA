@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Depois de trocar a fonte (omarchy-font-set <família>): refaz a DoxIA Shell, a
+# cópia dessa fonte com os ícones Lucide que só o Quickshell usa, e reinicia o
+# shell, que o omarchy-font-set já reiniciou com a fonte antiga.
+
+python3 "$OMARCHY_PATH/fedora/doxia/lucide/make-shell-font" "$1" && omarchy-restart-shell

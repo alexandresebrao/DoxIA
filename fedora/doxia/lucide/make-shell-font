@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+"""Gera a fonte "DoxIA Shell": a fonte monospace atual com os ícones Nerd Font
+do nerd.tsv redesenhados com o Lucide, nos mesmos codepoints.
+
+Uma regra do fontconfig (60-doxia-shell.conf, ao lado deste arquivo) faz o
+monospace virar essa fonte só para o Quickshell. Assim a barra, os painéis e
+os menus usam o Lucide sem mexer nos QML do Omarchy, e terminais e o resto do
+sistema continuam com a fonte original. Letras e métricas são as da fonte
+original. Roda no install-user.sh, no update.sh e no hook font-set (troca de
+fonte). Precisa do python3-fonttools.
+
+Uso: make-shell-font [família de origem]   (padrão: a que o monospace resolve)
+"""
+import json
+import shutil
+import statistics
+import subprocess
+import sys
+from pathlib import Path
+
+from fontTools.pens.cu2quPen import Cu2QuPen
+from fontTools.pens.transformPen import TransformPen
+from fontTools.svgLib.path import SVGPath
+from fontTools.pens.ttGlyphPen import TTGlyphPen
+from fontTools.ttLib import TTFont
+
+here = Path(__file__).resolve().parent
+dest = Path.home() / ".local/share/fonts/DoxIAShell"
+family_out = "DoxIA Shell"
+# A Lucide ocupa ~83% do quadrado de desenho; os ícones Nerd, ~100% da caixa.
+LUCIDE_FILL = 1000 / 832
+
+
+def run(*args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout
+
+
+def source_files(family):
+    files = run("fc-list", f":family={family}", "file").split()
+    return sorted({f.rstrip(":") for f in files if f.endswith((".ttf:", ".ttf"))})
+
+
+class ExtraGlyph:
+    """Um ícone de extra/<id>.svg (grade de 24, y para baixo) desenhado como se
+    fosse um glifo da lucide.ttf (quadrado de 1000, y para cima)."""
+
+    def __init__(self, ident):
+        self.path = here / "extra" / f"{ident}.svg"
+
+    def draw(self, pen):
+        flip = TransformPen(pen, (1000 / 24, 0, 0, -1000 / 24, 0, 1000))
+        SVGPath(str(self.path)).draw(flip)
+
+
+def load_map():
+    mapping = {}
+    for line in (here / "nerd.tsv").read_text().splitlines():
+        cols = line.split("\t")
+        if len(cols) >= 2 and not line.startswith("#"):
+            # 4ª coluna opcional: escala do ícone em relação aos outros.
+            extra = float(cols[3]) if len(cols) >= 4 and cols[3] else 1.0
+            mapping[int(cols[0], 16)] = (cols[1], extra)
+    return mapping
+
+
+def bounds(font, name):
+    glyf = font["glyf"]
+    glyph = glyf[name]
+    glyph.recalcBounds(glyf)
+    if not hasattr(glyph, "xMin"):
+        return None
+    return glyph.xMin, glyph.yMin, glyph.xMax, glyph.yMax
+
+
+def rename(font, old_family):
+    # Os campos de família (1, 16, 21) viram só "DoxIA Shell", para nenhum app que
+    # pede a fonte original (inclusive pelo nome curto, "JetBrainsMono NF")
+    # receber esta; nome completo e PostScript trocam a família por substring.
+    names = font["name"]
+    olds = {old_family}
+    for record in names.names:
+        if record.nameID in (1, 16, 21):
+            olds.add(record.toUnicode())
+    olds = sorted(olds | {o.replace(" ", "") for o in olds}, key=len, reverse=True)
+    for record in names.names:
+        if record.nameID in (1, 16, 21):
+            record.string = family_out
+        elif record.nameID in (3, 4, 6):
+            text = record.toUnicode()
+            for old in olds:
+                if old in text:
+                    new = family_out if " " in old or record.nameID != 6 else family_out.replace(" ", "")
+                    text = text.replace(old, new)
+                    break
+            record.string = text
+
+
+def build(path, old_family, lucide, lucide_codes, mapping):
+    font = TTFont(path)
+    cmap = font.getBestCmap()
+    lucide_cmap = lucide.getBestCmap()
+    lucide_glyphs = lucide.getGlyphSet()
+
+    # "extra:<id>" no nerd.tsv é um ícone de extra/ (logos, do Tabler); o resto,
+    # um nome Lucide.
+    targets = []
+    for code, (icon, extra) in mapping.items():
+        name = cmap.get(code)
+        box = bounds(font, name) if name else None
+        if not box:
+            continue
+        if icon.startswith("extra:"):
+            source = ExtraGlyph(icon[len("extra:"):])
+        else:
+            source = lucide_glyphs[lucide_cmap[lucide_codes[icon]]]
+        targets.append((name, box, source, extra))
+    if not targets:
+        return None
+
+    # Tamanho e altura únicos para todos os ícones (a mediana dos Nerd trocados),
+    # centrados na horizontal onde estava o glifo original.
+    size = statistics.median(max(t[1][2] - t[1][0], t[1][3] - t[1][1]) for t in targets) * LUCIDE_FILL
+    center_y = statistics.median((t[1][1] + t[1][3]) / 2 for t in targets)
+
+    glyf = font["glyf"]
+    hmtx = font["hmtx"]
+    done = set()
+    for name, box, source, extra in targets:
+        if name in done:
+            continue
+        done.add(name)
+        center_x = (box[0] + box[2]) / 2
+        scale = size * extra / 1000
+        pen = TTGlyphPen(None)
+        transform = (scale, 0, 0, scale, center_x - 500 * scale, center_y - 500 * scale)
+        source.draw(Cu2QuPen(TransformPen(pen, transform), max_err=1, reverse_direction=False))
+        glyph = pen.glyph()
+        glyph.recalcBounds(glyf)
+        glyf[name] = glyph
+        hmtx[name] = (hmtx[name][0], getattr(glyph, "xMin", 0))
+
+    for table in ("hdmx", "LTSH", "VDMX"):
+        if table in font:
+            del font[table]
+    rename(font, old_family)
+    out = dest / Path(path).name.replace(old_family.replace(" ", ""), family_out.replace(" ", ""))
+    font.save(out)
+    return out, len(done)
+
+
+def main():
+    family = sys.argv[1] if len(sys.argv) > 1 else run("fc-match", "monospace", "family").split(",")[0].strip()
+    if family == family_out:
+        sys.exit("o monospace já resolve para a DoxIA Shell; passe a família de origem")
+    files = source_files(family)
+    if not files:
+        sys.exit(f"nenhum arquivo .ttf da família {family}")
+
+    lucide = TTFont(here / "lucide.ttf")
+    lucide_codes = json.loads((here / "codepoints.json").read_text())
+    mapping = load_map()
+
+    shutil.rmtree(dest, ignore_errors=True)
+    dest.mkdir(parents=True)
+    (dest / "SOURCE").write_text(family + "\n")
+    built = 0
+    for path in files:
+        result = build(path, family, lucide, lucide_codes, mapping)
+        if result:
+            built += 1
+            print(f"  {result[0].name}: {result[1]} ícones")
+    if not built:
+        sys.exit(f"{family} não tem ícones Nerd Font para trocar")
+
+    conf_dir = Path.home() / ".config/fontconfig/conf.d"
+    conf_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(here / "60-doxia-shell.conf", conf_dir / "60-doxia-shell.conf")
+    run("fc-cache", "-f", str(dest))
+
+
+if __name__ == "__main__":
+    main()
