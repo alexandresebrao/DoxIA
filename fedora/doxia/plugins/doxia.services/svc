@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backend do painel de serviços (alexandre.services).
+# Backend do painel de serviços (doxia.services).
 #
 # Cada serviço roda como uma unit transitória do systemd do usuário
 # (svc-<id>.service); trocas de branch e builds rodam em svc-<id>-task.service.

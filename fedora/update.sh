@@ -77,6 +77,9 @@ if ! systemctl is-enabled --quiet tuned-ppd.service || ! systemctl is-active --q
   sudo systemctl enable --now tuned.service tuned-ppd.service
 fi
 
+echo "==> FortiVPN bar widget (openfortivpn)"
+omarchy-pkg-add openfortivpn
+
 echo "==> GNOME Shell out (ISO installs got it through the yaru-theme metapackage)"
 # Only Yaru's icons are used. The keyring PAM module came in as one of GNOME
 # Shell's dependencies but unlocks the keyring at the SDDM login, so it is marked

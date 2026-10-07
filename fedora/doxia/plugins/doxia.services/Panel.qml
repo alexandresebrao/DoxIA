@@ -9,8 +9,8 @@ import qs.Ui
 // lemos `svc status` e disparamos ações. A config é ~/.config/omarchy/services.json.
 Panel {
   id: root
-  moduleName: "alexandre.services"
-  ipcTarget: "alexandre.services"
+  moduleName: "doxia.services"
+  ipcTarget: "doxia.services"
 
   readonly property string pluginDir: String(Qt.resolvedUrl(".")).replace(/^file:\/\//, "").replace(/\/$/, "")
   readonly property string svc: pluginDir + "/svc"
