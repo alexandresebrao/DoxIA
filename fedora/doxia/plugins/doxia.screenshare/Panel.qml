@@ -35,7 +35,14 @@ BarWidget {
       + "hyprctl dispatch \"hl.dsp.window.move({ workspace = 'special:screenshare', follow = false, window = 'address:$a' })\"; done"])
   }
 
-  onSharingChanged: if (sharing) hideTimer.restart()
+  // Durante o compartilhamento o cursor passa a ser desenhado por software:
+  // o cursor por hardware (plano da GPU) fica fora dos frames do portal e
+  // não aparece pra quem assiste. Ao parar, volta ao automático (2).
+  onSharingChanged: {
+    Quickshell.execDetached(["hyprctl", "eval",
+      "hl.config({ cursor = { no_hardware_cursors = " + (sharing ? 1 : 2) + " } })"])
+    if (sharing) hideTimer.restart()
+  }
 
   Timer {
     id: hideTimer
