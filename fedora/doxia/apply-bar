@@ -6,7 +6,9 @@
 # the ∞ menu button and workspace icons on the left, Now Playing and the screen
 # share indicator around the clock, CPU/memory/battery usage on the right and
 # the services panel (doxia.services) and FortiVPN (doxia.fortivpn) between the
-# agents and network icons.
+# agents and network icons, and the Painel Rápido button (doxia.painel) at the
+# end of the left side. The Painel Rápido app (fedora/doxia/painel) goes on the
+# PATH as doxia-painel and in the launcher.
 # The panel's svc script goes on the PATH and its /servicos Claude Code skill to
 # ~/.claude/skills.
 # Widgets already placed (or moved) stay where they are, and the old Xi widgets
@@ -20,7 +22,7 @@ plugins=$HOME/.config/omarchy/plugins
 shell_json=$HOME/.config/omarchy/shell.json
 
 mkdir -p "$plugins"
-for name in alexandre.media alexandre.screenshare alexandre.services alexandre.fortivpn; do
+for name in alexandre.media alexandre.screenshare alexandre.services alexandre.fortivpn alexandre.painel; do
   rm -rf "${plugins:?}/$name"
 done
 for plugin in "$omarchy_path"/fedora/doxia/plugins/*/; do
@@ -31,6 +33,20 @@ done
 
 mkdir -p "$HOME/.local/bin"
 ln -sfn "$plugins/doxia.services/svc" "$HOME/.local/bin/svc"
+ln -sfn "$omarchy_path/fedora/doxia/painel" "$HOME/.local/bin/doxia-painel"
+mkdir -p "$HOME/.local/share/applications"
+cat > "$HOME/.local/share/applications/org.doxia.Painel.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Painel Rápido
+Comment=Atalhos do dia a dia: chamados, pipelines e tarefas
+Keywords=painel;atalhos;jira;chamado;gitlab;pipeline;tarefas;
+Exec=$omarchy_path/fedora/doxia/painel
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;
+StartupWMClass=org.doxia.Painel
+DESKTOP
 skills=$HOME/.claude/skills
 mkdir -p "$skills"
 for skill in "$omarchy_path"/fedora/doxia/claude/skills/*/; do
@@ -58,7 +74,7 @@ jq '
     map(if .id == "omarchy.menu" or .id == "xi.emblem" then {id: "doxia.emblem"}
         elif .id == "omarchy.workspaces" or .id == "xi.workspaces" then {id: "doxia.workspaces"}
         elif .id == "xi.reactor" then {id: "doxia.usage"}
-        elif .id | IN("alexandre.media", "alexandre.screenshare", "alexandre.services", "alexandre.fortivpn")
+        elif .id | IN("alexandre.media", "alexandre.screenshare", "alexandre.services", "alexandre.fortivpn", "alexandre.painel")
           then .id |= sub("^alexandre"; "doxia")
         else . end);
   .bar.layout |= (
@@ -75,6 +91,8 @@ jq '
           elif $n != null then .[:$n] + [{id: "doxia.services"}] + .[$n:]
           else . + [{id: "doxia.services"}] end)
       end
+    | if (.left + .center + .right | has("doxia.painel")) then .
+      else .left += [{id: "doxia.painel"}] end
     # FortiVPN right after the services panel.
     | if (.left + .center + .right | has("doxia.fortivpn")) then .
       else .right |= (

@@ -68,12 +68,15 @@ if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 
-echo "==> Hyprland window rules (Xwayland video bridge, services log window)"
+echo "==> Hyprland window rules (Xwayland video bridge, services log window, Painel Rápido)"
 if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 if ! grep -q "org.omarchy.services-log" ~/.config/hypr/hyprland.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/services-rule.lua"; } >> ~/.config/hypr/hyprland.lua
+fi
+if ! grep -q "org.doxia.Painel" ~/.config/hypr/hyprland.lua; then
+  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/painel-rule.lua"; } >> ~/.config/hypr/hyprland.lua
 fi
 
 echo "==> Window focus by scroll (SUPER + mouse wheel, three-finger swipe)"

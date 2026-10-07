@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "doxia.painel",
+  "name": "Painel Rápido",
+  "version": "2.0.0",
+  "author": "alexandre",
+  "license": "MIT",
+  "description": "Botão na barra que abre o Painel Rápido (doxia-painel).",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Painel Rápido",
+    "description": "Clique: abre o painel. Botão direito: a ação favorita.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "left"
+  }
+}

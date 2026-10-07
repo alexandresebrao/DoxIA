@@ -1,0 +1,1007 @@
+#!/usr/bin/env python3
+"""Painel Rápido do DoxIA: atalhos do dia a dia num painel flutuante (GTK4/libadwaita).
+
+As ações vêm de ~/.config/omarchy/painel.json (a skill /painel do Claude Code cria
+e edita esse arquivo). Tipos de ação:
+
+  jira-request     formulário que abre um chamado no Jira Service Management,
+                   com "Melhorar com Claude" opcional para reescrever um campo
+  jira-tasks       lista de tarefas de uma busca JQL, agrupadas por status
+  gitlab-pipeline  inicia uma pipeline no GitLab com variáveis, lembrando as recentes
+  link             abre uma URL
+  command          roda um comando
+
+Uso: doxia-painel [<id da ação> | --favorito]
+
+Credenciais do Jira (e-mail + API token, por site) ficam em
+~/.config/omarchy/painel-credenciais.json (modo 600), pedidas na primeira vez.
+O GitLab usa o token do glab (`glab auth login`). As combinações recentes das
+pipelines ficam em ~/.local/state/doxia-painel/.
+"""
+
+import base64
+import json
+import os
+import subprocess
+import sys
+import threading
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
+
+APP_ID = "org.doxia.Painel"
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state"))
+CONFIG_FILE = CONFIG_HOME / "omarchy" / "painel.json"
+CREDENTIALS_FILE = CONFIG_HOME / "omarchy" / "painel-credenciais.json"
+STATE_DIR = STATE_HOME / "doxia-painel"
+
+TOKEN_URL = "https://id.atlassian.com/manage-profile/security/api-tokens"
+TASKS_CATEGORIES = (("indeterminate", "Em andamento", "accent"),
+                    ("new", "A fazer", "warning"),
+                    ("done", "Concluídas", "success"))
+MAX_RECENT = 6
+
+CLAUDE_MODEL = "sonnet"
+CLAUDE_TIMEOUT = 180
+
+DEFAULT_ICONS = {
+    "jira-request": "dialog-warning-symbolic",
+    "jira-tasks": "view-list-symbolic",
+    "gitlab-pipeline": "media-playback-start-symbolic",
+    "link": "web-browser-symbolic",
+    "command": "utilities-terminal-symbolic",
+}
+
+
+# --- Configuração -----------------------------------------------------------
+
+def load_config():
+    """Lê painel.json. Devolve (config, erro); sem arquivo é config vazia sem erro."""
+    try:
+        cfg = json.loads(CONFIG_FILE.read_text())
+    except FileNotFoundError:
+        return {"actions": []}, None
+    except (OSError, ValueError) as e:
+        return {"actions": []}, f"{CONFIG_FILE}: {e}"
+    if not isinstance(cfg, dict) or not isinstance(cfg.get("actions", []), list):
+        return {"actions": []}, f"{CONFIG_FILE}: esperado um objeto com a lista \"actions\""
+    cfg.setdefault("actions", [])
+    return cfg, None
+
+
+def jira_site(cfg, action):
+    site = action.get("site") or (cfg.get("jira") or {}).get("site") or ""
+    return site.rstrip("/")
+
+
+def load_credentials(site):
+    try:
+        return json.loads(CREDENTIALS_FILE.read_text()).get(site, {})
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def save_credentials(site, creds):
+    try:
+        data = json.loads(CREDENTIALS_FILE.read_text())
+    except (OSError, ValueError):
+        data = {}
+    data[site] = creds
+    CREDENTIALS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(CREDENTIALS_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(data, f, indent=2)
+    os.chmod(CREDENTIALS_FILE, 0o600)
+
+
+def expand_path(path):
+    return Path(os.path.expandvars(os.path.expanduser(path)))
+
+
+# --- Jira -------------------------------------------------------------------
+
+class JiraError(Exception):
+    pass
+
+
+def jira_request(site, creds, method, path, body=None):
+    auth = base64.b64encode(f"{creds['email']}:{creds['token']}".encode()).decode()
+    req = urllib.request.Request(
+        site + path,
+        method=method,
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode(errors="replace")
+        try:
+            data = json.loads(raw)
+            msg = data.get("errorMessage") or "; ".join(data.get("errorMessages", [])) or raw
+            if data.get("errors"):
+                msg += " " + "; ".join(f"{k}: {v}" for k, v in data["errors"].items())
+        except ValueError:
+            msg = raw[:300]
+        if e.code == 401:
+            msg = "E-mail ou API token inválidos."
+        raise JiraError(f"HTTP {e.code}: {msg}") from None
+    except urllib.error.URLError as e:
+        raise JiraError(f"Falha de conexão: {e.reason}") from None
+
+
+def create_jira_request(site, creds, action, values):
+    return jira_request(site, creds, "POST", "/rest/servicedeskapi/request", {
+        "serviceDeskId": str(action["serviceDesk"]),
+        "requestTypeId": str(action["requestType"]),
+        "requestFieldValues": values,
+    })
+
+
+def search_issues(site, creds, jql):
+    issues, token = [], None
+    while True:
+        body = {"jql": jql, "maxResults": 100,
+                "fields": ["summary", "status", "priority", "project", "issuetype", "updated"]}
+        if token:
+            body["nextPageToken"] = token
+        page = jira_request(site, creds, "POST", "/rest/api/3/search/jql", body)
+        issues += page.get("issues", [])
+        token = page.get("nextPageToken")
+        if page.get("isLast", True) or not token:
+            return issues
+
+
+# --- GitLab -----------------------------------------------------------------
+
+class GitlabError(Exception):
+    pass
+
+
+def gitlab_token(host):
+    try:
+        out = subprocess.run(["glab", "config", "get", "token", "--host", host],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        out = None
+    token = out.stdout.strip() if out else ""
+    if not token:
+        raise GitlabError(f"Sem token do GitLab para {host}. Rode `glab auth login` no terminal.")
+    return token
+
+
+def gitlab_request(host, method, path, body=None):
+    req = urllib.request.Request(
+        f"https://{host}/api/v4{path}",
+        method=method,
+        data=json.dumps(body).encode() if body is not None else None,
+        headers={"PRIVATE-TOKEN": gitlab_token(host), "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read() or b"{}")
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode(errors="replace")
+        try:
+            data = json.loads(raw)
+            msg = data.get("message") or data.get("error") or raw
+            if isinstance(msg, dict):
+                msg = "; ".join(f"{k}: {', '.join(v) if isinstance(v, list) else v}" for k, v in msg.items())
+            elif isinstance(msg, list):
+                msg = "; ".join(map(str, msg))
+        except ValueError:
+            msg = raw[:300]
+        if e.code == 401:
+            msg = "token do glab inválido ou expirado (rode `glab auth login`)."
+        raise GitlabError(f"HTTP {e.code}: {msg}") from None
+    except urllib.error.URLError as e:
+        raise GitlabError(f"Falha de conexão: {e.reason}") from None
+
+
+def gitlab_project_path(project):
+    return urllib.parse.quote(str(project), safe="")
+
+
+def gitlab_branches(host, project):
+    branches = gitlab_request(host, "GET",
+                              f"/projects/{gitlab_project_path(project)}/repository/branches?per_page=100")
+    return sorted(b["name"] for b in branches)
+
+
+def gitlab_pipeline(host, project, ref, variables):
+    return gitlab_request(host, "POST", f"/projects/{gitlab_project_path(project)}/pipeline", {
+        "ref": ref,
+        "variables": [{"key": k, "value": v} for k, v in variables.items()],
+    })
+
+
+def recent_file(action_id):
+    return STATE_DIR / f"{action_id}.json"
+
+
+def load_recent(action_id, keys):
+    try:
+        recent = json.loads(recent_file(action_id).read_text()).get("recent", [])
+        return [r for r in recent if all(r.get(k) for k in keys)]
+    except (OSError, ValueError, AttributeError):
+        return []
+
+
+def save_recent(action_id, keys, combo):
+    recent = [combo] + [r for r in load_recent(action_id, keys) if r != combo]
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
+    recent_file(action_id).write_text(json.dumps({"recent": recent[:MAX_RECENT]}, indent=2))
+
+
+# --- Claude -----------------------------------------------------------------
+
+def claude_prompt(spec):
+    if spec.get("promptFile"):
+        return expand_path(spec["promptFile"]).read_text()
+    return spec.get("prompt", "")
+
+
+def claude_rewrite(spec, context, text):
+    """Pede ao Claude Code (modo -p, sem ferramentas) uma nova versão do texto."""
+    prompt = "".join(f"{label}: {value or '(não informado)'}\n" for label, value in context)
+    prompt += f"\nTexto escrito por quem está preenchendo:\n{text}"
+    try:
+        system = claude_prompt(spec)
+    except OSError as e:
+        raise RuntimeError(f"Prompt do Claude: {e}") from None
+    try:
+        proc = subprocess.run(
+            ["claude", "-p", "--model", spec.get("model", CLAUDE_MODEL), "--system-prompt", system,
+             "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+             "--no-session-persistence"],
+            input=prompt, capture_output=True, text=True, timeout=CLAUDE_TIMEOUT,
+            cwd=GLib.get_tmp_dir())
+    except FileNotFoundError:
+        raise RuntimeError("Comando claude não encontrado no PATH") from None
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("O Claude demorou demais para responder") from None
+    out = proc.stdout.strip()
+    if proc.returncode != 0 or not out:
+        err = (proc.stderr or proc.stdout).strip().splitlines()
+        raise RuntimeError("Claude: " + (err[-1] if err else f"saiu com código {proc.returncode}"))
+    return out
+
+
+# --- Utilidades da interface --------------------------------------------------
+
+def run_async(func, on_done):
+    """Roda func() numa thread e entrega (resultado, erro) no loop do GTK."""
+    def worker():
+        try:
+            result, err = func(), None
+        except Exception as e:  # noqa: BLE001
+            result, err = None, e
+        GLib.idle_add(on_done, result, err)
+    threading.Thread(target=worker, daemon=True).start()
+
+
+def open_url(url):
+    Gio.AppInfo.launch_default_for_uri(url, None)
+
+
+def time_ago(iso):
+    """'2026-10-05T11:02:33.000-0300' -> 'há 3 h'."""
+    from datetime import datetime, timezone
+    try:
+        then = datetime.strptime(iso[:19] + iso[-5:], "%Y-%m-%dT%H:%M:%S%z")
+    except ValueError:
+        return ""
+    mins = int((datetime.now(timezone.utc) - then).total_seconds() // 60)
+    if mins < 60:
+        return f"há {max(mins, 1)} min"
+    if mins < 24 * 60:
+        return f"há {mins // 60} h"
+    days = mins // (24 * 60)
+    return "ontem" if days == 1 else f"há {days} dias"
+
+
+def entry_row(title, placeholder=""):
+    row = Adw.EntryRow(title=title)
+    if placeholder:
+        row.set_tooltip_text(placeholder)
+    return row
+
+
+def action_button_box(*widgets):
+    group = Adw.PreferencesGroup()
+    box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    for w in widgets:
+        box.append(w)
+    group.add(box)
+    return group
+
+
+def add_shortcut(widget, trigger, callback):
+    keys = Gtk.ShortcutController(scope=Gtk.ShortcutScope.MANAGED)
+    keys.add_shortcut(Gtk.Shortcut(trigger=Gtk.ShortcutTrigger.parse_string(trigger),
+                                   action=Gtk.CallbackAction.new(lambda *_: callback() or True)))
+    widget.add_controller(keys)
+
+
+# --- Páginas ------------------------------------------------------------------
+
+class CredentialsPage(Adw.NavigationPage):
+    def __init__(self, site, on_saved):
+        super().__init__(title="Credenciais do Jira", tag="credenciais")
+        self.site = site
+        self.on_saved = on_saved
+        creds = load_credentials(site)
+
+        toolbar = Adw.ToolbarView()
+        toolbar.add_top_bar(Adw.HeaderBar())
+
+        page = Adw.PreferencesPage()
+        group = Adw.PreferencesGroup(
+            title=f"Acesso ao {urllib.parse.urlparse(site).netloc or site}",
+            description="Usado só para agir no Jira em seu nome. Fica salvo em "
+                        f"{CREDENTIALS_FILE.as_posix().replace(str(Path.home()), '~')} (visível só para você).",
+        )
+        self.email = Adw.EntryRow(title="E-mail da conta Atlassian")
+        self.email.set_text(creds.get("email", ""))
+        self.token = Adw.PasswordEntryRow(title="API token")
+        self.token.set_text(creds.get("token", ""))
+        group.add(self.email)
+        group.add(self.token)
+
+        link = Adw.ActionRow(title="Gerar um API token", subtitle="id.atlassian.com → Segurança → API tokens",
+                             activatable=True)
+        link.add_suffix(Gtk.Image.new_from_icon_name("external-link-symbolic"))
+        link.connect("activated", lambda *_: open_url(TOKEN_URL))
+        group.add(link)
+        page.add(group)
+
+        self.status = Gtk.Label(wrap=True, css_classes=["dim-label"], margin_top=6)
+        self.save_btn = Gtk.Button(label="Testar e salvar", css_classes=["suggested-action", "pill"],
+                                   halign=Gtk.Align.CENTER, margin_top=12)
+        self.save_btn.connect("clicked", self.on_save)
+        page.add(action_button_box(self.save_btn, self.status))
+
+        toolbar.set_content(page)
+        self.set_child(toolbar)
+
+    def on_save(self, _btn):
+        creds = {"email": self.email.get_text().strip(), "token": self.token.get_text().strip()}
+        if not creds["email"] or not creds["token"]:
+            self.status.set_text("Preencha e-mail e token.")
+            return
+        self.save_btn.set_sensitive(False)
+        self.status.set_text("Testando…")
+
+        def done(user, err):
+            self.save_btn.set_sensitive(True)
+            if err:
+                self.status.set_text(str(err))
+                return
+            save_credentials(self.site, creds)
+            self.status.set_text(f"Conectado como {user.get('displayName', creds['email'])}.")
+            self.on_saved()
+
+        run_async(lambda: jira_request(self.site, creds, "GET", "/rest/api/3/myself"), done)
+
+
+class JiraRequestPage(Adw.NavigationPage):
+    """Formulário de chamado do Jira Service Management."""
+
+    def __init__(self, window, cfg, action):
+        super().__init__(title=action["title"], tag=action["id"])
+        self.window = window
+        self.action = action
+        self.site = jira_site(cfg, action)
+        self.fields = action.get("fields") or []
+        self.claude = action.get("claude")
+        self.inputs = {}
+
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        if action.get("portalUrl"):
+            portal = Gtk.Button(icon_name="web-browser-symbolic", tooltip_text="Abrir no portal")
+            portal.connect("clicked", lambda *_: open_url(action["portalUrl"]))
+            header.pack_end(portal)
+        toolbar.add_top_bar(header)
+
+        page = Adw.PreferencesPage()
+        group = Adw.PreferencesGroup(title=action.get("formTitle", action["title"]),
+                                     description=action.get("formDescription", ""))
+        page.add(group)
+        for field in self.fields:
+            if field.get("multiline"):
+                text_group = Adw.PreferencesGroup(title=field["label"], description=field.get("hint", ""))
+                view = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, top_margin=10, bottom_margin=10,
+                                    left_margin=12, right_margin=12, accepts_tab=False)
+                view.add_css_class("painel-desc")
+                text_group.add(Gtk.ScrolledWindow(min_content_height=180, css_classes=["card"], child=view))
+                page.add(text_group)
+                self.inputs[field["key"]] = view
+            else:
+                row = entry_row(field["label"], field.get("hint", ""))
+                group.add(row)
+                self.inputs[field["key"]] = row
+        if all(f.get("multiline") for f in self.fields):
+            group.set_visible(bool(group.get_description()))
+
+        self.status = Gtk.Label(wrap=True, css_classes=["dim-label"], margin_top=6)
+        self.send_btn = Gtk.Button(label=action.get("submitLabel", "Abrir chamado"),
+                                   css_classes=["suggested-action", "pill"], halign=Gtk.Align.CENTER, margin_top=6)
+        self.send_btn.connect("clicked", self.on_send)
+        buttons = Gtk.Box(spacing=12, halign=Gtk.Align.CENTER)
+        self.claude_btn = None
+        self.claude_spinner = Adw.Spinner(visible=False, margin_top=6)
+        if self.claude and self.claude.get("field") in self.inputs:
+            self.claude_btn = Gtk.Button(css_classes=["pill"], margin_top=6,
+                                         tooltip_text=self.claude.get("tooltip", "Reescrever o texto com o Claude") + " (Ctrl+E)")
+            self.claude_btn.set_child(Adw.ButtonContent(icon_name="document-edit-symbolic",
+                                                        label=self.claude.get("label", "Melhorar com Claude")))
+            self.claude_btn.connect("clicked", self.on_improve)
+            buttons.append(self.claude_btn)
+            add_shortcut(self, "<Control>e", lambda: self.on_improve(None))
+        buttons.append(self.claude_spinner)
+        buttons.append(self.send_btn)
+        page.add(action_button_box(buttons, self.status))
+
+        toolbar.set_content(page)
+        self.set_child(toolbar)
+
+        add_shortcut(self, "<Control>Return", lambda: self.on_send(None))
+        first = next(iter(self.inputs.values()), None)
+        if first:
+            self.connect("shown", lambda *_: first.grab_focus())
+
+    def value(self, key):
+        widget = self.inputs[key]
+        if isinstance(widget, Gtk.TextView):
+            buf = widget.get_buffer()
+            return buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False).strip()
+        return widget.get_text().strip()
+
+    def set_value(self, key, text):
+        widget = self.inputs[key]
+        if isinstance(widget, Gtk.TextView):
+            buf = widget.get_buffer()
+            buf.set_text(text)
+            buf.place_cursor(buf.get_start_iter())
+        else:
+            widget.set_text(text)
+
+    def clear(self):
+        for key in self.inputs:
+            self.set_value(key, "")
+        self.status.set_text("")
+
+    def set_busy(self, busy):
+        self.send_btn.set_sensitive(not busy)
+        if self.claude_btn:
+            self.claude_btn.set_sensitive(not busy)
+        self.claude_spinner.set_visible(busy)
+        target = self.inputs.get((self.claude or {}).get("field"))
+        if isinstance(target, Gtk.TextView):
+            target.set_editable(not busy)
+
+    def on_improve(self, _btn):
+        if not self.claude_btn or not self.claude_btn.get_sensitive():
+            return
+        key = self.claude["field"]
+        original = self.value(key)
+        if not original:
+            label = next(f["label"] for f in self.fields if f["key"] == key)
+            self.status.set_text(f"Escreva {label.lower()} primeiro")
+            self.inputs[key].grab_focus()
+            return
+        context = [(f["label"], self.value(f["key"])) for f in self.fields if f["key"] != key]
+        self.set_busy(True)
+        self.status.set_text("Claude escrevendo…")
+
+        def done(text, err):
+            self.set_busy(False)
+            if err:
+                self.status.set_text(str(err))
+                return
+            self.status.set_text("Revise o texto antes de enviar.")
+            self.set_value(key, text)
+            toast = Adw.Toast(title="Texto reescrito pelo Claude", button_label="Desfazer", timeout=10)
+            toast.connect("button-clicked", lambda *_: self.set_value(key, original))
+            self.window.toasts.add_toast(toast)
+
+        run_async(lambda: claude_rewrite(self.claude, context, original), done)
+
+    def on_send(self, _btn):
+        if not self.send_btn.get_sensitive():
+            return
+        values = {f["key"]: self.value(f["key"]) for f in self.fields}
+        missing = [f["label"] for f in self.fields if f.get("required", True) and not values[f["key"]]]
+        if missing:
+            self.status.set_text("Faltando: " + ", ".join(missing))
+            return
+        creds = load_credentials(self.site)
+        if not creds.get("token"):
+            self.window.push_credentials(self.site, then=lambda: self.on_send(None))
+            return
+
+        self.send_btn.set_sensitive(False)
+        self.status.set_text("Enviando…")
+
+        def done(issue, err):
+            self.send_btn.set_sensitive(True)
+            if err:
+                self.status.set_text(str(err))
+                if "401" in str(err):
+                    self.window.push_credentials(self.site, then=lambda: self.on_send(None))
+                return
+            key = issue.get("issueKey", "?")
+            url = (issue.get("_links") or {}).get("web") or f"{self.site}/browse/{key}"
+            self.clear()
+            self.window.notify_link(f"Chamado {key} criado", url)
+
+        values = {k: v for k, v in values.items() if v}
+        run_async(lambda: create_jira_request(self.site, creds, self.action, values), done)
+
+
+class GitlabPipelinePage(Adw.NavigationPage):
+    """Inicia uma pipeline com variáveis, lembrando as combinações recentes."""
+
+    def __init__(self, window, cfg, action):
+        super().__init__(title=action["title"], tag=action["id"])
+        self.window = window
+        self.action = action
+        self.host = action.get("host", "gitlab.com")
+        self.project = action["project"]
+        self.web_url = action.get("projectUrl") or f"https://{self.host}/{self.project}"
+        self.variables = action.get("variables") or []
+        self.keys = ["ref"] + [v["key"] for v in self.variables if v.get("required", True)]
+        self.branches = []
+        default = {"ref": action.get("defaultRef", "main")}
+        default.update({v["key"]: v.get("default", "") for v in self.variables})
+        self.default = default
+
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        web = Gtk.Button(icon_name="web-browser-symbolic", tooltip_text="Abrir pipelines no GitLab")
+        web.connect("clicked", lambda *_: open_url(f"{self.web_url}/-/pipelines"))
+        header.pack_end(web)
+        toolbar.add_top_bar(header)
+
+        page = Adw.PreferencesPage()
+        group = Adw.PreferencesGroup(title=action.get("formTitle", action["title"]),
+                                     description=action.get("formDescription", ""))
+        self.branch_model = Gtk.StringList()
+        self.branch = Adw.ComboRow(title="Branch", model=self.branch_model, enable_search=True)
+        self.branch.set_expression(Gtk.PropertyExpression.new(Gtk.StringObject, None, "string"))
+        group.add(self.branch)
+        self.inputs = {}
+        for var in self.variables:
+            row = entry_row(var.get("label", var["key"]), var.get("hint", ""))
+            group.add(row)
+            self.inputs[var["key"]] = row
+        page.add(group)
+
+        self.recent_group = Adw.PreferencesGroup(title="Recentes")
+        self.recent_rows = []
+        page.add(self.recent_group)
+
+        self.status = Gtk.Label(wrap=True, css_classes=["dim-label"], margin_top=6)
+        self.send_btn = Gtk.Button(label=action.get("submitLabel", "Iniciar pipeline"),
+                                   css_classes=["suggested-action", "pill"], halign=Gtk.Align.CENTER, margin_top=6)
+        self.send_btn.connect("clicked", self.on_send)
+        page.add(action_button_box(self.send_btn, self.status))
+
+        toolbar.set_content(page)
+        self.set_child(toolbar)
+        add_shortcut(self, "<Control>Return", lambda: self.on_send(None))
+
+        self.fill((load_recent(action["id"], self.keys) or [default])[0])
+        self.refresh_recent()
+        self.connect("shown", lambda *_: self.load_branches())
+
+    def selected_branch(self):
+        item = self.branch.get_selected_item()
+        return item.get_string() if item else ""
+
+    def select_branch(self, ref):
+        if not ref:
+            return
+        if ref not in self.branches:
+            self.branches.append(ref)
+            self.branch_model.append(ref)
+        self.branch.set_selected(self.branches.index(ref))
+
+    def fill(self, combo):
+        self.select_branch(combo.get("ref", ""))
+        for key, row in self.inputs.items():
+            row.set_text(combo.get(key, ""))
+
+    def load_branches(self):
+        if len(self.branches) > 1:
+            return
+        current = self.selected_branch()
+
+        def done(names, err):
+            if err:
+                self.status.set_text(f"Não deu para listar as branches: {err}")
+                return
+            self.branches = list(names)
+            self.branch_model.splice(0, self.branch_model.get_n_items(), self.branches)
+            self.select_branch(current or self.default["ref"])
+
+        run_async(lambda: gitlab_branches(self.host, self.project), done)
+
+    def refresh_recent(self):
+        for row in self.recent_rows:
+            self.recent_group.remove(row)
+        self.recent_rows = []
+        recent = load_recent(self.action["id"], self.keys)
+        self.recent_group.set_visible(bool(recent))
+        for combo in recent:
+            subtitle = " · ".join(combo.get(v["key"], "") for v in self.variables if combo.get(v["key"]))
+            row = Adw.ActionRow(title=GLib.markup_escape_text(combo["ref"]),
+                                subtitle=GLib.markup_escape_text(subtitle), activatable=True)
+            row.add_suffix(Gtk.Image.new_from_icon_name("edit-paste-symbolic"))
+            row.connect("activated", lambda _r, c=combo: self.fill(c))
+            self.recent_group.add(row)
+            self.recent_rows.append(row)
+
+    def on_send(self, _btn):
+        if not self.send_btn.get_sensitive():
+            return
+        combo = {"ref": self.selected_branch()}
+        combo.update({k: row.get_text().strip() for k, row in self.inputs.items()})
+        labels = {"ref": "Branch", **{v["key"]: v.get("label", v["key"]) for v in self.variables}}
+        missing = [labels[k] for k in self.keys if not combo[k]]
+        if missing:
+            self.status.set_text("Faltando: " + ", ".join(missing))
+            return
+
+        self.send_btn.set_sensitive(False)
+        self.status.set_text("Iniciando…")
+        variables = {k: v for k, v in combo.items() if k != "ref" and v}
+
+        def done(pipeline, err):
+            self.send_btn.set_sensitive(True)
+            if err:
+                self.status.set_text(str(err))
+                return
+            save_recent(self.action["id"], self.keys, combo)
+            self.refresh_recent()
+            self.status.set_text("")
+            url = pipeline.get("web_url") or f"{self.web_url}/-/pipelines/{pipeline.get('id')}"
+            self.window.notify_link(f"Pipeline #{pipeline.get('id', '?')} iniciada ({combo['ref']})", url)
+
+        run_async(lambda: gitlab_pipeline(self.host, self.project, combo["ref"], variables), done)
+
+
+class JiraTasksPage(Adw.NavigationPage):
+    """Resultado de uma busca JQL agrupado por categoria e status."""
+
+    def __init__(self, window, cfg, action):
+        super().__init__(title=action["title"], tag=action["id"])
+        self.window = window
+        self.site = jira_site(cfg, action)
+        self.jql = action.get("jql") or "assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC"
+        self.issues = []
+        self.groups = []
+
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        self.refresh_btn = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text="Atualizar (Ctrl+R)")
+        self.refresh_btn.connect("clicked", lambda *_: self.load())
+        header.pack_start(self.refresh_btn)
+        web = Gtk.Button(icon_name="web-browser-symbolic", tooltip_text="Abrir a busca no Jira")
+        web.connect("clicked", lambda *_: open_url(f"{self.site}/issues/?jql={urllib.parse.quote(self.jql)}"))
+        header.pack_end(web)
+        toolbar.add_top_bar(header)
+
+        self.search = Gtk.SearchEntry(placeholder_text="Filtrar por chave, projeto ou título",
+                                      margin_start=12, margin_end=12, margin_top=6, margin_bottom=6)
+        self.search.connect("search-changed", lambda *_: self.render())
+        toolbar.add_top_bar(self.search)
+
+        self.page = Adw.PreferencesPage()
+        self.status = Adw.StatusPage(icon_name="view-list-symbolic", title="Carregando…")
+        self.stack = Gtk.Stack()
+        self.stack.add_named(self.status, "status")
+        self.stack.add_named(self.page, "list")
+        toolbar.set_content(self.stack)
+        self.set_child(toolbar)
+
+        add_shortcut(self, "<Control>r", self.load)
+        add_shortcut(self, "<Control>f", self.search.grab_focus)
+        self.connect("shown", lambda *_: self.load())
+
+    def load(self):
+        if not self.refresh_btn.get_sensitive():
+            return
+        creds = load_credentials(self.site)
+        if not creds.get("token"):
+            self.window.push_credentials(self.site, then=self.load)
+            return
+        self.refresh_btn.set_sensitive(False)
+        if not self.issues:
+            self.status.set_title("Carregando…")
+            self.status.set_description("")
+            self.stack.set_visible_child_name("status")
+
+        def done(issues, err):
+            self.refresh_btn.set_sensitive(True)
+            if err:
+                if "401" in str(err):
+                    self.window.push_credentials(self.site, then=self.load)
+                self.status.set_title("Não foi possível buscar as tarefas")
+                self.status.set_description(str(err))
+                self.stack.set_visible_child_name("status")
+                return
+            self.issues = issues
+            self.render()
+            self.page.scroll_to_top()
+
+        run_async(lambda: search_issues(self.site, creds, self.jql), done)
+
+    def render(self):
+        for group in self.groups:
+            self.page.remove(group)
+        self.groups = []
+
+        query = self.search.get_text().strip().lower()
+        issues = [i for i in self.issues
+                  if not query or query in " ".join((i["key"], i["fields"]["project"]["name"],
+                                                     i["fields"]["summary"])).lower()]
+        if not issues:
+            self.status.set_title("Nenhuma tarefa" if not query else "Nada encontrado")
+            self.status.set_description("" if not query else f"Nenhuma tarefa com “{query}”")
+            self.stack.set_visible_child_name("status")
+            return
+
+        for category, label, color in TASKS_CATEGORIES:
+            in_cat = [i for i in issues if i["fields"]["status"]["statusCategory"]["key"] == category]
+            if not in_cat:
+                continue
+            by_status = {}
+            for issue in in_cat:
+                by_status.setdefault(issue["fields"]["status"]["name"], []).append(issue)
+
+            group = Adw.PreferencesGroup(title=f"{label}  ·  {len(in_cat)}")
+            for name, items in by_status.items():
+                status_row = Adw.ExpanderRow(title=name, subtitle=f"{len(items)} tarefa{'s' * (len(items) > 1)}",
+                                             expanded=category != "done" or bool(query))
+                status_row.add_prefix(Gtk.Label(label="●", css_classes=[color]))
+                for issue in items:
+                    status_row.add_row(self.issue_row(issue))
+                group.add(status_row)
+            self.page.add(group)
+            self.groups.append(group)
+        self.stack.set_visible_child_name("list")
+
+    def issue_row(self, issue):
+        f = issue["fields"]
+        url = f"{self.site}/browse/{issue['key']}"
+        meta = [f["project"]["name"], f["issuetype"]["name"]]
+        if f.get("priority"):
+            meta.append(f["priority"]["name"])
+        meta.append(time_ago(f.get("updated", "")))
+        row = Adw.ActionRow(title=GLib.markup_escape_text(f"{issue['key']}  {f['summary']}"),
+                            subtitle=GLib.markup_escape_text("  ·  ".join(m for m in meta if m)),
+                            activatable=True, title_lines=2, tooltip_text="Abrir no Jira")
+        copy = Gtk.Button(icon_name="edit-copy-symbolic", tooltip_text="Copiar link",
+                          valign=Gtk.Align.CENTER, css_classes=["flat"])
+        copy.connect("clicked", lambda *_: (self.get_clipboard().set(url),
+                                            self.window.toasts.add_toast(Adw.Toast(title=f"Link de {issue['key']} copiado"))))
+        row.add_suffix(copy)
+        row.connect("activated", lambda *_: open_url(url))
+        return row
+
+
+PAGE_TYPES = {
+    "jira-request": JiraRequestPage,
+    "jira-tasks": JiraTasksPage,
+    "gitlab-pipeline": GitlabPipelinePage,
+}
+
+
+def run_direct(action):
+    """Ações sem página: link e command."""
+    if action["type"] == "link":
+        open_url(action["url"])
+    else:
+        cmd = action["run"]
+        argv = ["bash", "-c", cmd] if isinstance(cmd, str) else [os.path.expanduser(a) for a in cmd]
+        subprocess.Popen(argv, cwd=str(expand_path(action.get("dir", "~"))), start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+class HomePage(Adw.NavigationPage):
+    def __init__(self, window, actions, error):
+        super().__init__(title="Painel Rápido", tag="home")
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        reload_btn = Gtk.Button(icon_name="view-refresh-symbolic",
+                                tooltip_text=f"Recarregar {CONFIG_FILE.name} (Ctrl+R)")
+        reload_btn.connect("clicked", lambda *_: window.reload())
+        header.pack_start(reload_btn)
+        toolbar.add_top_bar(header)
+        add_shortcut(self, "<Control>r", window.reload)
+
+        if error or not actions:
+            status = Adw.StatusPage(
+                icon_name="dialog-error-symbolic" if error else "view-grid-symbolic",
+                title="Configuração inválida" if error else "Nenhuma ação ainda",
+                description=GLib.markup_escape_text(error) if error else
+                "Peça ao Claude Code para criar uma: use a skill <b>/painel</b>, por exemplo\n"
+                "“/painel adiciona um atalho para abrir chamado no Service Desk”.")
+            toolbar.set_content(status)
+        else:
+            page = Adw.PreferencesPage()
+            group = Adw.PreferencesGroup(title="Ações")
+            for i, action in enumerate(actions):
+                row = Adw.ActionRow(title=GLib.markup_escape_text(action["title"]),
+                                    subtitle=GLib.markup_escape_text(action.get("subtitle", "")),
+                                    activatable=True)
+                row.add_prefix(Gtk.Image.new_from_icon_name(
+                    action.get("icon") or DEFAULT_ICONS.get(action["type"], "application-x-executable-symbolic")))
+                if i < 9:
+                    row.add_suffix(Gtk.ShortcutLabel(accelerator=f"<Alt>{i + 1}", valign=Gtk.Align.CENTER,
+                                                     css_classes=["dim-label"]))
+                row.add_suffix(Gtk.Image.new_from_icon_name(
+                    "go-next-symbolic" if action["type"] in PAGE_TYPES else "external-link-symbolic"))
+                row.connect("activated", lambda _r, a=action: window.open_action(a["id"]))
+                group.add(row)
+                if i < 9:
+                    add_shortcut(self, f"<Alt>{i + 1}", lambda a=action: window.open_action(a["id"]))
+            page.add(group)
+            toolbar.set_content(page)
+        self.set_child(toolbar)
+
+
+def validate_actions(actions):
+    """Descarta ações malformadas, devolvendo (válidas, avisos)."""
+    required = {
+        "jira-request": ("serviceDesk", "requestType", "fields"),
+        "jira-tasks": (),
+        "gitlab-pipeline": ("project",),
+        "link": ("url",),
+        "command": ("run",),
+    }
+    valid, warnings, seen = [], [], set()
+    for a in actions:
+        if not isinstance(a, dict):
+            warnings.append("ação que não é um objeto")
+            continue
+        aid, kind = a.get("id"), a.get("type")
+        if not aid or not a.get("title") or kind not in required:
+            warnings.append(f"ação {aid or '?'}: precisa de id, title e um type conhecido")
+            continue
+        if aid in seen or aid == "home" or aid == "credenciais":
+            warnings.append(f"ação {aid}: id repetido ou reservado")
+            continue
+        lacking = [k for k in required[kind] if not a.get(k)]
+        if lacking:
+            warnings.append(f"ação {aid}: faltando {', '.join(lacking)}")
+            continue
+        seen.add(aid)
+        valid.append(a)
+    return valid, warnings
+
+
+class PainelWindow(Adw.ApplicationWindow):
+    def __init__(self, app):
+        super().__init__(application=app, title="Painel Rápido", default_width=560, default_height=640)
+        self.toasts = Adw.ToastOverlay()
+        self.nav = Adw.NavigationView()
+        self.toasts.set_child(self.nav)
+        self.set_content(self.toasts)
+        self._after_credentials = None
+        self.load()
+
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", self.on_key)
+        self.add_controller(keys)
+
+    def load(self):
+        self.cfg, error = load_config()
+        self.actions, warnings = validate_actions(self.cfg["actions"])
+        if warnings and not error:
+            if self.actions:
+                self.toasts.add_toast(Adw.Toast(title="Ignorado: " + "; ".join(warnings), timeout=8))
+            else:
+                error = "; ".join(warnings)
+        self.by_id = {a["id"]: a for a in self.actions}
+        self.nav.add(HomePage(self, self.actions, error))
+        for action in self.actions:
+            if action["type"] in PAGE_TYPES:
+                self.nav.add(PAGE_TYPES[action["type"]](self, self.cfg, action))
+
+    def reload(self):
+        """Relê painel.json abrindo uma janela nova no lugar desta."""
+        win = PainelWindow(self.get_application())
+        win.present()
+        win.toasts.add_toast(Adw.Toast(title="Configuração recarregada", timeout=2))
+        self.destroy()
+
+    def open_action(self, action_id, from_cli=False):
+        action = self.by_id.get(action_id)
+        if not action:
+            self.toasts.add_toast(Adw.Toast(title=f"Ação “{action_id}” não existe em {CONFIG_FILE.name}"))
+            return None
+        if action["type"] in PAGE_TYPES:
+            self.nav.replace_with_tags(["home", action_id])
+            return "page"
+        run_direct(action)
+        if not from_cli:
+            self.close()
+        return "direct"
+
+    def on_key(self, _ctrl, keyval, _code, _state):
+        if keyval == Gdk.KEY_Escape:
+            if self.nav.get_visible_page().get_tag() == "home":
+                self.close()
+            else:
+                self.nav.pop()
+            return True
+        return False
+
+    def push_credentials(self, site, then=None):
+        if not site:
+            self.toasts.add_toast(Adw.Toast(title=f"Falta o site do Jira em {CONFIG_FILE.name}"))
+            return
+        self._after_credentials = then
+
+        def saved():
+            self.nav.pop()
+            cb, self._after_credentials = self._after_credentials, None
+            if cb:
+                GLib.idle_add(cb)
+
+        self.nav.push(CredentialsPage(site, saved))
+
+    def notify_link(self, title, url):
+        self.get_clipboard().set(url)
+        toast = Adw.Toast(title=f"{title} · link copiado", button_label="Abrir", timeout=8)
+        toast.connect("button-clicked", lambda *_: open_url(url))
+        self.toasts.add_toast(toast)
+        GLib.spawn_async(["omarchy-notification-send", "--app-name", "Painel Rápido", title, url],
+                         flags=GLib.SpawnFlags.SEARCH_PATH)
+
+
+class PainelApp(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+
+    def do_startup(self):
+        Adw.Application.do_startup(self)
+        css = Gtk.CssProvider()
+        css.load_from_string("textview.painel-desc, textview.painel-desc > text { background: transparent; }")
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css,
+                                                  Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+    def do_command_line(self, cmdline):
+        args = cmdline.get_arguments()[1:]
+        win = self.props.active_window
+        fresh = win is None
+        if fresh:
+            win = PainelWindow(self)
+        target = args[0] if args else None
+        if target == "--favorito":
+            target = win.cfg.get("favorite")
+        if target and win.open_action(target, from_cli=True) == "direct" and fresh:
+            win.destroy()
+            return 0
+        win.present()
+        return 0
+
+
+if __name__ == "__main__":
+    sys.exit(PainelApp().run(sys.argv))
