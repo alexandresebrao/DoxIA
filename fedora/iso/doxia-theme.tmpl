@@ -7,6 +7,9 @@
 mkdir usr/libexec/doxia-installer
 runcmd install -m755 ${wizarddir}/doxia-installer-start ${wizarddir}/doxia-installer.py ${root}/usr/libexec/doxia-installer/
 runcmd install -m644 ${wizarddir}/doxia-installer.css ${wizarddir}/LICENCA.txt ${brand} ${root}/usr/libexec/doxia-installer/
+## Manual partitioning page (blivet-gui embedded in the wizard) and its theme and icons
+runcmd cp -r ${wizarddir}/partitioner ${root}/usr/libexec/doxia-installer/
+runcmd find ${root}/usr/libexec/doxia-installer -name __pycache__ -prune -exec rm -rf {} +
 
 mkdir usr/share/anaconda/pixmaps/doxia
 runcmd cp ${themedir}/doxia.css ${themedir}/sidebar-bg.png ${themedir}/sidebar-logo.png ${root}/usr/share/anaconda/pixmaps/doxia/

@@ -2,7 +2,8 @@
 """DoxIA installer: a Windows 98 style setup wizard in front of Anaconda.
 
 doxia.ks starts it from %pre (through doxia-installer-start). It asks for the
-language, disk, account and computer name, writes them to answers.ks for the
+language, disk (whole, or partitioned by hand in blivet-gui: partitioner/manual.py),
+account and computer name, writes them to answers.ks for the
 kickstart to %include, and then stays up while Anaconda installs in cmdline
 mode: it follows the installation over Anaconda's D-Bus and shows it as the
 Win98 block progress bar. The last %post waits for the Restart button.
@@ -15,6 +16,7 @@ import re
 import shlex
 import socket
 import subprocess
+import sys
 import threading
 import time
 import unicodedata
@@ -27,6 +29,8 @@ gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk, Pango  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / "partitioner"))
+from manual import ManualPartitioning  # noqa: E402
 DEMO = bool(os.environ.get("DOXIA_DEMO"))
 STATE = Path(os.environ.get("DOXIA_STATE", "/tmp/doxia"))
 SYSROOT = Path("/mnt/sysroot")
@@ -292,11 +296,12 @@ class Wizard(Gtk.Window):
         self.next.connect("clicked", self.on_next)
         self.cancel.connect("clicked", self.on_cancel)
 
-        self.pages = ["license", "welcome", "network", "disk", "user", "ready", "copy", "done", "failed"]
+        self.pages = ["license", "welcome", "network", "disk", "partition", "user", "ready", "copy", "done", "failed"]
         self.stack.add_named(self._page_license(), "license")
         self.stack.add_named(self._page_welcome(), "welcome")
         self.stack.add_named(self._page_network(), "network")
         self.stack.add_named(self._page_disk(), "disk")
+        self.stack.add_named(self._page_partition(), "partition")
         self.stack.add_named(self._page_user(), "user")
         self.stack.add_named(self._page_ready(), "ready")
         self.stack.add_named(self._page_copy(), "copy")
@@ -481,7 +486,18 @@ class Wizard(Gtk.Window):
         return box
 
     def _page_disk(self):
-        box = self.page("Onde instalar o DoxIA?", "Escolha o disco de destino.")
+        box = self.page("Onde instalar o DoxIA?", "Escolha como o DoxIA vai usar o disco.")
+        self.mode_whole = Gtk.RadioButton.new_with_mnemonic(
+            None, "Usar um _disco inteiro (tudo o que estiver nele será apagado)")
+        self.mode_manual = Gtk.RadioButton.new_with_mnemonic_from_widget(
+            self.mode_whole, "Particionar _manualmente (ao lado do Windows, reaproveitar partições...)")
+        for radio in (self.mode_whole, self.mode_manual):
+            radio.connect("toggled", self.on_disk_mode)
+            box.pack_start(radio, False, False, 0)
+        self.whole_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.whole_box.set_margin_start(26)
+        box.pack_start(self.whole_box, False, False, 0)
+        outer, box = box, self.whole_box
         self.disk_store = Gtk.ListStore(str, str, str, int)
         for i, d in enumerate(self.disks):
             content = "vazio" if not d["parts"] else f"{d['parts']} partiç{'ão' if d['parts'] == 1 else 'ões'}"
@@ -507,6 +523,7 @@ class Wizard(Gtk.Window):
         box.pack_start(bevel_label(
             "O DoxIA vai usar o disco inteiro. Tudo o que estiver nele será apagado.", "warn"), False, False, 0)
 
+        box = outer
         self.encrypt = Gtk.CheckButton.new_with_mnemonic("_Criptografar o disco (pede uma senha a cada inicialização)")
         self.encrypt.connect("toggled", self.on_encrypt)
         box.pack_start(self.encrypt, False, False, 0)
@@ -521,6 +538,15 @@ class Wizard(Gtk.Window):
         box.pack_start(self.enc_box, False, False, 0)
         self.disk_error = bevel_label("", "error")
         box.pack_start(self.disk_error, False, False, 0)
+        return box
+
+    def _page_partition(self):
+        box = self.page("Particionamento manual",
+                        "Crie, apague ou redimensione partições e defina onde cada uma será montada "
+                        "(selecione a partição e use o botão de engrenagem). Nada é gravado no disco "
+                        "antes de você clicar em Instalar.")
+        self.manual = ManualPartitioning(self, [d["name"] for d in self.disks], self.validate)
+        box.pack_start(self.manual, True, True, 0)
         return box
 
     def _page_user(self):
@@ -552,9 +578,8 @@ class Wizard(Gtk.Window):
         return box
 
     def _page_ready(self):
-        box = self.page("Pronto para instalar",
-                        "O DoxIA será instalado com estas configurações. Clique em Instalar para "
-                        "começar; o disco escolhido será apagado.")
+        box = self.page("Pronto para instalar", " ")
+        self.ready_intro = box.get_children()[1]
         group = Gtk.Frame(label=" Configurações escolhidas ")
         group.get_style_context().add_class("group")
         self.summary = Gtk.Grid(column_spacing=12, row_spacing=6)
@@ -626,9 +651,16 @@ class Wizard(Gtk.Window):
         self.current = name
         self.frame.set_visible(name != "copy")
         self.copy_panel.set_visible(name == "copy")
-        step = {"license": 0, "welcome": 0, "network": 1, "disk": 1, "user": 1, "ready": 1, "copy": 2, "done": 3, "failed": 2}[name]
+        step = {"license": 0, "welcome": 0, "network": 1, "disk": 1, "partition": 1, "user": 1, "ready": 1,
+                "copy": 2, "done": 3, "failed": 2}[name]
+        # blivet-gui needs room: the window fills the gray stage on that page
+        wide = name == "partition"
+        self.frame.set_halign(Gtk.Align.FILL if wide else Gtk.Align.CENTER)
+        self.frame.set_valign(Gtk.Align.FILL if wide else Gtk.Align.CENTER)
+        for side in ("top", "bottom"):
+            getattr(self.frame, f"set_margin_{side}")(28 if wide else 0)
         self.set_step(step)
-        self.back.set_sensitive(name in ("welcome", "network", "disk", "user", "ready"))
+        self.back.set_sensitive(name in ("welcome", "network", "disk", "partition", "user", "ready"))
         self.back.set_visible(name not in ("done", "failed"))
         self.next.set_visible(name not in ("copy",))
         self.cancel.set_visible(name not in ("done", "failed"))
@@ -637,6 +669,8 @@ class Wizard(Gtk.Window):
         label = {"ready": "_Instalar", "done": "_Reiniciar", "failed": "_Desligar"}.get(name, "_Avançar >")
         self.next.set_label(label)
         self.next.set_use_underline(True)
+        if name == "partition":
+            self.manual.load()
         if name == "ready":
             self.fill_summary()
             self.check_internet()
@@ -651,6 +685,9 @@ class Wizard(Gtk.Window):
         self.next.grab_default() if self.next.get_can_default() else None
 
     def on_back(self, _button):
+        if self.current == "user" and not self.manual_mode:
+            self.go("disk")
+            return
         i = self.pages.index(self.current)
         self.go(self.pages[i - 1])
 
@@ -662,6 +699,8 @@ class Wizard(Gtk.Window):
         elif self.current == "network":
             self.go("disk")
         elif self.current == "disk":
+            self.go("partition" if self.manual_mode else "user")
+        elif self.current == "partition":
             self.go("user")
         elif self.current == "user":
             self.go("ready")
@@ -828,6 +867,14 @@ class Wizard(Gtk.Window):
 
     # Disk
 
+    @property
+    def manual_mode(self):
+        return self.mode_manual.get_active()
+
+    def on_disk_mode(self, _radio):
+        self.whole_box.set_visible(not self.manual_mode)
+        self.validate()
+
     def on_encrypt(self, check):
         self.enc_box.set_visible(check.get_active())
         self.validate()
@@ -853,17 +900,24 @@ class Wizard(Gtk.Window):
         elif self.current == "disk":
             model, it = self.disk_view.get_selection().get_selected()
             self.disk = self.disks[model[it][3]] if it else None
-            if not self.disk:
+            if self.manual_mode:
+                if not self.disks:
+                    ok, msg = False, "Nenhum disco foi encontrado neste computador."
+            elif not self.disk:
                 ok, msg = False, "Escolha um disco."
             elif self.disk["size"] < MIN_DISK:
                 ok, msg = False, f"Este disco é pequeno demais: o DoxIA precisa de pelo menos {human_size(MIN_DISK)}."
-            elif self.encrypt.get_active():
+            if ok and self.encrypt.get_active():
                 p, c = self.enc_pass.get_text(), self.enc_confirm.get_text()
                 if len(p) < 8:
                     ok, msg = False, "A senha do disco precisa ter pelo menos 8 caracteres." if p else ""
                 elif p != c:
                     ok, msg = False, "As senhas do disco não conferem." if c else ""
             self.disk_error.set_text(msg)
+        elif self.current == "partition":
+            msg = self.manual.check()
+            ok = self.manual.ready and not msg
+            self.manual.error.set_text(msg)
         elif self.current == "user":
             name, user = self.full_name.get_text().strip(), self.username.get_text()
             host, pw, cf = self.hostname.get_text(), self.password.get_text(), self.confirm.get_text()
@@ -890,14 +944,21 @@ class Wizard(Gtk.Window):
     def fill_summary(self):
         for child in self.summary.get_children():
             self.summary.remove(child)
-        d = self.disk
-        disk = f"{d['model']} ({human_size(d['size'])}) — inteiro, Btrfs"
-        if self.encrypt.get_active():
-            disk += ", criptografado"
-        rows = (("Idioma:", LANGUAGE[0]), ("Teclado:", KEYBOARDS[self.keyboard][0]),
-                ("Fuso horário:", LANGUAGE[2]), ("Disco:", disk),
+        crypt = ", criptografado" if self.encrypt.get_active() else ""
+        if self.manual_mode:
+            self.ready_intro.set_text("O DoxIA será instalado com estas configurações. Clique em Instalar "
+                                      "para começar: as alterações de partição serão gravadas no disco.")
+            mounts = self.manual.summary()
+            disks = [("Disco:", f"particionamento manual{crypt}")] + [("", m) for m in mounts]
+        else:
+            self.ready_intro.set_text("O DoxIA será instalado com estas configurações. Clique em Instalar "
+                                      "para começar; o disco escolhido será apagado.")
+            d = self.disk
+            disks = [("Disco:", f"{d['model']} ({human_size(d['size'])}) — inteiro, Btrfs{crypt}")]
+        rows = [("Idioma:", LANGUAGE[0]), ("Teclado:", KEYBOARDS[self.keyboard][0]),
+                ("Fuso horário:", LANGUAGE[2]), *disks,
                 ("Usuário:", f"{self.username.get_text()} (administrador)"),
-                ("Computador:", self.hostname.get_text()))
+                ("Computador:", self.hostname.get_text())]
         for i, (k, v) in enumerate(rows):
             self.summary.attach(Gtk.Label(label=k, xalign=1), 0, i, 1, 1)
             self.summary.attach(Gtk.Label(label=v, xalign=0, selectable=False), 1, i, 1, 1)
@@ -940,16 +1001,27 @@ class Wizard(Gtk.Window):
             f"keyboard --vckeymap={vc} --xlayouts={q(xlayout)}",
             f"timezone {LANGUAGE[2]} --utc",
             f"network --hostname={self.hostname.get_text()}",
-            f"ignoredisk --only-use={d['name']}",
-            "zerombr",
-            f"clearpart --all --initlabel --drives={d['name']}",
-            f"bootloader --boot-drive={d['name']}",
         ]
-        part = "autopart --type=btrfs"
-        if self.encrypt.get_active():
-            part += f" --encrypted --passphrase={q(self.enc_pass.get_text())}"
+        passphrase = self.enc_pass.get_text() if self.encrypt.get_active() else None
+        if self.manual_mode:
+            # Partitions already written by apply(); only mount points and formats here
+            lines += [
+                f"ignoredisk --only-use={','.join(self.manual.disks_used())}",
+                f"bootloader --boot-drive={self.manual.boot_disk()}",
+                *self.manual.kickstart(passphrase),
+            ]
+        else:
+            part = "autopart --type=btrfs"
+            if passphrase:
+                part += f" --encrypted --passphrase={q(passphrase)}"
+            lines += [
+                f"ignoredisk --only-use={d['name']}",
+                "zerombr",
+                f"clearpart --all --initlabel --drives={d['name']}",
+                f"bootloader --boot-drive={d['name']}",
+                part,
+            ]
         lines += [
-            part,
             "rootpw --lock",
             f"user --name={self.username.get_text()} --gecos={q(self.full_name.get_text().strip())} "
             f"--groups=wheel --password={q(self.password.get_text())} --plaintext",
@@ -957,6 +1029,29 @@ class Wizard(Gtk.Window):
         return "\n".join(lines) + "\n"
 
     def start_install(self):
+        if self.manual_mode and not getattr(self, "_partitions_written", False):
+            self.installing = True
+            self.started_at = time.time()
+            self.go("copy")
+            self.copy_status.set_text("Gravando as partições...")
+
+            def worker():
+                try:
+                    if DEMO:
+                        time.sleep(1)  # never touch the disks in demo mode
+                    else:
+                        self.manual.apply()
+                except Exception as e:  # noqa: BLE001 - blivet raises many kinds
+                    GLib.idle_add(self.fail, f"Não foi possível gravar as partições: {e}.")
+                    return
+                GLib.idle_add(written)
+
+            def written():
+                self._partitions_written = True
+                self.start_install()
+
+            threading.Thread(target=worker, daemon=True).start()
+            return
         STATE.mkdir(parents=True, exist_ok=True)
         tmp = STATE / "answers.ks.tmp"
         fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -1118,10 +1213,15 @@ def main():
     settings.set_property("gtk-theme-name", "Adwaita")
     settings.set_property("gtk-application-prefer-dark-theme", False)
     settings.set_property("gtk-font-name", "Red Hat Text 10")
-    provider = Gtk.CssProvider()
-    provider.load_from_path(str(HERE / "doxia-installer.css"))
-    Gtk.StyleContext.add_provider_for_screen(
-        Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
+    # Disk icons drawn for the installer (partitioner/icons), Adwaita for the rest
+    Gtk.IconTheme.get_default().prepend_search_path(str(HERE / "partitioner" / "icons"))
+    settings.set_property("gtk-icon-theme-name", "DoxIA-Installer")
+    # The wizard, then blivet-gui's widgets on the Partitioning page
+    for css in (HERE / "doxia-installer.css", HERE / "partitioner" / "partitioner.css"):
+        provider = Gtk.CssProvider()
+        provider.load_from_path(str(css))
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_USER)
     if DEMO:
         (STATE / "installed").unlink(missing_ok=True)
     win = Wizard()

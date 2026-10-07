@@ -47,6 +47,7 @@ lorax \
   --source "$mirror/updates/$release/Everything/$arch/" \
   --skip-branding --installpkgs generic-logos --installpkgs fedora-release \
   --installpkgs redhat-display-fonts --installpkgs redhat-text-fonts \
+  --installpkgs blivet-gui-runtime --installpkgs ntfsprogs \
   --add-template "$iso_dir/doxia-theme.tmpl" \
   --add-template-var "themedir=$iso_dir/anaconda" \
   --add-template-var "wizarddir=$iso_dir/wizard" \
