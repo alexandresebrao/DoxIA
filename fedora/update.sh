@@ -197,6 +197,9 @@ fi
 if ! grep -q "org.omarchy.services-log" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
   { echo; cat "$doxia/hypr/services-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
+if ! grep -q "org.doxia.Painel" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
+  { echo; cat "$doxia/hypr/painel-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
+fi
 if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
 fi
