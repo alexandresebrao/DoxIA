@@ -211,7 +211,7 @@ if ! grep -q "doxia.iniciar" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
 fi
 
 echo "==> Theme (DoxIA, the default)"
-omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
+omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git python3-fonttools
 # Reapplied only while DoxIA (or no theme) is in use: the Atualizar menu runs
 # this after every update, and a theme picked by hand must survive it.
 current_theme=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
@@ -230,8 +230,9 @@ for tpl in "$doxia"/themed/*.tpl; do
 done
 [[ -d $HOME/.local/share/icons/Papirus-Tela-Red ]] || bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
 bash "$doxia/lucide/make-theme"
-mkdir -p "$HOME/.config/omarchy/hooks/theme-set.d"
-cp "$doxia/hooks/theme-set.d/lucide-icons" "$HOME/.config/omarchy/hooks/theme-set.d/"
+python3 "$doxia/lucide/make-shell-font"
+mkdir -p "$HOME/.config/omarchy/hooks"
+cp -r "$doxia/hooks/." "$HOME/.config/omarchy/hooks/"
 gsettings set org.gnome.desktop.wm.preferences button-layout ':'
 for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
   if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then

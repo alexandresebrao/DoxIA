@@ -8,9 +8,10 @@ Uso (só quando for atualizar o Lucide; a instalação não roda isto):
 Gera, ao lado deste arquivo:
   svg/<id>.svg       o ícone em traço (stroke="currentColor"); make-theme pinta
   symbolic/<id>.svg  o mesmo em contorno preenchido, que o GTK recolore
-  lucide.ttf, LICENSE e VERSION
+  lucide.ttf e codepoints.json (a fonte, para a barra e os painéis), LICENSE e VERSION
 
 <id> é o nome Lucide, ou "pasta+ícone": a pasta com o ícone pequeno dentro.
+Também passa os extra/src/*.svg (ícones de fora do Lucide) para contorno.
 """
 import json
 import re
@@ -47,7 +48,7 @@ def stroke_svg(ident):
 ids = set()
 for line in (here / "map.tsv").read_text().splitlines():
     cols = line.split("\t")
-    if len(cols) == 3 and not line.startswith("#"):
+    if len(cols) >= 3 and not line.startswith("#"):
         ids.add(cols[2])
 
 for sub in ("svg", "symbolic"):
@@ -63,7 +64,15 @@ for ident in sorted(ids):
     out = re.sub(r"<svg[^>]*>", lambda m: re.sub(r'\s(class|width|height)="[^"]*"', "", m.group(0)), out, count=1)
     (here / "symbolic" / f"{ident}.svg").write_text(out)
 
+# Ícones de fora do Lucide no mesmo estilo (traço 2 em grade de 24), como logos
+# do Tabler Icons (MIT, extra/LICENSE.tabler): extra/src/<id>.svg em traço vira
+# extra/<id>.svg em contorno, que o make-shell-font desenha na fonte.
+for src in sorted((here / "extra" / "src").glob("*.svg")):
+    out = subprocess.run([str(picosvg), str(src)], check=True, capture_output=True, text=True).stdout
+    (here / "extra" / src.name).write_text(out.replace("<defs/>", ""))
+
 shutil.copy(package / "font" / "lucide.ttf", here / "lucide.ttf")
+shutil.copy(package / "font" / "codepoints.json", here / "codepoints.json")
 shutil.copy(package / "LICENSE", here / "LICENSE")
 version = json.loads((package / "package.json").read_text())["version"]
 (here / "VERSION").write_text(f"lucide-static {version}\n")
