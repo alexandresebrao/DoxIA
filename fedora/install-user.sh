@@ -84,6 +84,11 @@ if ! grep -q "scroll_focus" ~/.config/hypr/bindings.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/scroll-focus.lua"; } >> ~/.config/hypr/bindings.lua
 fi
 
+echo "==> Start menu (SUPER + ALT + SPACE opens doxia.iniciar)"
+if ! grep -q "doxia.iniciar" ~/.config/hypr/bindings.lua; then
+  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/iniciar.lua"; } >> ~/.config/hypr/bindings.lua
+fi
+
 echo "==> Menu extensions and default agent"
 seed fedora/doxia/omarchy-menu.jsonc ~/.config/omarchy/extensions/omarchy-menu.jsonc
 seed fedora/doxia/default-agent ~/.config/omarchy/defaults/agent

@@ -3,8 +3,8 @@ import Quickshell
 import qs.Commons
 import qs.Ui
 
-// Botão do menu Omarchy com o emblem.png do tema atual (o ∞ do DoxIA); sem ele,
-// o glifo do Omarchy.
+// Botão Iniciar (doxia.iniciar) com o emblem.png do tema atual (o ∞ do DoxIA);
+// sem ele, o glifo do Omarchy.
 BarWidget {
   id: root
   moduleName: "doxia.emblem"
@@ -58,11 +58,11 @@ BarWidget {
     onClicked: function(event) {
       if (!root.bar) return
       if (event.button === Qt.RightButton) root.bar.run("xdg-terminal-exec")
-      else root.bar.run("omarchy-shell shell toggle omarchy.menu '{\"menu\":\"root\"}'")
+      else root.bar.run("omarchy-shell shell toggle doxia.iniciar")
     }
     onContainsMouseChanged: {
       if (!root.bar) return
-      if (containsMouse) root.bar.showTooltip(root, "Menu")
+      if (containsMouse) root.bar.showTooltip(root, "Iniciar")
       else root.bar.hideTooltip(root)
     }
   }
