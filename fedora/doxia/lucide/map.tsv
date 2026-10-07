@@ -147,6 +147,8 @@ actions	help-about	info
 actions	help-contents	book-open
 actions	help-faq	circle-help
 actions	send-to	share
+actions	external-link	external-link
+categories	web-browser	globe
 actions	emblem-shared	share-2
 actions	content-loading	loader-circle
 actions	selection-mode	square-check
