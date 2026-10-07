@@ -62,7 +62,9 @@ BarWidget {
   readonly property bool batCharging: hasBattery && !UPower.onBattery && bat < 1
   readonly property bool batPlugged: hasBattery && !UPower.onBattery
   // Raio sobre a barra da bateria quando o carregador está conectado.
-  readonly property string boltGlyph: String.fromCodePoint(0xF140B)
+  // md-flash, que a DoxIA Shell desenha como o raio do Lucide preenchido (o
+  // md-lightning_bolt é o raio em contorno do Painel Rápido).
+  readonly property string boltGlyph: String.fromCodePoint(0xF0241)
   readonly property color barBackground: bar && bar.background !== undefined ? bar.background : "#050505"
 
   function parse(out) {
@@ -109,6 +111,10 @@ BarWidget {
     onTriggered: if (!proc.running) proc.running = true
   }
 
+  // Medidores no tamanho da barra de 35px: com a barra mais alta (ícones
+  // maiores), eles não crescem nem empurram o centro da barra.
+  readonly property real unit: Math.min(barSize, 35)
+
   implicitWidth: vertical ? barSize : row.implicitWidth + 12
   implicitHeight: barSize
   visible: !vertical
@@ -129,13 +135,13 @@ BarWidget {
       text: usage.label
       color: root.cDim
       font.family: root.fontFamily
-      font.pixelSize: Math.round(root.barSize * 0.38)
+      font.pixelSize: Math.round(root.unit * 0.38)
     }
 
     Rectangle {
       anchors.verticalCenter: parent.verticalCenter
-      width: Math.round(root.barSize * 1.52)
-      height: Math.max(3, Math.round(root.barSize * 0.16))
+      width: Math.round(root.unit * 1.36)
+      height: Math.max(3, Math.round(root.unit * 0.16))
       radius: height / 2
       color: Qt.rgba(root.cMuted.r, root.cMuted.g, root.cMuted.b, 0.7)
 
@@ -158,7 +164,7 @@ BarWidget {
         style: Text.Outline
         styleColor: root.barBackground
         font.family: root.fontFamily
-        font.pixelSize: Math.round(root.barSize * 0.46)
+        font.pixelSize: Math.round(root.unit * 0.46)
       }
     }
 
@@ -169,11 +175,11 @@ BarWidget {
       text: Math.round(usage.value * 100) + "%"
       color: root.cText
       font.family: root.fontFamily
-      font.pixelSize: Math.round(root.barSize * 0.38)
+      font.pixelSize: Math.round(root.unit * 0.38)
       TextMetrics {
         id: pctMetrics
         font.family: root.fontFamily
-        font.pixelSize: Math.round(root.barSize * 0.38)
+        font.pixelSize: Math.round(root.unit * 0.38)
         text: "100%"
       }
     }
@@ -182,11 +188,12 @@ BarWidget {
   Row {
     id: row
     anchors.centerIn: parent
-    spacing: 14
+    spacing: 10
 
     Usage { label: "CPU"; value: root.cpu }
     Usage { label: "Mem"; value: root.mem }
-    Usage { visible: root.hasBattery; label: "Bat"; value: root.bat; inverse: true; plugged: root.batPlugged }
+    // Na tomada e cheia, a bateria não precisa aparecer.
+    Usage { visible: root.hasBattery && !(root.batPlugged && root.bat >= 0.995); label: "Bat"; value: root.bat; inverse: true; plugged: root.batPlugged }
   }
 
   MouseArea {
