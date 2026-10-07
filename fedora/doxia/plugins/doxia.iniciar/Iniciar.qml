@@ -34,10 +34,6 @@ Item {
   // Ids escondidos do lançador (launcher.hides), só para o caminho sem a
   // biblioteca de apps do shell, que já os filtra.
   property var hiddenIds: ({})
-  // Ícones monocromáticos das pastas e ações: nome -> arquivo *-symbolic.svg
-  // (Papirus antes do Adwaita). Os apps mantêm as cores.
-  property var symbolicIndex: ({})
-  property var pendingSymbolic: ({})
   readonly property int maxLevels: 5
 
   // Paleta: os tokens [menu] do tema (fundo, texto, seleção e a borda do
@@ -66,7 +62,6 @@ Item {
 
   function open(payloadJson) {
     if (root.appLibrary) root.appLibrary.refreshIcons()
-    if (!symbolicScan.running && Object.keys(root.symbolicIndex).length === 0) symbolicScan.running = true
     recentFile.reload()
     root.typed = ""
     root.levels = [{ items: root.rootItems(), parentIndex: -1, mode: "menu", title: "" }]
@@ -112,12 +107,17 @@ Item {
     else Quickshell.execDetached(["uwsm-app", "--", "gtk-launch", String(entry.id) + ".desktop"])
   }
 
+  // Ícones monocromáticos das pastas e ações: a versão -symbolic do tema de
+  // ícones do sistema (o Lucide), tingida na cor do texto. Os apps mantêm as cores.
   function symbolicFor(name, fallback) {
-    var value = String(name || "")
-    if (value.length === 0 || value.indexOf("/") !== -1) value = ""
-    var hit = value ? (root.symbolicIndex[value.replace(/-symbolic$/, "") + "-symbolic"] || "") : ""
-    if (!hit && fallback) hit = root.symbolicIndex[fallback + "-symbolic"] || ""
-    return hit ? Util.fileUrl(hit) : ""
+    var names = [String(name || ""), String(fallback || "")]
+    for (var i = 0; i < names.length; i++) {
+      var value = names[i]
+      if (!value || value.indexOf("/") !== -1) continue
+      var hit = Quickshell.iconPath(value.replace(/-symbolic$/, "") + "-symbolic", true)
+      if (hit) return hit
+    }
+    return ""
   }
 
   function iconFor(name) {
@@ -432,21 +432,6 @@ Item {
     onLoaded: root.recentXml = text()
     onLoadFailed: root.recentXml = ""
   }
-
-  Process {
-    id: symbolicScan
-    command: ["bash", "-c", "for d in \"$HOME/.local/share/icons\" /usr/share/icons/Papirus /usr/share/icons/Adwaita; do [[ -d $d ]] && find \"$d\" -path '*symbolic*' -name '*-symbolic.svg' 2>/dev/null; done"]
-    stdout: SplitParser {
-      onRead: function(line) {
-        var file = line.slice(line.lastIndexOf("/") + 1).replace(/\.svg$/, "")
-        if (file && root.pendingSymbolic[file] === undefined) root.pendingSymbolic[file] = line
-      }
-    }
-    onStarted: root.pendingSymbolic = ({})
-    onExited: root.symbolicIndex = root.pendingSymbolic
-  }
-
-  Component.onCompleted: symbolicScan.running = true
 
   FileView {
     path: root.omarchyPath + "/default/omarchy/launcher.hides"
