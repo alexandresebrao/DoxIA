@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Depois da troca de tema: refaz o Lucide na cor de texto do tema novo (quando
+# o tema usa Lucide) e põe o tema de ícones também nos settings.ini do GTK 3/4,
+# que os flatpaks leem (o omarchy-theme-set-gnome só muda o gsettings).
+
+icons_file=$HOME/.local/state/omarchy/current/theme/icons.theme
+[[ -f $icons_file ]] || exit 0
+icons=$(<"$icons_file")
+
+if [[ $icons == "Lucide" ]]; then
+  bash "$OMARCHY_PATH/fedora/doxia/lucide/make-theme"
+fi
+
+for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+  if [[ -f $ini ]] && grep -q '^gtk-icon-theme-name=' "$ini"; then
+    sed -i "s/^gtk-icon-theme-name=.*/gtk-icon-theme-name=$icons/" "$ini"
+  fi
+done

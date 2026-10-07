@@ -229,6 +229,9 @@ for tpl in "$doxia"/themed/*.tpl; do
   place "$tpl" "$HOME/.config/omarchy/themed/$(basename "$tpl")"
 done
 [[ -d $HOME/.local/share/icons/Papirus-Tela-Red ]] || bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
+bash "$doxia/lucide/make-theme"
+mkdir -p "$HOME/.config/omarchy/hooks/theme-set.d"
+cp "$doxia/hooks/theme-set.d/lucide-icons" "$HOME/.config/omarchy/hooks/theme-set.d/"
 gsettings set org.gnome.desktop.wm.preferences button-layout ':'
 for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
   if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
