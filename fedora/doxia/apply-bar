@@ -7,7 +7,7 @@
 # share indicator around the clock, CPU/memory/battery usage on the right and
 # the services panel (doxia.services) and FortiVPN (doxia.fortivpn) between the
 # agents and network icons, and the Painel Rápido button (doxia.painel) at the
-# end of the left side, and enables the Start menu (doxia.iniciar, opened by the
+# end of the left side (the Omarchy indicators group is removed), and enables the Start menu (doxia.iniciar, opened by the
 # ∞ button and SUPER+ALT+SPACE). The Painel Rápido app (fedora/doxia/painel) goes on the
 # PATH as doxia-painel and in the launcher.
 # The panel's svc script goes on the PATH and its /servicos Claude Code skill to
@@ -80,6 +80,9 @@ jq '
         else . end);
   .bar.layout |= (
     (.left, .center, .right) |= renamed
+    # No indicators group (dictation, recording, night light, DND, stay awake):
+    # DoxIA does not use them.
+    | (.left, .center, .right) |= map(select(.id != "omarchy.indicators"))
     | .center |= (by_clock("doxia.media"; 0) | by_clock("doxia.screenshare"; 1))
     | if (.left + .center + .right | has("doxia.usage")) then .
       else .right |= [{id: "doxia.usage"}] + . end
