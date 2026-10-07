@@ -65,6 +65,8 @@ packages=(
   gtk3
   # The DoxIA shell: zsh with Oh My Zsh (fedora/doxia/install-zsh)
   zsh
+  # FortiVPN bar widget (fedora/doxia/plugins/doxia.fortivpn)
+  openfortivpn
 
   # Fonts
   google-noto-sans-fonts google-noto-emoji-fonts google-noto-sans-cjk-fonts
