@@ -1,0 +1,336 @@
+/* blivet-gui's widgets, embedded in the wizard's Partitioning page (manual.py), in
+ * the wizard's Win98 look. Loaded by the wizard after doxia-installer.css, whose
+ * colors it uses. */
+
+/* Adwaita's named colors, which blivet-gui's rectangle.css paints its disk map with */
+@define-color theme_bg_color #2b2d31;
+@define-color theme_fg_color #e8e8e8;
+@define-color theme_text_color #e8e8e8;
+@define-color theme_base_color #161719;
+@define-color theme_selected_bg_color #ee0000;
+@define-color theme_selected_fg_color #ffffff;
+@define-color borders #050505;
+
+/* Title bar: GTK draws its own under gnome-kiosk; make it the wizard's red one */
+
+headerbar, .titlebar, window.csd > .titlebar, dialog .titlebar {
+    background-color: @red;
+    background-image: linear-gradient(to right, @red_dark, @red);
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    min-height: 26px;
+    padding: 0 4px 0 8px;
+    color: white;
+}
+headerbar:backdrop, .titlebar:backdrop {
+    background-image: linear-gradient(to right, #4a4c50, #6b6e73);
+}
+headerbar .title, .titlebar .title { color: white; font-weight: bold; font-size: 10pt; }
+headerbar .subtitle { color: alpha(white, 0.75); font-size: 9pt; }
+headerbar button.titlebutton, .titlebar button.titlebutton {
+    min-width: 16px;
+    min-height: 14px;
+    padding: 0 2px;
+    margin: 0 1px;
+    color: @text;
+    -gtk-icon-shadow: none;
+}
+headerbar button.titlebutton:hover { background-color: #34363b; }
+window.csd, window.csd.maximized, window.solid-csd { border-radius: 0; }
+decoration, window.csd decoration, window.solid-csd decoration {
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: none;
+    margin: 0;
+}
+
+/* Menu bar and menus */
+
+menubar {
+    background-color: @face;
+    background-image: none;
+    border-bottom: 1px solid @shadow;
+    box-shadow: 0 1px @hilight;
+    padding: 1px 2px;
+}
+menubar > menuitem { padding: 4px 8px; min-height: 18px; }
+menubar > menuitem label { color: @text; font-size: 10pt; }
+menubar > menuitem:hover { background-color: @red; box-shadow: none; }
+menubar > menuitem:hover label { color: white; }
+menu separator, .menu separator { background-color: @shadow; border-bottom: 1px solid @hilight; min-height: 1px; margin: 3px 0; }
+menuitem accelerator { color: @dim; }
+menuitem:hover accelerator { color: alpha(white, 0.8); }
+menuitem:disabled label { color: alpha(@text, 0.35); }
+menuitem check, menuitem radio { margin-right: 6px; }
+popover, popover.background {
+    background-color: @face;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: none;
+}
+popover modelbutton { color: @text; padding: 4px 10px; }
+popover modelbutton:hover { background-color: @red; color: white; }
+
+/* Tool bars: flat buttons that raise on hover, like Explorer's */
+
+toolbar, .toolbar, .inline-toolbar, .primary-toolbar {
+    background-color: @face;
+    background-image: none;
+    border-bottom: 1px solid @shadow;
+    box-shadow: 0 1px @hilight;
+    padding: 3px 4px;
+}
+toolbar button, toolbutton > button, button.flat, .inline-toolbar button {
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
+    padding: 4px 6px;
+}
+toolbar button:hover, toolbutton > button:hover, button.flat:hover, .inline-toolbar button:hover {
+    background-color: @face;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+}
+toolbar button:active, toolbutton > button:active, button.flat:active, button.flat:checked {
+    background-color: #232528;
+    border-color: @dkshadow @hilight @hilight @dkshadow;
+    box-shadow: inset 1px 1px @shadow, inset -1px -1px @light;
+}
+toolbar separator { background-color: @shadow; border-right: 1px solid @hilight; min-width: 1px; margin: 4px 3px; }
+button image, toolbar image { color: @text; -gtk-icon-style: symbolic; }
+button:disabled image { color: alpha(@text, 0.3); }
+button.image-button { padding: 4px 6px; }
+
+/* Status bar: sunken panel along the bottom */
+
+statusbar {
+    background-color: @face;
+    border-top: 1px solid @hilight;
+    padding: 2px 4px;
+}
+statusbar label {
+    color: @text;
+    font-size: 9.5pt;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    padding: 2px 6px;
+}
+
+/* Tabs (blivet-gui's Logical/Physical view) */
+
+notebook { background-color: @face; }
+notebook > header {
+    background-color: @face;
+    border: none;
+    box-shadow: inset 0 -1px @hilight;
+    padding: 4px 4px 0 4px;
+}
+notebook > header tab {
+    background-color: @face;
+    color: @text;
+    border: 1px solid;
+    border-bottom: none;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px 0 @shadow;
+    border-radius: 0;
+    margin: 2px 0 0 0;
+    padding: 4px 14px;
+    min-height: 18px;
+}
+notebook > header tab label { color: @dim; font-size: 10pt; }
+notebook > header tab:checked {
+    background-color: @face;
+    margin-top: 0;
+    padding-bottom: 6px;
+    box-shadow: inset 1px 1px @light, inset -1px 0 @shadow, inset 0 3px @red;
+}
+notebook > header tab:checked label { color: white; font-weight: bold; }
+notebook > stack:not(:only-child) { background-color: @face; }
+
+/* Panes and frames */
+
+paned > separator {
+    background-color: @face;
+    background-image: none;
+    border-left: 1px solid @hilight;
+    border-right: 1px solid @shadow;
+    min-width: 4px;
+    min-height: 4px;
+}
+paned.vertical > separator { border: none; border-top: 1px solid @hilight; border-bottom: 1px solid @shadow; }
+scrolledwindow.frame, frame > border, viewport.frame {
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    border-radius: 0;
+    box-shadow: inset 1px 1px @dkshadow;
+}
+frame > label { color: @dim; }
+viewport, scrolledwindow > viewport { background-color: @face; }
+list, list row { background-color: @field; color: @text; }
+list row:hover { background-color: #222326; }
+list row:selected { background-color: @red; color: white; }
+
+/* Trees and lists in general (the wizard only styles its own) */
+
+treeview.view, treeview.view:backdrop { background-color: @field; color: @text; }
+treeview.view:selected:backdrop { background-color: #7a1414; color: white; }
+treeview.view header button {
+    border-radius: 0;
+    border-style: solid;
+    border-width: 1px;
+}
+treeview.view header button:hover { background-color: #34363b; }
+treeview.view.separator { color: @shadow; }
+treeview.view.expander { color: @dim; }
+treeview.view.expander:checked { color: @text; }
+treeview entry { min-height: 22px; }
+
+/* Number and size inputs (resize dialogs) */
+
+spinbutton {
+    background-color: @field;
+    color: @text;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    box-shadow: inset 1px 1px @dkshadow;
+}
+spinbutton entry { border: none; box-shadow: none; min-height: 26px; }
+spinbutton button {
+    border-radius: 0;
+    padding: 2px 6px;
+    min-height: 0;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+}
+scale trough {
+    background-color: @field;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    min-height: 4px;
+    min-width: 4px;
+}
+scale highlight { background-color: @red; border-radius: 0; }
+scale slider {
+    background-color: @face;
+    background-image: none;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+    min-width: 12px;
+    min-height: 20px;
+    margin: -9px 0;
+}
+
+/* Combos that show a list */
+
+combobox button.combo {
+    background-color: @field;
+    color: @text;
+    border-radius: 0;
+}
+combobox button.combo label, combobox button.combo cellview { color: @text; font-size: 10pt; }
+combobox menu menuitem { min-height: 18px; }
+
+/* Progress and info bars, dialogs */
+
+progressbar trough {
+    background-color: @field;
+    border-radius: 0;
+    border: 1px solid;
+    border-color: @shadow @hilight @hilight @shadow;
+    min-height: 16px;
+}
+progressbar progress {
+    background-color: @red;
+    background-image: none;
+    border: none;
+    border-radius: 0;
+    min-height: 14px;
+}
+infobar, infobar > revealer > box { background-color: @field; color: @text; border: 1px solid @shadow; }
+dialog .dialog-action-area button, dialog .dialog-action-box button { min-width: 90px; }
+dialog .dialog-action-area button.suggested-action, button.suggested-action {
+    background-color: @red;
+    border-color: #ff6a6a @dkshadow @dkshadow #ff6a6a;
+    box-shadow: inset 1px 1px #ff3b3b, inset -1px -1px @red_dark;
+}
+button.suggested-action label { color: white; font-weight: bold; }
+button.destructive-action { background-color: @red_dark; }
+button.destructive-action label { color: white; }
+tooltip, tooltip.background {
+    background-color: #ffffe1;
+    border-radius: 0;
+    border: 1px solid @dkshadow;
+    box-shadow: none;
+}
+tooltip label { color: #111111; }
+expander title arrow { color: @text; }
+switch { background-color: @field; border-radius: 0; border-color: @shadow @hilight @hilight @shadow; }
+switch:checked { background-color: @red; }
+switch slider { background-color: @face; border-radius: 0; border-color: @hilight @dkshadow @dkshadow @hilight; }
+
+/* blivet-gui: disk map and toolbar (beats the ids in its rectangle.css) */
+
+window box#bg-visualization button {
+    border-radius: 0;
+    background-image: none;
+    background-color: @face;
+    border: 1px solid;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px -1px @shadow;
+}
+window box#bg-visualization button label { color: @text; font-size: 9.5pt; }
+window box#bg-visualization button:checked {
+    background-color: @red;
+    border-color: @dkshadow @hilight @hilight @dkshadow;
+    box-shadow: inset 1px 1px @red_dark, inset -1px -1px #ff3b3b;
+}
+window box#bg-visualization button:checked label { color: white; font-weight: bold; }
+/* rectangle.css rounds them with id selectors; the tripled id outranks its two (and it loads after this file) */
+box#bg-visualization#bg-visualization#bg-visualization button,
+box#bg-visualization#bg-visualization#bg-visualization button button { border-radius: 0; }
+window box#bg-toolbar { background-color: @face; padding: 4px; }
+window button#bg-toolbar-button-inner,
+window button#bg-toolbar-button-first,
+window button#bg-toolbar-button-last { border-radius: 0; }
+
+/* Disks above blivet-gui (manual.py): a tab per group (Discos, Volumes Btrfs...)
+   and, under it, the group's devices as flat items, the chosen one underlined in red */
+
+.disk-strip { padding: 0 0 8px 0; }
+.disk-tabs { box-shadow: inset 0 -1px @hilight; padding: 0 2px; }
+button.disk-tab {
+    border-bottom: none;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px 0 @shadow;
+    margin-top: 3px;
+    padding: 3px 14px;
+}
+button.disk-tab label { color: @dim; font-size: 9.5pt; }
+button.disk-tab:checked {
+    background-color: @face;
+    border-color: @hilight @dkshadow @dkshadow @hilight;
+    box-shadow: inset 1px 1px @light, inset -1px 0 @shadow, inset 0 3px @red;
+    margin-top: 0;
+    padding: 5px 14px 4px 14px;
+}
+button.disk-tab:checked label { color: white; font-weight: bold; }
+.disk-items { padding: 6px 0 0 0; }
+button.disk-item, button.disk-item:hover, button.disk-item:active, button.disk-item:checked {
+    background-color: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    box-shadow: none;
+    padding: 3px 8px;
+    min-height: 0;
+}
+button.disk-item:hover { border-bottom-color: @hilight; }
+button.disk-item:checked { border-bottom-color: @red; }
+button.disk-item label { font-size: 9.5pt; color: @dim; }
+button.disk-item:checked label, button.disk-item:hover label { color: @text; }
+.manual-actions label { font-size: 9.5pt; }
