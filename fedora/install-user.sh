@@ -175,6 +175,11 @@ for ini in ~/.config/gtk-3.0/settings.ini ~/.config/gtk-4.0/settings.ini; do
   fi
 done
 bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
+# Lucide icons for the system (DoxIA's icons.theme), redone in the theme's text
+# color on every theme change by the theme-set hook.
+bash "$OMARCHY_PATH/fedora/doxia/lucide/make-theme"
+mkdir -p ~/.config/omarchy/hooks/theme-set.d
+cp "$OMARCHY_PATH/fedora/doxia/hooks/theme-set.d/lucide-icons" ~/.config/omarchy/hooks/theme-set.d/
 
 echo "==> Theme (DoxIA, the default)"
 mkdir -p ~/.config/omarchy/themes

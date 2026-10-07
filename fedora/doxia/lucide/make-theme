@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Gera ~/.local/share/icons/Lucide a partir dos ícones vendorizados aqui (veja
+# vendor.py e map.tsv): cada nome freedesktop do map.tsv vira um ícone Lucide
+# na cor de texto do tema atual e a versão -symbolic, que o GTK recolore (as
+# pastas grandes são cópias das do Papirus-Tela-Red, só a -symbolic é Lucide). O
+# resto (apps de terceiros, com a marca deles) vem por herança do
+# Papirus-Tela-Red. Roda no install-user.sh, no update.sh e a cada troca de tema
+# (hook theme-set), para acompanhar a cor.
+
+set -euo pipefail
+
+src=$(dirname "$(readlink -f "$0")")
+dest=$HOME/.local/share/icons/Lucide
+colors=$HOME/.local/state/omarchy/current/theme/colors.toml
+color=${1:-$(omarchy-theme-color --file "$colors" foreground "#d2d2d2" 2>/dev/null || echo "#d2d2d2")}
+inherits="Papirus-Tela-Red,Papirus-Dark,breeze-dark,hicolor"
+
+declare -A contexts=(
+  [places]=Places [actions]=Actions [status]=Status [devices]=Devices
+  [mimetypes]=MimeTypes [categories]=Categories [apps]=Applications
+)
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+for ctx in "${!contexts[@]}"; do
+  mkdir -p "$work/scalable/$ctx" "$work/symbolic/$ctx"
+done
+
+# As pastas grandes são as do Papirus-Tela-Red, copiadas para cá: o GTK procura
+# todos os nomes de um ícone (folder-music, folder-music-symbolic, folder…) no
+# primeiro tema antes do herdado, então só herdar deixaria o -symbolic do
+# Lucide ganhar no Nautilus.
+tela=$HOME/.local/share/icons/Papirus-Tela-Red/scalable/places
+if [[ -d $tela ]]; then
+  cp -L "$tela"/*.svg "$work/scalable/places/"
+fi
+
+while IFS=$'\t' read -r ctx name icon only; do
+  [[ -z $ctx || $ctx == \#* || -z $icon ]] && continue
+  if [[ $only != "simbólico" ]]; then
+    sed "s/currentColor/$color/g" "$src/svg/$icon.svg" > "$work/scalable/$ctx/$name.svg"
+  fi
+  cp "$src/symbolic/$icon.svg" "$work/symbolic/$ctx/$name-symbolic.svg"
+done < "$src/map.tsv"
+
+dirs=()
+for ctx in "${!contexts[@]}"; do
+  dirs+=("scalable/$ctx" "symbolic/$ctx")
+done
+{
+  echo "[Icon Theme]"
+  echo "Name=Lucide"
+  echo "Comment=Ícones do Lucide nas cores do tema, sobre o Papirus-Tela-Red"
+  echo "Inherits=$inherits"
+  echo "Directories=$(IFS=,; echo "${dirs[*]}")"
+  for ctx in "${!contexts[@]}"; do
+    echo
+    echo "[scalable/$ctx]"
+    echo "Context=${contexts[$ctx]}"
+    echo "Size=48"; echo "MinSize=8"; echo "MaxSize=512"; echo "Type=Scalable"
+    echo
+    echo "[symbolic/$ctx]"
+    echo "Context=${contexts[$ctx]}"
+    echo "Size=16"; echo "MinSize=8"; echo "MaxSize=512"; echo "Type=Scalable"
+  done
+} > "$work/index.theme"
+
+rm -rf "$dest"
+mkdir -p "$(dirname "$dest")"
+cp -r "$work" "$dest"
+chmod 755 "$dest"
+gtk-update-icon-cache -q -f "$dest" 2>/dev/null || true
