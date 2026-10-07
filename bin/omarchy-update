@@ -158,7 +158,12 @@ if (( assume_yes )) || omarchy-update-confirm "$mode"; then
   old_head=$(git -C "$OMARCHY_PATH" rev-parse HEAD 2>/dev/null || true)
   run_step doxia omarchy-update-dev
   omarchy-update-keyring
-  if [[ -n $old_head ]] && ! git -C "$OMARCHY_PATH" diff --quiet "$old_head" HEAD -- shell 2>/dev/null; then
+  # Besides its own QML, the shell loads at startup what fedora/update.sh puts in
+  # place from these: the DoxIA bar plugins and layout (apply-bar), the Lucide
+  # icon theme and DoxIA Shell font, and the theme's shell.toml. Without a
+  # restart they only show after the next login.
+  shell_paths=(shell fedora/doxia/plugins fedora/doxia/apply-bar fedora/doxia/lucide themes)
+  if [[ -n $old_head ]] && ! git -C "$OMARCHY_PATH" diff --quiet "$old_head" HEAD -- "${shell_paths[@]}" 2>/dev/null; then
     export OMARCHY_UPDATE_SHELL_CHANGED=1
   fi
 
