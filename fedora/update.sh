@@ -206,6 +206,9 @@ fi
 if ! grep -q "scroll_focus" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
   { echo; cat "$doxia/hypr/scroll-focus.lua"; } >> "$HOME/.config/hypr/bindings.lua"
 fi
+if ! grep -q "doxia.iniciar" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
+  { echo; cat "$doxia/hypr/iniciar.lua"; } >> "$HOME/.config/hypr/bindings.lua"
+fi
 
 echo "==> Theme (DoxIA, the default)"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git
