@@ -59,7 +59,7 @@ assertEqual(weather.shouldUseImperial('', 'en_US', 'Denmark'), false, 'weather p
 assertEqual(weather.shouldUseImperial('', 'da_DK', 'United States of America'), true, 'weather prefers reported imperial country over metric locale')
 assertEqual(weather.shouldUseImperial('metric', 'en_US', 'United States of America'), false, 'weather metric override wins')
 assertEqual(weather.shouldUseImperial('imperial', 'da_DK', 'Denmark'), true, 'weather imperial override wins')
-assertEqual(weather.dayName('2026-05-25'), 'Monday', 'weather derives day names')
+assertEqual(weather.dayName('2026-05-25'), 'Segunda-feira', 'weather derives day names')
 
 const openMeteo = {
   daily: {
