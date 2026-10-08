@@ -47,6 +47,7 @@ Panel {
 
   function close() {
     setCenterHoverRevealSuppressed(false)
+    root.selectedDate = ""
     if (root.editingLocation) root.cancelEditingLocation()
     root.controller.hide()
   }
@@ -149,6 +150,28 @@ Panel {
   readonly property string reportWind:      current ? (useImperial ? (current.windspeedMiles + " mph") : (current.windspeedKmph + " km/h")) : ""
   readonly property string reportHumidity:  current ? (current.humidity + "%") : ""
 
+  // Hourly chart: the next 24 hours, or the whole day picked in the forecast
+  // row (clicking it again, or "Hoje", goes back). A picked day that rolled
+  // out of the forecast falls back to the next 24 hours.
+  property string selectedDate: ""
+  readonly property var pickedHourly: selectedDate === "" ? [] : Model.hourlySeries(dailyForecastReport, selectedDate)
+  readonly property bool showingPickedDay: pickedHourly.length > 0
+  readonly property var hourly: showingPickedDay ? pickedHourly : Model.hourlySeries(dailyForecastReport, "")
+
+  // Rain bars use the theme's blue (colors.toml); the shell's Color only
+  // carries the accent and neutrals.
+  property color rainColor: "#2b9af3"
+  property FileView themeColorsFile: FileView {
+    path: Color.currentThemePath + "/colors.toml"
+    watchChanges: true
+    printErrors: false
+    onFileChanged: reload()
+    onLoaded: {
+      var match = /^\s*blue\s*=\s*"(#[0-9a-fA-F]{6})"/m.exec(text())
+      if (match) root.rainColor = match[1]
+    }
+  }
+
   function refresh() {
     // Each full refresh cycle gets a fresh retry budget, so an earlier
     // exhausted round (e.g. waking with the network still down) doesn't
@@ -180,6 +203,7 @@ Panel {
       + "?latitude=" + encodeURIComponent(String(lat))
       + "&longitude=" + encodeURIComponent(String(lon))
       + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+      + "&hourly=temperature_2m,precipitation,precipitation_probability"
       + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,is_day"
       + "&forecast_days=4"
       + "&timezone=auto"
@@ -815,8 +839,68 @@ Panel {
         opacity: 0.12
       }
 
+      // ---- Hourly chart: next 24 hours, or the day picked below.
+      Item {
+        visible: root.hourly.length > 0
+        width: parent.width
+        height: chartHeader.height + Style.space(10) + hourlyChart.implicitHeight
+
+        Text {
+          id: chartHeader
+          anchors.left: parent.left
+          anchors.leftMargin: Style.space(16)
+          textFormat: Text.PlainText
+          text: root.showingPickedDay ? root.dayName(root.selectedDate).toUpperCase() : "PRÓXIMAS 24 HORAS"
+          color: Qt.darker(root.bar.foreground, 1.4)
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: 1
+        }
+
+        Text {
+          visible: root.showingPickedDay
+          anchors.right: parent.right
+          anchors.rightMargin: Style.space(16)
+          anchors.verticalCenter: chartHeader.verticalCenter
+          textFormat: Text.PlainText
+          text: "VOLTAR PARA HOJE"
+          color: backToToday.containsMouse ? Style.hoverStateColor(root.bar.foreground, Color.accent) : Qt.darker(root.bar.foreground, 1.4)
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.caption
+          font.letterSpacing: 1
+
+          MouseArea {
+            id: backToToday
+            anchors.fill: parent
+            anchors.margins: -Style.space(4)
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.selectedDate = ""
+          }
+        }
+
+        HourlyChart {
+          id: hourlyChart
+          anchors.top: chartHeader.bottom
+          anchors.topMargin: Style.space(10)
+          anchors.left: parent.left
+          anchors.right: parent.right
+          anchors.leftMargin: Style.space(16)
+          anchors.rightMargin: Style.space(16)
+          series: root.hourly
+          startsNow: !root.showingPickedDay
+          useImperial: root.useImperial
+          foreground: root.bar.foreground
+          surface: Color.popups.background
+          tempColor: Color.accent
+          rainColor: root.rainColor
+          fontFamily: root.bar.fontFamily
+        }
+      }
+
       // ---- Forecast row: each cell has the day icon left of a day-name + hi/lo column.
       //      Wrapped in an Item so the block of cells can be centered within the popup.
+      //      Clicking a day shows its hours in the chart above; clicking it again goes back.
       Item {
         visible: root.forecastDays.length > 0
         width: parent.width
@@ -825,14 +909,32 @@ Panel {
         Row {
           id: forecastRow
           anchors.horizontalCenter: parent.horizontalCenter
-          spacing: Style.space(44)
+          spacing: Style.space(20)
 
           Repeater {
             model: root.forecastDays
 
-            Row {
+            Rectangle {
+              id: dayCell
               required property var modelData
               required property int index
+              readonly property bool picked: root.showingPickedDay && root.selectedDate === modelData.date
+              width: dayContent.implicitWidth + Style.space(24)
+              height: dayContent.implicitHeight + Style.space(12)
+              radius: Style.cornerRadius
+              color: picked || dayArea.containsMouse ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "transparent"
+
+              MouseArea {
+                id: dayArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.selectedDate = dayCell.picked ? "" : dayCell.modelData.date
+              }
+
+            Row {
+              id: dayContent
+              anchors.centerIn: parent
               spacing: Style.space(10)
 
               Text {
@@ -876,6 +978,7 @@ Panel {
                   }
                 }
               }
+            }
             }
           }
         }

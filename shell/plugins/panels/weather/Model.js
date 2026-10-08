@@ -192,6 +192,60 @@ function weatherResponseCompletesSave(hasConfiguredCoordinates, source) {
   return hasConfiguredCoordinates ? source === "open-meteo" : source === "wttr"
 }
 
+// Hourly temperature and rain for the chart, from the Open-Meteo hourly block
+// (local times, timezone=auto). An empty dateString means the next 24 hours
+// from the report's current hour; a date means that whole day.
+function hourlySeries(dailyForecastReport, dateString) {
+  var hourly = dailyForecastReport && dailyForecastReport.hourly ? dailyForecastReport.hourly : null
+  if (!hourly || !hourly.time || hourly.time.length === 0) return []
+
+  var start = -1
+  for (var i = 0; i < hourly.time.length; ++i) {
+    var t = String(hourly.time[i])
+    if (dateString) {
+      if (t.slice(0, 10) === String(dateString)) { start = i; break }
+    } else {
+      var now = dailyForecastReport.current && dailyForecastReport.current.time ? String(dailyForecastReport.current.time).slice(0, 13) : ""
+      if (now === "") { start = 0; break }
+      if (t.slice(0, 13) === now) { start = i; break }
+    }
+  }
+  if (start < 0) return []
+
+  function at(list, index) {
+    if (!list || list[index] === undefined || list[index] === null) return null
+    var n = parseFloat(String(list[index]))
+    return isNaN(n) ? null : n
+  }
+
+  var result = []
+  for (var j = start; j < hourly.time.length && result.length < 24; ++j) {
+    var time = String(hourly.time[j])
+    if (dateString && time.slice(0, 10) !== String(dateString)) break
+    result.push({
+      time: time,
+      hour: parseInt(time.slice(11, 13), 10),
+      tempC: at(hourly.temperature_2m, j),
+      precipMm: at(hourly.precipitation, j) || 0,
+      probability: at(hourly.precipitation_probability, j)
+    })
+  }
+  return result
+}
+
+function chartTemp(tempC, useImperial) {
+  if (tempC === null || tempC === undefined) return null
+  return useImperial ? celsiusToFahrenheit(tempC) : tempC
+}
+
+// Rain amount in the reader's units: mm with one decimal, inches with two.
+function formatPrecip(mm, useImperial, decimalPoint) {
+  var n = parseFloat(String(mm))
+  if (isNaN(n)) n = 0
+  var text = useImperial ? (n / 25.4).toFixed(2) + " in" : n.toFixed(1) + " mm"
+  return decimalPoint && decimalPoint !== "." ? text.replace(".", decimalPoint) : text
+}
+
 function wttrNextForecastDays(report, todayString) {
   var days = report && report.weather ? report.weather : []
   var result = []
@@ -285,6 +339,9 @@ if (typeof module !== "undefined") {
     currentIcon: currentIcon,
     provisionalCurrentIcon: provisionalCurrentIcon,
     weatherResponseCompletesSave: weatherResponseCompletesSave,
+    hourlySeries: hourlySeries,
+    chartTemp: chartTemp,
+    formatPrecip: formatPrecip,
     wttrNextForecastDays: wttrNextForecastDays,
     buildForecastDays: buildForecastDays,
     bareTempForDay: bareTempForDay,

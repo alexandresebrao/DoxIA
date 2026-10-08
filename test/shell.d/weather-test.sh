@@ -153,6 +153,36 @@ assertEqual(
   weather.iconForCode(389, false),
   'weather picks hourly forecast icon nearest noon'
 )
+
+const hourlyTimes = []
+for (let d of ['2026-05-25', '2026-05-26']) for (let h = 0; h < 24; h++) hourlyTimes.push(d + 'T' + String(h).padStart(2, '0') + ':00')
+const hourlyReport = {
+  current: { time: '2026-05-25T15:45' },
+  hourly: {
+    time: hourlyTimes,
+    temperature_2m: hourlyTimes.map((_, i) => 10 + i),
+    precipitation: hourlyTimes.map((_, i) => i === 16 ? 1.25 : (i === 17 ? null : 0)),
+    precipitation_probability: hourlyTimes.map(() => 40)
+  }
+}
+const nextDay = weather.hourlySeries(hourlyReport, '')
+assertEqual(nextDay.length, 24, 'weather hourly chart covers the next 24 hours')
+assertEqual(nextDay[0].time, '2026-05-25T15:00', 'weather hourly chart starts at the current hour')
+assertEqual(nextDay[0].hour, 15, 'weather hourly chart parses the hour')
+assertEqual(nextDay[1].precipMm, 1.25, 'weather hourly chart keeps the rain amount')
+assertEqual(nextDay[2].precipMm, 0, 'weather hourly chart reads missing rain as none')
+assertEqual(nextDay[23].time, '2026-05-26T14:00', 'weather hourly chart runs into the next day')
+const tomorrow = weather.hourlySeries(hourlyReport, '2026-05-26')
+assertEqual(tomorrow.length, 24, 'weather hourly chart covers a whole picked day')
+assertEqual(tomorrow[0].time, '2026-05-26T00:00', 'weather picked day starts at midnight')
+assertEqual(tomorrow[0].tempC, 34, 'weather picked day keeps the temperature')
+assertDeepEqual(weather.hourlySeries(hourlyReport, '2026-06-01'), [], 'weather hourly chart is empty for a day without data')
+assertDeepEqual(weather.hourlySeries({}, ''), [], 'weather hourly chart is empty without hourly data')
+assertEqual(weather.chartTemp(20, true), 68, 'weather chart converts temperatures to Fahrenheit')
+assertEqual(weather.chartTemp(null, false), null, 'weather chart leaves missing temperatures missing')
+assertEqual(weather.formatPrecip(1.25, false, ','), '1,3 mm', 'weather formats rain in mm with the locale decimal point')
+assertEqual(weather.formatPrecip(25.4, true, '.'), '1.00 in', 'weather formats rain in inches for imperial')
+
 JS
 
 test_tmp=$(mktemp -d)
