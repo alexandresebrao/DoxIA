@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
-# name, the SDDM theme, the GRUB boot menu theme, ONLYOFFICE (instead of LibreOffice), Thunderbird as the default mail client and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the SDDM theme, the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Thunderbird as the default mail client and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
 # added; the rest of the bar stays as it is).
 #
@@ -185,6 +185,10 @@ fi
 
 echo "==> Run on every Atualizar (omarchy-update's post-update hook)"
 bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
+
+echo "==> Keyring password window in the DoxIA style (instead of GNOME's gcr-prompter)"
+omarchy-pkg-add gcr-libs
+bash "$OMARCHY_PATH/fedora/doxia/install-keyring-prompter"
 
 echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"

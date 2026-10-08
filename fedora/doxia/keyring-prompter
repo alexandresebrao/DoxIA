@@ -1,0 +1,270 @@
+#!/usr/bin/python3
+"""Password window for gnome-keyring, in place of the stock gcr-prompter.
+
+Same look as sudo-gui-askpass (GTK4 + libadwaita, follows the Omarchy theme).
+gnome-keyring-daemon asks for passwords through the D-Bus name
+org.gnome.keyring.SystemPrompter; fedora/doxia/install-keyring-prompter points that
+name here (~/.local/share/dbus-1/services, which beats the system's gcr-prompter).
+
+Speaks gcr's prompter protocol (org.gnome.keyring.internal.Prompter) itself:
+Gcr.SystemPrompter can't be used from Python, its async prompt vfuncs lose their
+user_data in PyGObject and crash on the reply. Gcr.SecretExchange still does the
+crypto, so the password never crosses the bus in the clear. One prompt at a time,
+the others wait their turn. Exits a few seconds after the last prompt.
+
+  keyring-prompter [--name BUS_NAME]   (another name is for testing)
+"""
+
+import sys
+
+import gi
+gi.require_version("Gcr", "4")
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+from gi.repository import Adw, Gcr, Gio, GLib, Gtk  # noqa: E402
+
+BUS_NAME = "org.gnome.keyring.SystemPrompter"
+PROMPTER_PATH = "/org/gnome/keyring/Prompter"
+PROMPTER_IFACE = "org.gnome.keyring.internal.Prompter"
+CALLBACK_IFACE = "org.gnome.keyring.internal.Prompter.Callback"
+IDLE_EXIT_SECONDS = 10
+# gcr's default button labels arrive untranslated
+LABELS = {"Continue": "_Continuar", "Cancel": "_Cancelar", "Unlock": "_Destrancar"}
+
+INTROSPECTION = Gio.DBusNodeInfo.new_for_xml(f"""
+<node>
+  <interface name="{PROMPTER_IFACE}">
+    <method name="BeginPrompting">
+      <arg name="callback" type="o" direction="in"/>
+    </method>
+    <method name="PerformPrompt">
+      <arg name="callback" type="o" direction="in"/>
+      <arg name="type" type="s" direction="in"/>
+      <arg name="properties" type="a{{sv}}" direction="in"/>
+      <arg name="exchange" type="s" direction="in"/>
+    </method>
+    <method name="StopPrompting">
+      <arg name="callback" type="o" direction="in"/>
+    </method>
+  </interface>
+</node>""")
+
+
+class Prompt:
+    """One caller's prompt: properties it set, its secret exchange and window."""
+
+    def __init__(self, prompter, sender, path):
+        self.prompter = prompter
+        self.sender = sender
+        self.path = path
+        self.props = {}
+        self.exchange = Gcr.SecretExchange.new(None)
+        self.win = None
+        self.watch = Gio.bus_watch_name_on_connection(
+            prompter.bus, sender, Gio.BusNameWatcherFlags.NONE, None,
+            lambda *_: prompter.stop(self, notify=False))
+
+    def prop(self, name, default=""):
+        return self.props.get(name, default)
+
+    def ready(self, reply, secret=None):
+        # The first PromptReady carries our public key; the later ones the answer,
+        # encrypted for the caller (no secret when cancelled or confirming).
+        if reply == "":
+            sent = self.exchange.begin()
+        else:
+            sent = self.exchange.send(secret, -1)
+        # gcr reads each reply value back with g_variant_get_variant(), so they go
+        # wrapped twice (v inside v)
+        props = {
+            "choice-chosen": GLib.Variant("v", GLib.Variant("b", bool(self.prop("choice-chosen", False)))),
+            "password-strength": GLib.Variant("v", GLib.Variant("i", 0)),
+        }
+        self.prompter.bus.call(self.sender, self.path, CALLBACK_IFACE, "PromptReady",
+                               GLib.Variant("(sa{sv}s)", (reply, props, sent)),
+                               None, Gio.DBusCallFlags.NONE, -1, None, None)
+
+    def close(self, notify):
+        if self.win:
+            win, self.win = self.win, None
+            win.destroy()
+        Gio.bus_unwatch_name(self.watch)
+        if notify:
+            self.prompter.bus.call(self.sender, self.path, CALLBACK_IFACE, "PromptDone",
+                                   None, None, Gio.DBusCallFlags.NONE, -1, None, None)
+
+    def show(self, password):
+        if self.win:
+            self.win.destroy()
+
+        title = self.prop("title")
+        message = self.prop("message") or title or "Chaveiro"
+        new_password = bool(self.prop("password-new", False))
+
+        win = Adw.Window(title=title or "Chaveiro")
+        win.set_default_size(520, -1)
+        win.set_resizable(False)
+        self.win = win
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12,
+                      margin_top=18, margin_bottom=18, margin_start=18, margin_end=18)
+        head = Gtk.Label(xalign=0, wrap=True)
+        head.set_markup(f"<b>{GLib.markup_escape_text(message)}</b>")
+        box.append(head)
+        if self.prop("description"):
+            desc = Gtk.Label(label=self.prop("description"), xalign=0, wrap=True, max_width_chars=60)
+            desc.add_css_class("dim-label")
+            box.append(desc)
+        if self.prop("warning"):
+            warn = Gtk.Label(label=self.prop("warning"), xalign=0, wrap=True)
+            warn.add_css_class("error")
+            box.append(warn)
+
+        entry = confirm = None
+        if password:
+            entry = Gtk.PasswordEntry(show_peek_icon=True, activates_default=True)
+            entry.set_property("placeholder-text", "Nova senha" if new_password else "Senha")
+            box.append(entry)
+            if new_password:
+                confirm = Gtk.PasswordEntry(show_peek_icon=True, activates_default=True)
+                confirm.set_property("placeholder-text", "Confirme a nova senha")
+                box.append(confirm)
+
+        choice = None
+        if self.prop("choice-label"):
+            choice = Gtk.CheckButton.new_with_mnemonic(self.prop("choice-label"))
+            choice.set_active(bool(self.prop("choice-chosen", False)))
+            box.append(choice)
+
+        mismatch = Gtk.Label(label="As senhas não conferem.", xalign=0, visible=False)
+        mismatch.add_css_class("error")
+        box.append(mismatch)
+
+        cancel_label = self.prop("cancel-label")
+        continue_label = self.prop("continue-label")
+        buttons = Gtk.Box(spacing=8, halign=Gtk.Align.END)
+        cancel = Gtk.Button.new_with_mnemonic(LABELS.get(cancel_label, cancel_label) or "_Cancelar")
+        ok = Gtk.Button.new_with_mnemonic(LABELS.get(continue_label, continue_label)
+                                          or ("_Destrancar" if password else "_Continuar"))
+        ok.add_css_class("suggested-action")
+        buttons.append(cancel)
+        buttons.append(ok)
+        box.append(buttons)
+        win.set_content(box)
+        win.set_default_widget(ok)
+
+        def done(reply, secret=None):
+            if self.win is not win:
+                return
+            if choice:
+                self.props["choice-chosen"] = choice.get_active()
+            self.win = None
+            win.destroy()
+            self.ready(reply, secret)
+
+        def accept(*_):
+            if confirm and entry.get_text() != confirm.get_text():
+                mismatch.set_visible(True)
+                confirm.grab_focus()
+            else:
+                done("yes", entry.get_text() if entry else None)
+
+        def reject(*_):
+            done("no")
+            return True
+
+        def on_key(_controller, keyval, _code, _state):
+            if keyval == 0xff1b:  # Escape
+                return reject()
+            return False
+
+        ok.connect("clicked", accept)
+        cancel.connect("clicked", reject)
+        win.connect("close-request", reject)
+        for e in (entry, confirm):
+            if e:
+                e.connect("activate", accept)
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", on_key)
+        win.add_controller(keys)
+
+        win.present()
+        (entry or ok).grab_focus()
+
+
+class Prompter:
+    def __init__(self, bus, loop):
+        self.bus = bus
+        self.loop = loop
+        self.queue = []  # the first one is on screen, the rest wait
+        self.idle = 0
+
+    def find(self, sender, path):
+        return next((p for p in self.queue if p.sender == sender and p.path == path), None)
+
+    def arm_exit(self):
+        if self.idle:
+            GLib.source_remove(self.idle)
+            self.idle = 0
+        if not self.queue:
+            self.idle = GLib.timeout_add_seconds(IDLE_EXIT_SECONDS, self.loop.quit)
+
+    def stop(self, prompt, notify):
+        if prompt not in self.queue:
+            return
+        head = self.queue[0] is prompt
+        self.queue.remove(prompt)
+        prompt.close(notify)
+        if head and self.queue:
+            self.queue[0].ready("")
+        self.arm_exit()
+
+    def on_call(self, _bus, sender, _path, _iface, method, params, invocation):
+        args = params.unpack()
+        prompt = self.find(sender, args[0])
+
+        if method == "BeginPrompting":
+            if prompt:
+                invocation.return_dbus_error("org.gnome.keyring.Prompter.InProgress",
+                                             "Already prompting for this caller")
+                return
+            self.queue.append(Prompt(self, sender, args[0]))
+            invocation.return_value(None)
+            if len(self.queue) == 1:
+                self.queue[0].ready("")
+            self.arm_exit()
+
+        elif method == "PerformPrompt":
+            _, kind, props, exchange = args
+            if not prompt or prompt is not self.queue[0]:
+                invocation.return_dbus_error("org.freedesktop.DBus.Error.InvalidArgs",
+                                             "Not the active prompt")
+                return
+            if exchange and not prompt.exchange.receive(exchange):
+                invocation.return_dbus_error("org.freedesktop.DBus.Error.InvalidArgs",
+                                             "Invalid secret exchange")
+                return
+            prompt.props.update(props)
+            invocation.return_value(None)
+            prompt.show(kind == "password")
+
+        elif method == "StopPrompting":
+            invocation.return_value(None)
+            if prompt:
+                self.stop(prompt, notify=True)
+
+
+def main():
+    name = sys.argv[sys.argv.index("--name") + 1] if "--name" in sys.argv else BUS_NAME
+    Adw.init()
+    loop = GLib.MainLoop()
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION)
+    prompter = Prompter(bus, loop)
+    bus.register_object(PROMPTER_PATH, INTROSPECTION.interfaces[0], prompter.on_call)
+    Gio.bus_own_name_on_connection(bus, name, Gio.BusNameOwnerFlags.NONE,
+                                   lambda *_: prompter.arm_exit(), lambda *_: loop.quit())
+    loop.run()
+
+
+if __name__ == "__main__":
+    main()
