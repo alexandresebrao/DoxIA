@@ -62,6 +62,9 @@ bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 echo "==> Run fedora/update.sh on every Atualizar (post-update hook)"
 bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
 
+echo "==> Keyring password window in the DoxIA style (instead of GNOME's gcr-prompter)"
+bash "$OMARCHY_PATH/fedora/doxia/install-keyring-prompter"
+
 echo "==> Screen share (portal config, Chrome's sharing bar hidden behind the bar button)"
 seed fedora/doxia/hypr/xdph.conf ~/.config/hypr/xdph.conf
 if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua; then

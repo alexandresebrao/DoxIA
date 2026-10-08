@@ -61,6 +61,8 @@ packages=(
   # SDKMAN! (fedora/doxia/install-dev-tools) needs zip and unzip; its window
   # (fedora/doxia/dev-versions) runs on GTK 4 and libadwaita and unpacks rpm JDKs with cpio
   zip unzip gtk4 libadwaita cpio
+  # gnome-keyring's password window (fedora/doxia/keyring-prompter) runs on Gcr 4
+  gcr-libs
   # The first-login screen (fedora/doxia/first-boot) reuses the installer wizard's GTK 3 window
   gtk3
   # The DoxIA shell: zsh with Oh My Zsh (fedora/doxia/install-zsh)

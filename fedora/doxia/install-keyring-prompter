@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Makes gnome-keyring ask for its password in fedora/doxia/keyring-prompter (same
+# window as sudo-gui) instead of the stock GNOME gcr-prompter. A D-Bus service
+# file in ~/.local/share wins over the one gcr ships in /usr/share. Run by
+# install-user.sh and fedora/update.sh.
+
+service=$HOME/.local/share/dbus-1/services/org.gnome.keyring.SystemPrompter.service
+mkdir -p "$(dirname "$service")"
+cat > "$service" <<UNIT
+[D-BUS Service]
+Name=org.gnome.keyring.SystemPrompter
+Exec=$OMARCHY_PATH/fedora/doxia/keyring-prompter
+UNIT
+# Picked up right away in a running session; the installer has no session bus.
+busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || true
