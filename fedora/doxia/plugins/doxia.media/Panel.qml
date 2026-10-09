@@ -198,7 +198,9 @@ Panel {
       text: !root.hasMedia ? root.gMusic : (root.playing ? root.gPause : root.gPlay)
       color: root.playing ? root.barForeground : Qt.darker(root.barForeground, 1.5)
       font.family: root.fontFamily
-      font.pixelSize: Style.font.body
+      // O glifo no tamanho do texto desce 1px abaixo da linha de base do
+      // título; um pouco menor ele fica alinhado às maiúsculas.
+      font.pixelSize: Style.font.body - 2
     }
 
     Item {

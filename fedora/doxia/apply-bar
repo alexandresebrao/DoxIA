@@ -3,13 +3,15 @@
 # Puts the DoxIA bar in place for the current user: copies the plugins in
 # fedora/doxia/plugins to ~/.config/omarchy/plugins (replacing older copies) and
 # adds their widgets to ~/.config/omarchy/shell.json where they are missing:
-# the ∞ menu button and workspace icons on the left, Now Playing and the screen
-# share indicator around the clock, CPU/memory/battery usage on the right and
+# the ∞ menu button and workspace icons on the left, Now Playing centered with
+# the screen share indicator after it, CPU/memory/battery usage on the right and
 # the services panel (doxia.services) and FortiVPN (doxia.fortivpn) between the
-# agents and network icons, and the Painel Rápido button (doxia.painel) at the
-# end of the left side (the Omarchy indicators group is removed), and enables the Start menu (doxia.iniciar, opened by the
-# ∞ button and SUPER+ALT+SPACE). The Painel Rápido app (fedora/doxia/painel) goes on the
-# PATH as doxia-painel and in the launcher.
+# agents and network icons (the Omarchy indicators group is removed), and enables
+# the Start menu (doxia.iniciar, opened by the ∞ button and SUPER+ALT+SPACE).
+# A clock still in the center moves to the right corner showing date and time,
+# and the Painel Rápido button (doxia.painel) leaves the bar: the Painel Rápido
+# app (fedora/doxia/painel) goes on the PATH as doxia-painel, in the launcher and
+# on SUPER+ALT+P.
 # The panel's svc script goes on the PATH and its /servicos Claude Code skill to
 # ~/.claude/skills.
 # Widgets already placed (or moved) stay where they are, and the old Xi widgets
@@ -63,13 +65,12 @@ fi
 
 jq '
   def has($id): any(.[]; .id == $id);
-  # Inserts {id} next to the clock (offset 0 = before it, 1 = after it), or at
-  # the end when the clock is elsewhere.
-  def by_clock($id; $offset):
+  # Inserts {id} right after Now Playing, or at the end without it.
+  def after_media($id):
     if has($id) then . else
-      (map(.id) | index("omarchy.clock")) as $i
+      (map(.id) | index("doxia.media")) as $i
       | if $i == null then . + [{id: $id}]
-        else .[:$i + $offset] + [{id: $id}] + .[$i + $offset:] end
+        else .[:$i + 1] + [{id: $id}] + .[$i + 1:] end
     end;
   def renamed:
     map(if .id == "omarchy.menu" or .id == "xi.emblem" then {id: "doxia.emblem"}
@@ -78,12 +79,21 @@ jq '
         elif .id | IN("alexandre.media", "alexandre.screenshare", "alexandre.services", "alexandre.fortivpn", "alexandre.painel")
           then .id |= sub("^alexandre"; "doxia")
         else . end);
-  .bar.layout |= (
+  # Now Playing is the center anchor; the clock (when it is still in the center,
+  # where Omarchy puts it) goes to the right corner showing only date and time.
+  (.bar.layout.center // [] | map(select(.id == "omarchy.clock")) | first // null) as $clock
+  | if .bar.centerAnchor == null or .bar.centerAnchor == "omarchy.clock" then .bar.centerAnchor = "doxia.media" else . end
+  | .bar.layout |= (
     (.left, .center, .right) |= renamed
     # No indicators group (dictation, recording, night light, DND, stay awake):
     # DoxIA does not use them.
     | (.left, .center, .right) |= map(select(.id != "omarchy.indicators"))
-    | .center |= (by_clock("doxia.media"; 0) | by_clock("doxia.screenshare"; 1))
+    | if $clock == null then . else
+        .center |= map(select(.id != "omarchy.clock"))
+        | .right += [$clock | if (.format // "dddd HH:mm") == "dddd HH:mm" then .format = "dd/MM HH:mm" else . end]
+      end
+    | if (.left + .center + .right | has("doxia.media")) then . else .center |= [{id: "doxia.media"}] + . end
+    | .center |= after_media("doxia.screenshare")
     | if (.left + .center + .right | has("doxia.usage")) then .
       else .right |= [{id: "doxia.usage"}] + . end
     # Services right after the agents icon (before the network group without it).
@@ -95,8 +105,7 @@ jq '
           elif $n != null then .[:$n] + [{id: "doxia.services"}] + .[$n:]
           else . + [{id: "doxia.services"}] end)
       end
-    | if (.left + .center + .right | has("doxia.painel")) then .
-      else .left += [{id: "doxia.painel"}] end
+    | (.left, .center, .right) |= map(select(.id != "doxia.painel"))
     # FortiVPN right after the services panel.
     | if (.left + .center + .right | has("doxia.fortivpn")) then .
       else .right |= (
