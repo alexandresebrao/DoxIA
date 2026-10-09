@@ -1,6 +1,6 @@
 ---
 name: painel
-description: Cria, edita ou remove ações do Painel Rápido do DoxIA (o raio na barra, SUPER+ALT+P, comando doxia-painel) — formulários de chamado no Jira Service Management, listas de tarefas do Jira por JQL, disparo de pipelines no GitLab com variáveis, links e comandos. Use quando o usuário pedir para colocar um atalho/ação/formulário no painel, mudar campos, trocar a ação favorita, ajustar o prompt do "Melhorar com Claude" ou mexer em ~/.config/omarchy/painel.json.
+description: Cria, edita ou remove ações do Painel Rápido do DoxIA (SUPER+ALT+P, comando doxia-painel, launcher) — formulários de chamado no Jira Service Management, listas de tarefas do Jira por JQL, disparo de pipelines no GitLab com variáveis, links e comandos. Use quando o usuário pedir para colocar um atalho/ação/formulário no painel, mudar campos, trocar a ação favorita, ajustar o prompt do "Melhorar com Claude" ou mexer em ~/.config/omarchy/painel.json.
 ---
 
 # Painel Rápido
@@ -11,8 +11,9 @@ libadwaita, app id `org.doxia.Painel`). Ele é genérico: **todas as ações vê
 Seu trabalho nesta skill é quase sempre editar esse arquivo; só mexa no código
 do app se o usuário pedir um tipo de ação que não existe.
 
-Abrir: clique no raio da barra (plugin `doxia.painel`), `SUPER+ALT+P` (abre a
-ação `favorite`) ou `doxia-painel [<id> | --favorito]`. O app relê o arquivo ao
+Abrir: `SUPER+ALT+P` (abre a ação `favorite`), o launcher ou
+`doxia-painel [<id> | --favorito]`. O botão de raio (plugin `doxia.painel`) não
+fica mais na barra; o `apply-bar` o retira a cada atualização. O app relê o arquivo ao
 abrir uma janela nova; com ele aberto, o botão ↻ da tela inicial (Ctrl+R)
 recarrega. Na tela inicial, Alt+1…9 abre as nove primeiras ações.
 
@@ -20,7 +21,7 @@ recarrega. Na tela inicial, Alt+1…9 abre as nove primeiras ações.
 
 ```json
 {
-  "favorite": "sre",                       // opcional: ação do SUPER+ALT+P e do clique direito no raio
+  "favorite": "sre",                       // opcional: ação do SUPER+ALT+P
   "jira": { "site": "https://empresa.atlassian.net" },  // site padrão das ações do Jira
   "actions": [ … ]                         // na ordem em que aparecem na tela inicial
 }
