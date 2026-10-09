@@ -83,6 +83,11 @@ if ! grep -q "org.doxia.Painel" ~/.config/hypr/hyprland.lua; then
 fi
 
 echo "==> Window focus by scroll (SUPER + mouse wheel, three-finger swipe)"
+# Older copies of the snippet lack the SUPER + wheel over the bar (brightness on
+# the computer icon): drop them so the current one is appended.
+if grep -q "scroll_focus" ~/.config/hypr/bindings.lua && ! grep -q "over_top_bar" ~/.config/hypr/bindings.lua; then
+  sed -i '/^-- SUPER + roda do mouse:/,/fingers = 3, direction = "right"/d' ~/.config/hypr/bindings.lua
+fi
 if ! grep -q "scroll_focus" ~/.config/hypr/bindings.lua; then
   { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/scroll-focus.lua"; } >> ~/.config/hypr/bindings.lua
 fi
