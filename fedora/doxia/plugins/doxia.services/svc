@@ -48,7 +48,16 @@ is_active() { systemctl --user is-active --quiet "$1"; }
 
 stamp() { printf '\n\033[1;36m==> %s  %s\033[0m\n' "$(date '+%F %T')" "$*"; }
 
-notify() { command -v notify-send >/dev/null && notify-send -a "Serviços" "$@" || true; }
+# Notificação com o mesmo ícone de servidor da barra: título = nome do serviço.
+notify() {
+  if command -v omarchy-notification-send >/dev/null; then
+    omarchy-notification-send --app-name "Serviços" -g "󰒋" "$@" >/dev/null 2>&1 || true
+  elif command -v notify-send >/dev/null; then
+    notify-send -a "Serviços" "$@" || true
+  fi
+}
+
+svc_name() { local n; n="$(field "$1" .name)"; printf '%s' "${n:-$(field "$1" .id)}"; }
 
 # Mantém o log abaixo de ~5 MB, preservando o final.
 trim_log() {
@@ -179,6 +188,7 @@ cmd_start() {
   local branch; branch="$(git -C "$(expand_dir "$(field "$json" .dir)")" branch --show-current 2>/dev/null)"
   stamp "start ${branch:+($branch) }$(field "$json" .start)" >>"$log"
   spawn "$(unit "$id")" "$id" "$SELF" _run "$id"
+  [[ -n ${SVC_QUIET-} ]] || notify "$(svc_name "$json")" "Sendo iniciado${branch:+ em $branch}…"
 }
 
 cmd_stop() {
@@ -207,14 +217,24 @@ cmd_build() { cmd_checkout "$1" ""; }
 internal_run() {
   local json; json="$(svc_json "$1")" || exit 1
   load_env "$json"
-  exec bash -c "$(field "$json" .start)"
+  # Sem exec: o wrapper fica para avisar se o serviço cair com erro. No stop o
+  # systemd manda SIGTERM para a unit toda; o trap marca que foi pedido.
+  local stopping=0
+  trap 'stopping=1' TERM INT
+  bash -c "$(field "$json" .start)"
+  local rc=$?
+  if (( rc != 0 && ! stopping && rc != 130 && rc != 143 )); then
+    stamp "SAIU COM ERRO (código $rc)"
+    notify -u critical "$(svc_name "$json")" "Deu erro, verifique o log."
+  fi
+  exit "$rc"
 }
 
 # Troca de branch (se $2 não for vazio) e roda os passos de onBranchChange.
 # Para o serviço antes e o religa no fim se ele estava rodando.
 internal_task() {
   local id="$1" branch="$2" json; json="$(svc_json "$id")" || exit 1
-  local name; name="$(field "$json" .name)"; name="${name:-$id}"
+  local name; name="$(svc_name "$json")"
   rm -f "$STATE_DIR/$id.failed"
   local was_running=0
   is_active "$(unit "$id")" && was_running=1
@@ -270,7 +290,8 @@ internal_task() {
   local now; now="$(git -C "$(expand_dir "$(field "$json" .dir)")" branch --show-current 2>/dev/null)"
   if (( rc != 0 )); then
     stamp "FALHOU (código $rc)"
-    notify -u critical "$name: falhou" "${branch:+Troca para $branch parou com erro. }Veja o log."
+    local what="Build"; [[ -n $branch ]] && what="Troca para $branch"
+    notify -u critical "$name" "$what deu erro, verifique o log."
     # Sai limpo para o Omarchy não avisar "Failed unit"; o painel lê este arquivo.
     echo "$rc" >"$STATE_DIR/$id.failed"
     exit 0
@@ -278,8 +299,8 @@ internal_task() {
 
   local restart; restart="$(field "$json" .restartOnBranchChange)"
   if (( was_running )) || [[ $restart == always ]]; then
-    "$SELF" start "$id"
-    notify "$name" "Em ${now:-?} e rodando."
+    SVC_QUIET=1 "$SELF" start "$id"
+    notify "$name" "Em ${now:-?}, sendo iniciado…"
   else
     stamp "pronto"
     notify "$name" "Em ${now:-?}."
