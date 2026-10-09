@@ -31,6 +31,8 @@ Item {
 
   signal pressed(int button)
   signal wheelMoved(int delta)
+  // Both axes, for widgets that tell horizontal (touchpad) scroll apart.
+  signal wheelTurned(int dx, int dy, bool inverted)
 
   function triggerPress(button) {
     if (root.bar) root.bar.hideTooltip(root)
@@ -114,6 +116,9 @@ Item {
         root.revealHost.setIndicatorItemHovered(false)
     }
     onClicked: function(mouse) { if (root.pressable) root.triggerPress(mouse.button) }
-    onWheel: function(wheel) { root.wheelMoved(wheel.angleDelta.y) }
+    onWheel: function(wheel) {
+      root.wheelMoved(wheel.angleDelta.y)
+      root.wheelTurned(wheel.angleDelta.x, wheel.angleDelta.y, wheel.inverted)
+    }
   }
 }

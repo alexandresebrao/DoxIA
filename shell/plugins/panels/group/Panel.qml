@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -12,6 +13,10 @@ import qs.Ui
 //     "titles": ["Bateria", "Tela", "Som"],
 //     "icon": "omarchy.audio",    // member id (its live glyph) or a glyph
 //     "wheel": "omarchy.audio",   // member that receives scroll on the icon
+//     "hwheel": "omarchy.monitor", // member that receives horizontal scroll
+//                                  // (fingers to the right = up) and
+//                                  // SUPER + mouse wheel, which Hyprland
+//                                  // grabs and forwards via superWheel
 //     "rightClick": "omarchy.audio" }  // member that receives right-click
 Item {
   id: root
@@ -111,15 +116,30 @@ Item {
     return c && c.fontFamily ? c.fontFamily : Style.font.family
   }
 
+  // Scrolling a member other than the icon one (volume on the monitor icon)
+  // shows that member's glyph for a few seconds, then the icon comes back.
+  property string flashMember: ""
+  Timer {
+    id: flashTimer
+    interval: 5000
+    onTriggered: root.flashMember = ""
+  }
+  function flash(id) {
+    if (!id || id === iconSetting) return
+    flashMember = id
+    flashTimer.restart()
+  }
+
   readonly property string iconSetting: settings && settings.icon ? String(settings.icon) : ""
+  readonly property string shownIcon: flashMember || iconSetting
   readonly property string groupGlyph: {
-    if (iconSetting && !knownMembers[iconSetting]) return iconSetting
-    var m = iconSetting ? memberById(iconSetting) : tabs[0]
+    if (shownIcon && !knownMembers[shownIcon]) return shownIcon
+    var m = shownIcon ? memberById(shownIcon) : tabs[0]
     return glyphOf(m)
   }
-  readonly property var groupIconButton: iconSetting && !knownMembers[iconSetting]
+  readonly property var groupIconButton: shownIcon && !knownMembers[shownIcon]
     ? null
-    : buttonOf(iconSetting ? memberById(iconSetting) : tabs[0])
+    : buttonOf(shownIcon ? memberById(shownIcon) : tabs[0])
 
   function selectTab(index) {
     var t = tabs
@@ -192,9 +212,42 @@ Item {
       if (target) target.pressed(b)
       else if (b === Qt.LeftButton) root.toggle()
     }
-    onWheelMoved: function(delta) {
-      var target = root.settings ? root.buttonOf(root.memberById(root.settings.wheel)) : null
-      if (target) target.wheelMoved(delta)
+    onWheelTurned: function(dx, dy, inverted) {
+      if (!root.settings) return
+      var horizontal = Math.abs(dx) > Math.abs(dy)
+      var id = horizontal && root.settings.hwheel ? root.settings.hwheel : root.settings.wheel
+      var target = root.buttonOf(root.memberById(id))
+      if (!target) return
+      if (horizontal && root.settings.hwheel) {
+        // Qt reports fingers moving right as negative x, unless the
+        // compositor already inverted it (natural scrolling).
+        target.wheelMoved(inverted ? dx : -dx)
+      } else {
+        if (dy === 0) return
+        target.wheelMoved(dy)
+      }
+      if (id === root.iconSetting) {
+        flashTimer.stop()
+        root.flashMember = ""
+      } else {
+        root.flash(id)
+      }
+    }
+  }
+
+  // SUPER + wheel is a Hyprland bind (scroll-focus.lua), so the bar never sees
+  // it; over the bar the bind calls this instead. Only the group with an
+  // hwheel member answers, and only while the pointer is on its icon.
+  IpcHandler {
+    target: "omarchy.group"
+    enabled: !!(root.settings && root.settings.hwheel)
+    function superWheel(direction: string): void {
+      if (!button.tooltipHovered) return
+      var target = root.buttonOf(root.memberById(root.settings.hwheel))
+      if (!target) return
+      target.wheelMoved(direction === "down" ? -120 : 120)
+      flashTimer.stop()
+      root.flashMember = ""
     }
   }
 
