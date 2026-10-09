@@ -8,6 +8,7 @@ e edita esse arquivo). Tipos de ação:
                    com "Melhorar com Claude" opcional para reescrever um campo
   jira-tasks       lista de tarefas de uma busca JQL, agrupadas por status
   gitlab-pipeline  inicia uma pipeline no GitLab com variáveis, lembrando as recentes
+  claude-text      caixa de texto que o Claude melhora (prompt configurável)
   link             abre uma URL
   command          roda um comando
 
@@ -51,11 +52,18 @@ MAX_RECENT = 6
 
 CLAUDE_MODEL = "sonnet"
 CLAUDE_TIMEOUT = 180
+CLAUDE_TEXT_PROMPT = (
+    "Você melhora textos. Reescreva o texto recebido deixando-o claro, correto e bem escrito: "
+    "corrija ortografia, gramática e pontuação, melhore a fluidez e a organização, mantenha o "
+    "sentido, os fatos, o idioma e o tom do original, sem inventar informações. Se houver uma "
+    "instrução extra, siga-a. Responda só com o texto final, em texto puro, sem comentários, "
+    "sem aspas e sem markdown.")
 
 DEFAULT_ICONS = {
     "jira-request": "dialog-warning-symbolic",
     "jira-tasks": "view-list-symbolic",
     "gitlab-pipeline": "media-playback-start-symbolic",
+    "claude-text": "document-edit-symbolic",
     "link": "web-browser-symbolic",
     "command": "utilities-terminal-symbolic",
 }
@@ -805,10 +813,112 @@ class JiraTasksPage(Adw.NavigationPage):
         return row
 
 
+class ClaudeTextPage(Adw.NavigationPage):
+    """Caixa de texto livre que o Claude reescreve."""
+
+    def __init__(self, window, cfg, action):
+        super().__init__(title=action["title"], tag=action["id"])
+        self.window = window
+        self.spec = dict(action)
+        if not (action.get("prompt") or action.get("promptFile")):
+            self.spec["prompt"] = CLAUDE_TEXT_PROMPT
+
+        toolbar = Adw.ToolbarView()
+        toolbar.add_top_bar(Adw.HeaderBar())
+        page = Adw.PreferencesPage()
+
+        text_group = Adw.PreferencesGroup(title=action.get("formTitle", "Texto"),
+                                          description=action.get("formDescription", "Cole o texto e peça para o Claude melhorar."))
+        self.view = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, top_margin=10, bottom_margin=10,
+                                 left_margin=12, right_margin=12, accepts_tab=False)
+        self.view.add_css_class("painel-desc")
+        text_group.add(Gtk.ScrolledWindow(min_content_height=260, css_classes=["card"], child=self.view))
+        page.add(text_group)
+
+        self.instruction = None
+        if action.get("instruction", True):
+            group = Adw.PreferencesGroup()
+            self.instruction = entry_row("Instrução extra (opcional)", "ex.: mais formal, mais curto, em inglês")
+            group.add(self.instruction)
+            page.add(group)
+
+        self.status = Gtk.Label(wrap=True, css_classes=["dim-label"], margin_top=6)
+        self.spinner = Adw.Spinner(visible=False, margin_top=6)
+        self.improve_btn = Gtk.Button(css_classes=["suggested-action", "pill"], margin_top=6,
+                                      tooltip_text="Reescrever o texto com o Claude (Ctrl+Enter)")
+        self.improve_btn.set_child(Adw.ButtonContent(icon_name="document-edit-symbolic",
+                                                     label=action.get("label", "Melhorar com Claude")))
+        self.improve_btn.connect("clicked", self.on_improve)
+        self.copy_btn = Gtk.Button(css_classes=["pill"], margin_top=6, tooltip_text="Copiar o texto (Ctrl+Shift+C)")
+        self.copy_btn.set_child(Adw.ButtonContent(icon_name="edit-copy-symbolic", label="Copiar"))
+        self.copy_btn.connect("clicked", self.on_copy)
+        buttons = Gtk.Box(spacing=12, halign=Gtk.Align.CENTER)
+        for w in (self.copy_btn, self.spinner, self.improve_btn):
+            buttons.append(w)
+        page.add(action_button_box(buttons, self.status))
+
+        toolbar.set_content(page)
+        self.set_child(toolbar)
+        add_shortcut(self, "<Control>Return", lambda: self.on_improve(None))
+        add_shortcut(self, "<Control>e", lambda: self.on_improve(None))
+        add_shortcut(self, "<Control><Shift>c", lambda: self.on_copy(None))
+        self.connect("shown", lambda *_: self.view.grab_focus())
+
+    def text(self):
+        buf = self.view.get_buffer()
+        return buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False).strip()
+
+    def set_text(self, text):
+        buf = self.view.get_buffer()
+        buf.set_text(text)
+        buf.place_cursor(buf.get_start_iter())
+
+    def set_busy(self, busy):
+        self.improve_btn.set_sensitive(not busy)
+        self.copy_btn.set_sensitive(not busy)
+        self.view.set_editable(not busy)
+        self.spinner.set_visible(busy)
+
+    def on_copy(self, _btn):
+        text = self.text()
+        if not text:
+            self.status.set_text("Nada para copiar")
+            return
+        self.get_clipboard().set(text)
+        self.window.toasts.add_toast(Adw.Toast(title="Texto copiado"))
+
+    def on_improve(self, _btn):
+        if not self.improve_btn.get_sensitive():
+            return
+        original = self.text()
+        if not original:
+            self.status.set_text("Cole um texto primeiro")
+            self.view.grab_focus()
+            return
+        extra = self.instruction.get_text().strip() if self.instruction else ""
+        context = [("Instrução extra", extra)] if extra else []
+        self.set_busy(True)
+        self.status.set_text("Claude escrevendo…")
+
+        def done(text, err):
+            self.set_busy(False)
+            if err:
+                self.status.set_text(str(err))
+                return
+            self.status.set_text("Revise o texto antes de usar.")
+            self.set_text(text)
+            toast = Adw.Toast(title="Texto reescrito pelo Claude", button_label="Desfazer", timeout=10)
+            toast.connect("button-clicked", lambda *_: self.set_text(original))
+            self.window.toasts.add_toast(toast)
+
+        run_async(lambda: claude_rewrite(self.spec, context, original), done)
+
+
 PAGE_TYPES = {
     "jira-request": JiraRequestPage,
     "jira-tasks": JiraTasksPage,
     "gitlab-pipeline": GitlabPipelinePage,
+    "claude-text": ClaudeTextPage,
 }
 
 
@@ -872,6 +982,7 @@ def validate_actions(actions):
         "jira-request": ("serviceDesk", "requestType", "fields"),
         "jira-tasks": (),
         "gitlab-pipeline": ("project",),
+        "claude-text": (),
         "link": ("url",),
         "command": ("run",),
     }
