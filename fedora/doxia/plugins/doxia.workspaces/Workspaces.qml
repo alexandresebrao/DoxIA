@@ -83,7 +83,7 @@ BarWidget {
     root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
   }
 
-  readonly property real plateH: Math.round(barSize * 0.68)
+  readonly property real plateH: Math.round(barSize * 0.82)
 
   implicitWidth: vertical ? barSize : flow.implicitWidth + 8
   implicitHeight: vertical ? flow.implicitHeight + 8 : barSize
@@ -160,7 +160,7 @@ BarWidget {
           readonly property bool isIcon: root.workspaceIcons[plate.modelData] !== undefined
           text: root.workspaceLabel(plate.modelData)
           font.family: root.fontFamily
-          font.pixelSize: Math.round(root.plateH * (isIcon ? 0.52 : 0.58))
+          font.pixelSize: isIcon ? Style.bar.iconFont : Math.round(Style.bar.iconFont * 1.1)
           font.bold: plate.focused || plate.occupied
           color: plate.focused ? root.cAccent : (plate.occupied ? root.cWhite : root.cDim)
         }

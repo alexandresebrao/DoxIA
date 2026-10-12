@@ -16,7 +16,7 @@ active           = "#1f7ae0"
 # top/bottom bars; size-vertical is the width of left/right bars. With
 # scale-with-font enabled, these grow/shrink with [font] base-size.
 scale-with-font  = true
-size-horizontal  = 40
+size-horizontal  = 28
 # Barra 40px e ícones maiores (padrão: altura 26, slot 27, canvas 16, fonte 13).
 icon-slot        = 34
 icon-canvas      = 21
