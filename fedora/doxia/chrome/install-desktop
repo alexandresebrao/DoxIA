@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Shadows google-chrome.desktop with a copy whose Exec lines run the GTK 4
+# wrapper next to this script. Menu, web apps (omarchy-launch-webapp) and links
+# (default browser) all start Chrome through this file. Regenerated from the
+# package's own file each time, so new actions in it come along.
+#
+#   bash fedora/doxia/chrome/install-desktop <checkout>
+
+set -euo pipefail
+
+omarchy_path=${1:?usage: install-desktop <omarchy checkout>}
+source=/usr/share/applications/google-chrome.desktop
+dest=$HOME/.local/share/applications/google-chrome.desktop
+
+[[ -f $source ]] || exit 0
+
+mkdir -p "$(dirname "$dest")"
+sed "s|^Exec=/usr/bin/google-chrome-stable|Exec=$omarchy_path/fedora/doxia/chrome/google-chrome-stable|" "$source" >"$dest"
+update-desktop-database -q "$(dirname "$dest")" 2>/dev/null || true

@@ -1,11 +1,14 @@
 #!/bin/bash
 
-# Google Chrome as DoxIA's browser: Google's dnf repo and package plus the managed
-# policy directory the theme color goes in (as root), then what omarchy-install-browser
-# chrome does for the user (Wayland flags, Copy URL and yt-dlp extensions, theme
-# color) and Chrome as the default browser unless one is already picked.
+# Google Chrome as DoxIA's browser: Google's dnf repo and package (as root), then what
+# omarchy-install-browser chrome does for the user (Wayland flags, Copy URL and yt-dlp
+# extensions) and Chrome as the default browser unless one is already picked.
 #
-#   sudo fedora/doxia/install-chrome --system   # as root: repo, package, policy dir (install-system.sh)
+# No managed policy directory for Chrome: a color set by policy always gets a light
+# frame. The theme reaches Chrome through its profile instead, written by
+# fedora/doxia/chrome/google-chrome-stable before each start.
+#
+#   sudo fedora/doxia/install-chrome --system   # as root: repo and package (install-system.sh)
 #   fedora/doxia/install-chrome                 # as the user: package via sudo when missing, then the rest
 
 set -euo pipefail
@@ -28,9 +31,6 @@ REPO
   # Fedora Workstation ships the same repo disabled.
   dnf config-manager setopt google-chrome.enabled=1 >/dev/null
   rpm -q google-chrome-stable &>/dev/null || dnf install -y google-chrome-stable
-
-  source "$omarchy_path/install/helpers/browser-policy.sh"
-  browser_policy_setup_dir /etc/opt/chrome/policies/managed
   exit 0
 fi
 
@@ -39,16 +39,16 @@ if (( EUID == 0 )); then
   exit 1
 fi
 
-if ! rpm -q google-chrome-stable &>/dev/null || [[ ! -d /etc/opt/chrome/policies/managed ]]; then
+if ! rpm -q google-chrome-stable &>/dev/null; then
   sudo bash "$omarchy_path/fedora/doxia/install-chrome" --system
 fi
 
 mkdir -p "$HOME/.config"
 cp -f "$omarchy_path/config/chromium-flags.conf" "$HOME/.config/chrome-flags.conf"
+# Chrome on GTK 4, so its frame is dark under a dark theme.
+bash "$omarchy_path/fedora/doxia/chrome/install-desktop" "$omarchy_path"
 omarchy-install-chromium-copy-url
 omarchy-install-chromium-ytdlp
-# The color policy needs root; without a password (the installer) the next theme change writes it.
-omarchy-theme-set-browser </dev/null || true
 
 # Only when no browser was picked by hand (Setup > Defaults > Browser writes this file).
 if ! grep -qs '^x-scheme-handler/https=' "$HOME/.config/mimeapps.list"; then

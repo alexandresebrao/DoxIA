@@ -160,6 +160,8 @@ if ! omarchy-done check doxia-chrome; then
     echo "  Chrome setup failed; the next Atualizar will retry."
   fi
 fi
+# Every time, so the copy follows the package's google-chrome.desktop.
+bash "$OMARCHY_PATH/fedora/doxia/chrome/install-desktop" "$OMARCHY_PATH"
 
 echo "==> Claude Code (once)"
 if ! omarchy-done check doxia-claude; then
@@ -341,6 +343,10 @@ install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
 restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
 bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
+# Chrome takes the theme from its profile now (fedora/doxia/chrome): a policy color
+# would keep its frame light, so the policy directory installs used to get goes.
+rm -f /etc/opt/chrome/policies/managed/color.json
+rmdir /etc/opt/chrome/policies/managed /etc/opt/chrome/policies 2>/dev/null || true
 ROOT
 
 if [[ -d $backup_dir ]]; then

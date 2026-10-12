@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Google Chrome in the DoxIA theme. Before a fresh start, every profile gets the
+# theme's color (chromium.theme) as its Chrome color and the theme's mode as its
+# light/dark scheme: Chrome reads both only at startup and writes its prefs back
+# on exit, so a change while it runs waits for the next start. A color set by
+# policy instead would always get a light frame.
+#
+# GTK 4 because Chrome takes "device" light/dark from GTK, and only GTK 4 follows
+# the desktop's color-scheme. Named like the real binary so omarchy-launch-browser
+# still finds the window by its class.
+
+theme=$HOME/.local/state/omarchy/current/theme
+profiles=$HOME/.config/google-chrome
+
+if ! pgrep -u "$UID" -x chrome >/dev/null && [[ -f $theme/chromium.theme ]]; then
+  mode=$(omarchy-theme-color --file "$theme/colors.toml" mode 2>/dev/null || true)
+  python3 - "$profiles" "$(<"$theme/chromium.theme")" "$mode" <<'PY' || true
+import json, os, sys
+from pathlib import Path
+
+profiles, rgb, mode = sys.argv[1], sys.argv[2], sys.argv[3]
+r, g, b = (int(v) for v in rgb.strip().split(","))
+# ARGB as a signed 32-bit int, the way Chrome stores browser.theme.user_color2.
+color = ((0xFF << 24) | (r << 16) | (g << 8) | b) - (1 << 32)
+scheme = {"light": 1, "dark": 2}.get(mode, 0)  # 0 follows the device
+
+for prefs in Path(profiles).glob("*/Preferences"):
+    try:
+        data = json.loads(prefs.read_text())
+    except (OSError, ValueError):
+        continue
+    theme = data.setdefault("browser", {}).setdefault("theme", {})
+    if theme.get("user_color2") == color and theme.get("color_scheme2") == scheme:
+        continue
+    theme["user_color2"] = color
+    theme["color_scheme2"] = scheme
+    tmp = prefs.with_name("Preferences.doxia-tmp")
+    tmp.write_text(json.dumps(data, separators=(",", ":")))
+    os.replace(tmp, prefs)
+PY
+fi
+
+exec /usr/bin/google-chrome-stable --gtk-version=4 "$@"
