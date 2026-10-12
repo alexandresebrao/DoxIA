@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "alexandre",
   "license": "MIT",
-  "description": "Uso de CPU, memória e bateria em ícones que enchem: chip, pente de memória e raio.",
+  "description": "Uso de CPU, memória e bateria: ícone com uma barra vertical de porcentagem ao lado.",
   "kinds": ["bar-widget"],
   "entryPoints": { "barWidget": "Usage.qml" },
   "barWidget": {
