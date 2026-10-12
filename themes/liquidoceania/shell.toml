@@ -9,7 +9,7 @@
 # Vidro claro: o blur do Hyprland (hyprland.lua) mostra o fundo por trás.
 background       = "#eef3f7"
 background-alpha = 0.6
-text             = "#1b2a3d"
+text             = "#34465c"
 # Modules calling attention to themselves (recording, voxtype, alerts, updates)
 active           = "#1f7ae0"
 # Cross-axis size at font base-size 12. size-horizontal is the height of

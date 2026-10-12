@@ -17,8 +17,8 @@ BarWidget {
   property var pal: ({})
   function c(name, fallback) { return pal[name] || fallback }
   readonly property color cAccent: c("accent", c("red", "#ee0000"))
-  readonly property color cWhite: c("foreground", "#d8dde6")
-  readonly property color cDim: c("dark_foreground", "#6b7590")
+  readonly property color cWhite: bar && bar.barForeground ? bar.barForeground : c("foreground", "#d8dde6")
+  readonly property color cDim: Qt.rgba(cWhite.r, cWhite.g, cWhite.b, 0.55)
   readonly property color cBright: c("bright_foreground", "#f4f6fa")
 
   FileView {
@@ -161,7 +161,8 @@ BarWidget {
           text: root.workspaceLabel(plate.modelData)
           font.family: root.fontFamily
           font.pixelSize: isIcon ? Style.bar.iconFont : Math.round(Style.bar.iconFont * 1.1)
-          font.bold: plate.focused || plate.occupied
+          font.weight: plate.focused || plate.occupied ? Font.Medium : Font.Normal
+          renderType: Text.CurveRendering
           color: plate.focused ? root.cAccent : (plate.occupied ? root.cWhite : root.cDim)
         }
 
