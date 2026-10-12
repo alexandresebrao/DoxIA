@@ -553,12 +553,6 @@ Item {
                 font.pixelSize: Math.round(root.bannerWidth * 0.68)
                 font.bold: true
               }
-              Text {
-                text: "98"
-                color: Qt.lighter(Color.accent, 1.5)
-                font.family: root.fontFamily
-                font.pixelSize: Math.round(root.bannerWidth * 0.68)
-              }
             }
           }
         }
