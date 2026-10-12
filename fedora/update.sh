@@ -321,6 +321,28 @@ echo "==> Mail: Thunderbird from Flathub as every user's default mail client (su
 sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.Thunderbird
 sudo install -Dm644 "$OMARCHY_PATH/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
 
+echo "==> Firefox from Flathub instead of the RPM, in the theme's colors (sudo)"
+sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.firefox
+if rpm -q firefox &>/dev/null; then
+  # Without clean_requirements_on_remove dnf would also drop what only Firefox's
+  # dependents (the live installer, anaconda-webui) held: openssl, zenity and
+  # pulseaudio-utils (pactl) among them.
+  sudo dnf remove -y --setopt=clean_requirements_on_remove=False firefox firefox-langpacks
+fi
+# The firefox hook brings the RPM's profile over on the first run and themes it;
+# the Edge hook themes Edge when it is installed. Both read files the theme
+# templates make, so a theme kept by hand (not reapplied above) is set again.
+theme_name=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
+if [[ -n $theme_name && ! -f $HOME/.local/state/omarchy/current/theme/firefox.css ]]; then
+  if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+    omarchy-theme-set "$theme_name"
+  else
+    OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "$theme_name"
+  fi
+fi
+bash "$HOME/.config/omarchy/hooks/theme-set.d/firefox"
+bash "$HOME/.config/omarchy/hooks/theme-set.d/edge"
+
 echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
 set -euo pipefail

@@ -93,16 +93,22 @@ bash "$omarchy_path/fedora/doxia/install-voxtype" --rpm || echo "  Voxtype was n
 echo "==> Google Chrome (the default browser; Google's dnf repo)"
 bash "$omarchy_path/fedora/doxia/install-chrome" --system || echo "  Chrome was not installed; Atualizar will retry."
 
-# Document viewer and office suite from Flathub instead of the RPMs;
+# Document viewer, office suite, mail and browser from Flathub instead of the RPMs;
 # evince-thumbnailer above keeps PDF thumbnails in Nautilus. ONLYOFFICE replaces
 # LibreOffice, which Fedora's spins install (removing it also drops the JDK only it
 # needed: java and node come from SDKMAN! and nvm, fedora/doxia/install-dev-tools).
-echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese, Thunderbird)"
+echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese, Thunderbird, Firefox)"
 office_rpms=$(rpm -qa --qf '%{NAME}\n' 'libreoffice*' unoconv)
 if [[ -n $office_rpms ]]; then
   dnf remove -y $office_rpms
 fi
-flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors org.mozilla.Thunderbird)
+# Firefox comes from Flathub too. Without clean_requirements_on_remove dnf would
+# also drop what only Firefox's dependents (the live installer) held, openssl and
+# pulseaudio-utils (pactl) among them.
+if rpm -q firefox &>/dev/null; then
+  dnf remove -y --setopt=clean_requirements_on_remove=False firefox firefox-langpacks
+fi
+flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors org.mozilla.Thunderbird org.mozilla.firefox)
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 # Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
 # language from LANG, and ships the pt-BR translation and spell checker itself. Its
