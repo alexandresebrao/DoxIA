@@ -5,9 +5,10 @@ import Quickshell.Services.UPower
 import qs.Commons
 import qs.Ui
 
-// Uso de CPU, memória e bateria (só quando há bateria) em barras de progresso
-// finas com percentual, como o card de uso do web console do RHEL: trilho
-// apagado, preenchimento na cor de destaque do tema e dourado acima de 75%.
+// Uso de CPU, memória e bateria em ícones que enchem: um chip com barra
+// vertical (CPU), um pente de memória e um raio (bateria, só descarregando ou
+// abaixo de 100%, todo preenchido quando carregando). Preenchimento na cor de
+// destaque do tema e dourado acima de 75%; o percentual fica no tooltip.
 BarWidget {
   id: root
   moduleName: "doxia.usage"
@@ -20,9 +21,8 @@ BarWidget {
   function c(name, fallback) { return pal[name] || fallback }
   readonly property color cFill: c("accent", "#ee0000")
   readonly property color cYellow: c("yellow", "#f2c230")
-  readonly property color cMuted: c("muted", "#3a4560")
+  readonly property color cRed: c("red", "#e5484d")
   readonly property color cText: c("foreground", "#d8dde6")
-  readonly property color cDim: c("dark_foreground", "#6b7590")
 
   FileView {
     id: paletteFile
@@ -61,11 +61,6 @@ BarWidget {
   readonly property real bat: hasBattery ? Math.max(0, Math.min(1, battery.percentage)) : 0
   readonly property bool batCharging: hasBattery && !UPower.onBattery && bat < 1
   readonly property bool batPlugged: hasBattery && !UPower.onBattery
-  // Raio sobre a barra da bateria quando o carregador está conectado.
-  // md-flash, que a DoxIA Shell desenha como o raio do Lucide preenchido (o
-  // md-lightning_bolt é o raio em contorno do Painel Rápido).
-  readonly property string boltGlyph: String.fromCodePoint(0xF0241)
-  readonly property color barBackground: bar && bar.background !== undefined ? bar.background : "#050505"
 
   function parse(out) {
     var lines = String(out || "").split("\n")
@@ -111,76 +106,125 @@ BarWidget {
     onTriggered: if (!proc.running) proc.running = true
   }
 
-  // Medidores no tamanho da barra de 35px: com a barra mais alta (ícones
-  // maiores), eles não crescem nem empurram o centro da barra.
-  readonly property real unit: Math.min(barSize, 35)
+  // Ícones do tamanho dos outros ícones da barra.
+  readonly property real unit: Style.bar.iconCanvas
+  readonly property color cStroke: bar && bar.barForeground ? bar.barForeground : cText
+  readonly property bool showBattery: hasBattery && (UPower.onBattery || bat < 0.995)
 
   implicitWidth: vertical ? barSize : row.implicitWidth + 12
   implicitHeight: barSize
   visible: !vertical
 
-  component Usage: Row {
-    id: usage
-    property string label: ""
+  // Um ícone desenhado com preenchimento proporcional a `value` (0–1).
+  // `shape` escolhe o desenho: "cpu" (chip com barra vertical), "mem" (pente
+  // de memória enchendo da esquerda) e "bolt" (raio enchendo de baixo, todo
+  // preenchido quando carregando).
+  component Gauge: Canvas {
+    id: gauge
+    property string shape: "cpu"
     property real value: 0
-    // Bateria: alerta quando o valor está baixo, não alto.
-    property bool inverse: false
-    property bool plugged: false
-    readonly property real load: inverse ? 1 - value : value
-    readonly property color fill: load > 0.75 ? root.cYellow : root.cFill
-    spacing: 6
+    property real shown: value
+    property bool solid: false
+    property color fill: root.cFill
+    Behavior on shown { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+    Behavior on fill { ColorAnimation { duration: 300 } }
 
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      text: usage.label
-      color: root.cDim
-      font.family: root.fontFamily
-      font.pixelSize: Math.round(root.unit * 0.38)
+    anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+    width: Math.round(root.unit * (shape === "mem" ? 1.35 : (shape === "bolt" ? 0.8 : 1)))
+    height: Math.round(root.unit)
+    antialiasing: true
+
+    onShownChanged: requestPaint()
+    onFillChanged: requestPaint()
+    onSolidChanged: requestPaint()
+    Connections {
+      target: root
+      function onCStrokeChanged() { gauge.requestPaint() }
     }
 
-    Rectangle {
-      anchors.verticalCenter: parent.verticalCenter
-      width: Math.round(root.unit * 1.36)
-      height: Math.max(3, Math.round(root.unit * 0.16))
-      radius: height / 2
-      color: Qt.rgba(root.cMuted.r, root.cMuted.g, root.cMuted.b, 0.7)
-
-      Rectangle {
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        height: parent.height
-        radius: parent.radius
-        width: Math.max(height, parent.width * usage.value)
-        color: usage.fill
-        Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-        Behavior on color { ColorAnimation { duration: 300 } }
-      }
-
-      Text {
-        visible: usage.plugged
-        anchors.centerIn: parent
-        text: root.boltGlyph
-        color: root.cText
-        style: Text.Outline
-        styleColor: root.barBackground
-        font.family: root.fontFamily
-        font.pixelSize: Math.round(root.unit * 0.46)
-      }
+    function rrect(ctx, x, y, w, h, r) {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.arcTo(x + w, y, x + w, y + h, r)
+      ctx.arcTo(x + w, y + h, x, y + h, r)
+      ctx.arcTo(x, y + h, x, y, r)
+      ctx.arcTo(x, y, x + w, y, r)
+      ctx.closePath()
     }
 
-    Text {
-      anchors.verticalCenter: parent.verticalCenter
-      width: pctMetrics.width
-      horizontalAlignment: Text.AlignLeft
-      text: Math.round(usage.value * 100) + "%"
-      color: root.cText
-      font.family: root.fontFamily
-      font.pixelSize: Math.round(root.unit * 0.38)
-      TextMetrics {
-        id: pctMetrics
-        font.family: root.fontFamily
-        font.pixelSize: Math.round(root.unit * 0.38)
-        text: "100%"
+    onPaint: {
+      var ctx = getContext("2d")
+      var w = width, h = height
+      var lw = Math.max(1, h / 12)
+      var v = Math.max(0, Math.min(1, shown))
+      ctx.reset()
+      ctx.lineWidth = lw
+      ctx.lineCap = "round"
+      ctx.lineJoin = "round"
+      ctx.strokeStyle = root.cStroke
+      ctx.fillStyle = fill
+
+      if (shape === "cpu") {
+        var b = h * 0.2, s = h - 2 * b
+        rrect(ctx, b, b, s, s, h * 0.12)
+        ctx.stroke()
+        ctx.beginPath()
+        for (var i = 0; i < 3; i++) {
+          var p = b + s * (0.25 + i * 0.25)
+          ctx.moveTo(p, b); ctx.lineTo(p, b * 0.35)
+          ctx.moveTo(p, h - b); ctx.lineTo(p, h - b * 0.35)
+          ctx.moveTo(b, p); ctx.lineTo(b * 0.35, p)
+          ctx.moveTo(w - b, p); ctx.lineTo(w - b * 0.35, p)
+        }
+        ctx.stroke()
+        // Barra vertical dentro do chip, enchendo de baixo.
+        var bw = s * 0.36, bh = s - 2 * lw - s * 0.24
+        var bx = (w - bw) / 2, by = b + lw + s * 0.12
+        ctx.globalAlpha = 0.18
+        ctx.fillStyle = root.cStroke
+        rrect(ctx, bx, by, bw, bh, bw * 0.3); ctx.fill()
+        ctx.globalAlpha = 1
+        ctx.fillStyle = fill
+        var fh = Math.max(bw * 0.6, bh * v)
+        rrect(ctx, bx, by + bh - fh, bw, fh, bw * 0.3); ctx.fill()
+      } else if (shape === "mem") {
+        var top = h * 0.24, bot = h * 0.66
+        rrect(ctx, lw / 2, top, w - lw, bot - top, h * 0.08)
+        ctx.stroke()
+        // Contatos embaixo, com o chanfro fora do centro como num pente real.
+        ctx.beginPath()
+        var n = 6
+        for (var k = 0; k < n; k++) {
+          if (k === 2) continue
+          var px = lw + (w - 2 * lw) * (k + 0.5) / n
+          ctx.moveTo(px, bot); ctx.lineTo(px, h * 0.82)
+        }
+        ctx.stroke()
+        var ix = lw * 1.8, iy = top + lw * 1.8
+        var iw = w - 2 * ix, ih = bot - top - 3.6 * lw
+        ctx.globalAlpha = 0.18
+        ctx.fillStyle = root.cStroke
+        rrect(ctx, ix, iy, iw, ih, ih * 0.3); ctx.fill()
+        ctx.globalAlpha = 1
+        ctx.fillStyle = fill
+        rrect(ctx, ix, iy, Math.max(ih * 0.8, iw * v), ih, ih * 0.3); ctx.fill()
+      } else {
+        // Raio (Lucide zap) numa grade 18×20.
+        var pts = [[10, 0], [0, 12], [9, 12], [8, 20], [18, 8], [9, 8]]
+        var sx = (w - lw * 2) / 18, sy = (h - lw * 2) / 20
+        ctx.beginPath()
+        for (var j = 0; j < pts.length; j++) {
+          var X = lw + pts[j][0] * sx, Y = lw + pts[j][1] * sy
+          if (j === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y)
+        }
+        ctx.closePath()
+        ctx.save()
+        ctx.clip()
+        var level = solid ? 1 : v
+        ctx.fillRect(0, h - h * level, w, h * level)
+        ctx.restore()
+        ctx.strokeStyle = solid ? fill : root.cStroke
+        ctx.stroke()
       }
     }
   }
@@ -188,12 +232,19 @@ BarWidget {
   Row {
     id: row
     anchors.centerIn: parent
-    spacing: 10
+    height: parent.height
+    spacing: Style.space(10)
 
-    Usage { label: "CPU"; value: root.cpu }
-    Usage { label: "Mem"; value: root.mem }
-    // Na tomada e cheia, a bateria não precisa aparecer.
-    Usage { visible: root.hasBattery && !(root.batPlugged && root.bat >= 0.995); label: "Bat"; value: root.bat; inverse: true; plugged: root.batPlugged }
+    Gauge { shape: "cpu"; value: root.cpu; fill: root.cpu > 0.75 ? root.cYellow : root.cFill }
+    Gauge { shape: "mem"; value: root.mem; fill: root.mem > 0.75 ? root.cYellow : root.cFill }
+    // Só aparece descarregando ou abaixo de 100%; preenchido quando carregando.
+    Gauge {
+      visible: root.showBattery
+      shape: "bolt"
+      value: root.bat
+      solid: root.batPlugged
+      fill: root.batPlugged ? root.cFill : (root.bat < 0.2 ? root.cRed : (root.bat < 0.35 ? root.cYellow : root.cFill))
+    }
   }
 
   MouseArea {
