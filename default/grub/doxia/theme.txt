@@ -1,11 +1,11 @@
-# DoxIA boot menu: the ∞ DoxIA mark on top, on the charcoal of the login screen.
+# DoxIA boot menu: the ∞ DoxIA mark on top, on the darkened LiquidIA background.
 # fedora/doxia/make-grub-theme.py makes the images and fonts; this file is written
 # by hand. fedora/doxia/install-grub-theme copies the folder to /boot/grub2/themes.
 
 title-text: ""
 desktop-image: "background.png"
 desktop-image-scale-method: "stretch"
-desktop-color: "#101112"
+desktop-color: "#120a0a"
 terminal-font: "Unifont Regular 16"
 terminal-left: "10%"
 terminal-top: "10%"

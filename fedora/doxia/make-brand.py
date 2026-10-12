@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Gera a marca do DoxIA: o ∞ do tema DoxIA com "DoxIA" ao lado, em Red Hat Display
-(fonte livre, SIL OFL), "Dox" em cinza-claro e "IA" em vermelho com a extrusão 3D
-do ∞ (nos terminais, chapado).
+(fonte livre, SIL OFL), "Dox" em cinza-claro e "IA" com a extrusão 3D do ∞. Nas
+imagens o ∞ e o IA vão no degradê vermelho -> laranja do tema LiquidIA; nos
+terminais ficam chapados em vermelho.
 
 Saídas (rode da raiz do repositório depois de mudar a marca):
   logo.txt, icon.txt                         terminal, 8 linhas (icon.txt com $1/$2 de cor)
@@ -24,6 +25,9 @@ INFINITY = ROOT / "themes/doxia/infinito.png"
 LIGHT = (240, 240, 240)
 RED = (238, 0, 0)
 SIDE = (163, 0, 0)  # lateral 3D, a mesma do ∞
+# Degradê do LiquidIA (themes/liquidia/make-art.py), da esquerda para a direita.
+GRAD_FROM = (255, 42, 42)
+GRAD_TO = (255, 154, 31)
 
 # Quadrantes: cada célula do terminal vale 2x2 pixels (cima-esq, cima-dir, baixo-esq, baixo-dir).
 QUADRANTS = {
@@ -60,6 +64,23 @@ def brand(height, smooth):
     return brand_canvas(height, smooth=False)
 
 
+def liquid(img, mask, x0, x1):
+    """Repinta o vermelho entre x0 e x1 no degradê, mantendo o claro/escuro do 3D."""
+    strip = Image.new("RGB", (256, 1))
+    for x in range(256):
+        strip.putpixel((x, 0), tuple(round(a + (b - a) * x / 255) for a, b in zip(GRAD_FROM, GRAD_TO)))
+    grad = Image.new("RGB", img.size, GRAD_FROM)
+    grad.paste(GRAD_TO, (x1, 0, img.width, img.height))
+    grad.paste(strip.resize((x1 - x0, img.height), Image.BILINEAR), (x0, 0))
+    region = Image.new("L", img.size, 0)
+    region.paste(255, (x0, 0, x1, img.height))
+    mask = ImageChops.multiply(mask, region)
+    light = img.getchannel("R").point(lambda v: min(255, v * 255 // RED[0]))
+    tinted = ImageChops.multiply(grad, Image.merge("RGB", (light, light, light))).convert("RGBA")
+    tinted.putalpha(img.getchannel("A"))
+    return Image.composite(tinted, img, mask)
+
+
 def brand_canvas(height, smooth):
     font = ImageFont.truetype(FONT, int(height * 1.32))
     box = font.getbbox("DoxIA")
@@ -93,6 +114,10 @@ def brand_canvas(height, smooth):
         solid = inf.split()[3].point(lambda v: 255 if v > 100 else 0)
         img.paste(RED + (255,), (0, inf_y), solid)
     red.paste(255, (0, inf_y), inf.split()[3].point(lambda v: 255 if v > 100 else 0))
+    if smooth:
+        # O ∞ e o IA, cada um com o degradê inteiro, como o emblema do LiquidIA.
+        img = liquid(img, red, 0, inf.width)
+        img = liquid(img, red, int(x_text + dox), width)
     return img, red
 
 
