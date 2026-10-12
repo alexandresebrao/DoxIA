@@ -94,7 +94,7 @@ BarWidget {
   }
   readonly property Item focusedPlate: focusedIndex >= 0 ? plates.itemAt(focusedIndex) : null
 
-  // Pílula do ativo: vidro tingido com o destaque, borda clara e brilho no topo.
+  // Pílula do ativo: vidro liso tingido com o destaque e borda fina.
   Rectangle {
     id: pill
     visible: root.focusedPlate !== null
@@ -104,23 +104,10 @@ BarWidget {
     height: root.plateH
     radius: height / 2
     border.width: 1
-    border.color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.45)
-    gradient: Gradient {
-      GradientStop { position: 0; color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.30) }
-      GradientStop { position: 1; color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.14) }
-    }
+    border.color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.3)
+    color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.18)
     Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-
-    Rectangle {
-      anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
-      height: parent.height / 2
-      radius: parent.radius
-      gradient: Gradient {
-        GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.28) }
-        GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0) }
-      }
-    }
   }
 
   Grid {
@@ -156,6 +143,7 @@ BarWidget {
         }
 
         Text {
+          id: label
           anchors.centerIn: parent
           readonly property bool isIcon: root.workspaceIcons[plate.modelData] !== undefined
           text: root.workspaceLabel(plate.modelData)
@@ -165,6 +153,7 @@ BarWidget {
           renderType: Text.CurveRendering
           color: plate.focused ? root.cAccent : (plate.occupied ? root.cWhite : root.cDim)
         }
+        SupersampledText { sourceItem: label }
 
         MouseArea {
           id: area
