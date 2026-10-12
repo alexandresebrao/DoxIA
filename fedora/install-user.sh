@@ -192,10 +192,10 @@ python3 "$OMARCHY_PATH/fedora/doxia/lucide/make-shell-font"
 mkdir -p ~/.config/omarchy/hooks
 cp -r "$OMARCHY_PATH/fedora/doxia/hooks/." ~/.config/omarchy/hooks/
 
-echo "==> Theme (DoxIA, the default)"
+echo "==> Theme (LiquidIA, the default)"
 mkdir -p ~/.config/omarchy/themes
 if [[ ! -s ~/.local/state/omarchy/current/theme.name ]]; then
-  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "doxia"
+  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "liquidia"
 fi
 mkdir -p ~/.config/btop/themes
 ln -snf "$HOME/.local/state/omarchy/current/theme/btop.theme" ~/.config/btop/themes/current.theme

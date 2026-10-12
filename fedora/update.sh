@@ -219,16 +219,16 @@ if ! grep -q "doxia.iniciar" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
   { echo; cat "$doxia/hypr/iniciar.lua"; } >> "$HOME/.config/hypr/bindings.lua"
 fi
 
-echo "==> Theme (DoxIA, the default)"
+echo "==> Theme (LiquidIA, the default)"
 omarchy-pkg-add redhat-display-fonts redhat-text-fonts papirus-icon-theme-dark git python3-fonttools
-# Reapplied only while DoxIA (or no theme) is in use: the Atualizar menu runs
-# this after every update, and a theme picked by hand must survive it.
+# Reapplied only while LiquidIA (or no theme) is in use: the Atualizar menu runs
+# this after every update, and a theme picked by hand, DoxIA included, must
+# survive it. Installs still on DoxIA were moved to LiquidIA once by a migration.
 current_theme=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
 reapply_theme=false
-# rhel-8 is the same theme under its old name, before the Red Hat marks came out of it.
-[[ -z $current_theme || $current_theme == "doxia" || $current_theme == "rhel-8" ]] && reapply_theme=true
+[[ -z $current_theme || $current_theme == "liquidia" ]] && reapply_theme=true
 # Copies under ~/.config/omarchy/themes shadow the themes shipped in the repo, so move
-# them all aside and let the repo's doxia be the one in use.
+# them all aside and let the repo's liquidia be the one in use.
 if $reapply_theme; then
   for theme in "$HOME"/.config/omarchy/themes/*; do
     [[ -e $theme ]] && backup "$theme"
@@ -256,9 +256,9 @@ fi
 if ! $reapply_theme; then
   echo "  keeping the current theme ($current_theme)"
 elif [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
-  omarchy-theme-set doxia
+  omarchy-theme-set liquidia
 else
-  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set doxia
+  OMARCHY_THEME_HEADLESS=1 omarchy-theme-set liquidia
 fi
 
 echo "==> Dev-link authorization for the checkout (sudo)"
