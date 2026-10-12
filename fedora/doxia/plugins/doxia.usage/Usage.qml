@@ -9,7 +9,7 @@ import qs.Ui
 // vertical à direita que enche com a porcentagem. A bateria só aparece
 // descarregando ou abaixo de 100%, com o raio preenchido quando carregando.
 // Preenchimento na cor de destaque do tema e dourado acima de 75%; o percentual
-// exato fica no tooltip.
+// exato fica no tooltip de cada medidor.
 BarWidget {
   id: root
   moduleName: "doxia.usage"
@@ -125,15 +125,23 @@ BarWidget {
     property color fill: root.cFill
     property color iconColor: root.cStroke
     property real iconRotation: 0
-    anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-    spacing: Style.space(3)
+    // Tooltip deste medidor, com o valor de quando o mouse chega nele.
+    property string tip: ""
+    // A barra só mostra o tooltip enquanto o alvo diz que está com o mouse.
+    readonly property bool tooltipHovered: root.hoveredMeter === meter
 
-    // Girado de lado, o ícone ocupa a altura do desenho (não a da linha).
+    // Caixa do ícone. Os desenhos Lucide da fonte DoxIA Shell passam da
+    // largura do caractere mono; em pé, a caixa é larga e o glifo fica
+    // centrado como nos outros ícones da barra. Girado de lado, a caixa tem a
+    // altura medida do desenho e ele é centrado por ela.
     Item {
+      id: iconBox
       readonly property bool sideways: meter.iconRotation % 180 !== 0
+      readonly property rect ink: glyphMetrics.tightBoundingRect
+      readonly property real dy: glyph.baselineOffset + ink.y + ink.height / 2 - glyph.implicitHeight / 2
       anchors.verticalCenter: parent.verticalCenter
-      width: sideways ? Math.ceil(glyphMetrics.tightBoundingRect.height) : glyph.implicitWidth
-      height: glyph.implicitHeight
+      width: sideways ? Math.ceil(ink.height) : Math.round(Style.bar.iconFont * 1.4)
+      height: Math.round(Style.bar.iconFont * 1.2)
 
       TextMetrics {
         id: glyphMetrics
@@ -144,6 +152,7 @@ BarWidget {
       Text {
         id: glyph
         anchors.centerIn: parent
+        anchors.horizontalCenterOffset: iconBox.sideways ? -iconBox.dy : 0
         text: meter.icon
         rotation: meter.iconRotation
         color: meter.iconColor
@@ -179,9 +188,20 @@ BarWidget {
     spacing: Style.space(6)
 
     // cpu e memory-stick do Lucide (cod-chip e fa-memory na fonte DoxIA Shell).
-    Meter { icon: String.fromCodePoint(0xEC19); value: root.cpu; fill: root.cpu > 0.75 ? root.cYellow : root.cFill }
+    Meter {
+      icon: String.fromCodePoint(0xEC19)
+      value: root.cpu
+      fill: root.cpu > 0.75 ? root.cYellow : root.cFill
+      tip: "CPU: " + Math.round(root.cpu * 100) + "%"
+    }
     // Pente em pé, com os contatos para a direita.
-    Meter { icon: String.fromCodePoint(0xEFC5); iconRotation: -90; value: root.mem; fill: root.mem > 0.75 ? root.cYellow : root.cFill }
+    Meter {
+      icon: String.fromCodePoint(0xEFC5)
+      iconRotation: -90
+      value: root.mem
+      fill: root.mem > 0.75 ? root.cYellow : root.cFill
+      tip: "Memória: " + Math.round(root.mem * 100) + "% (" + root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + " GiB)"
+    }
     // Só aparece descarregando ou abaixo de 100%. Raio cheio (md-flash, zap
     // cheio) carregando, em contorno (md-lightning_bolt, zap) descarregando.
     Meter {
@@ -190,21 +210,34 @@ BarWidget {
       iconColor: root.batPlugged ? root.cFill : root.cStroke
       value: root.bat
       fill: root.bat < 0.2 ? root.cRed : (root.bat < 0.35 ? root.cYellow : root.cFill)
+      tip: "Bateria: " + Math.round(root.bat * 100) + "%" + (root.batCharging ? " (carregando)" : (UPower.onBattery ? "" : " (na tomada)"))
     }
   }
 
+  // Medidor sob o mouse (null nos vãos entre eles), dono do tooltip.
+  property Item hoveredMeter: null
+  property Item tipMeter: null
+  onHoveredMeterChanged: {
+    if (!bar) return
+    if (tipMeter) bar.hideTooltip(tipMeter)
+    tipMeter = hoveredMeter
+    // Depois do tooltipHovered do medidor se atualizar: a barra confere ele.
+    if (hoveredMeter) Qt.callLater(function() {
+      if (root.tipMeter) root.bar.showTooltip(root.tipMeter, root.tipMeter.tip)
+    })
+  }
+
+  // Clique em qualquer medidor abre o btop; o tooltip é de cada medidor.
   MouseArea {
     anchors.fill: parent
     hoverEnabled: true
     cursorShape: Qt.PointingHandCursor
-    onClicked: if (root.bar) root.bar.run("xdg-terminal-exec btop")
-    onContainsMouseChanged: {
-      if (!root.bar) return
-      if (containsMouse)
-        root.bar.showTooltip(root, "CPU: " + Math.round(root.cpu * 100) + "%\n"
-          + "Memória: " + root.memUsedGb.toFixed(1) + " / " + root.memTotalGb.toFixed(1) + " GiB"
-          + (root.hasBattery ? "\nBateria: " + Math.round(root.bat * 100) + "%" + (root.batCharging ? " (carregando)" : (UPower.onBattery ? "" : " (na tomada)")) : ""))
-      else root.bar.hideTooltip(root)
+    onPositionChanged: function(mouse) {
+      var p = mapToItem(row, mouse.x, mouse.y)
+      var m = row.childAt(p.x, p.y)
+      root.hoveredMeter = m && m.tip !== undefined ? m : null
     }
+    onExited: root.hoveredMeter = null
+    onClicked: if (root.bar) root.bar.run("xdg-terminal-exec btop")
   }
 }
