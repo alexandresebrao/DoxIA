@@ -124,18 +124,34 @@ BarWidget {
     property real value: 0
     property color fill: root.cFill
     property color iconColor: root.cStroke
+    property real iconRotation: 0
     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
     spacing: Style.space(3)
 
-    Text {
-      id: glyph
+    // Girado de lado, o ícone ocupa a altura do desenho (não a da linha).
+    Item {
+      readonly property bool sideways: meter.iconRotation % 180 !== 0
       anchors.verticalCenter: parent.verticalCenter
-      text: meter.icon
-      color: meter.iconColor
-      font.family: root.fontFamily
-      font.pixelSize: Style.bar.iconFont
+      width: sideways ? Math.ceil(glyphMetrics.tightBoundingRect.height) : glyph.implicitWidth
+      height: glyph.implicitHeight
+
+      TextMetrics {
+        id: glyphMetrics
+        font: glyph.font
+        text: glyph.text
+      }
+
+      Text {
+        id: glyph
+        anchors.centerIn: parent
+        text: meter.icon
+        rotation: meter.iconRotation
+        color: meter.iconColor
+        font.family: root.fontFamily
+        font.pixelSize: Style.bar.iconFont
+      }
+      SupersampledText { sourceItem: glyph }
     }
-    SupersampledText { sourceItem: glyph }
 
     Rectangle {
       anchors.verticalCenter: parent.verticalCenter
@@ -160,11 +176,12 @@ BarWidget {
     id: row
     anchors.centerIn: parent
     height: parent.height
-    spacing: Style.space(10)
+    spacing: Style.space(6)
 
     // cpu e memory-stick do Lucide (cod-chip e fa-memory na fonte DoxIA Shell).
     Meter { icon: String.fromCodePoint(0xEC19); value: root.cpu; fill: root.cpu > 0.75 ? root.cYellow : root.cFill }
-    Meter { icon: String.fromCodePoint(0xEFC5); value: root.mem; fill: root.mem > 0.75 ? root.cYellow : root.cFill }
+    // Pente em pé, com os contatos para a direita.
+    Meter { icon: String.fromCodePoint(0xEFC5); iconRotation: -90; value: root.mem; fill: root.mem > 0.75 ? root.cYellow : root.cFill }
     // Só aparece descarregando ou abaixo de 100%. Raio cheio (md-flash, zap
     // cheio) carregando, em contorno (md-lightning_bolt, zap) descarregando.
     Meter {
