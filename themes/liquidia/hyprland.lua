@@ -62,3 +62,19 @@ hl.layer_rule({
   blur = true,
   ignore_alpha = 0.2,
 })
+
+-- Em VM (sem GPU de verdade, o Hyprland desenha no llvmpipe) o blur de 3
+-- passadas deixa tudo lerdo: uma passada curta, sem vibrancy, ainda dá o fosco.
+if o.shell_succeeds("systemd-detect-virt --vm --quiet") then
+  hl.config({
+    decoration = {
+      shadow = { range = 10 },
+      blur = {
+        size = 4,
+        passes = 1,
+        vibrancy = 0,
+        noise = 0,
+      },
+    },
+  })
+end
