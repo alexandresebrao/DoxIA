@@ -94,6 +94,8 @@ Item {
     }
   }
 
+  SupersampledText { sourceItem: label }
+
   MouseArea {
     id: mouseArea
     anchors.fill: parent

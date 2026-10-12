@@ -37,6 +37,8 @@ Item {
     renderType: Text.CurveRendering
   }
 
+  SupersampledText { sourceItem: glyph }
+
   Rectangle {
     visible: root.debugBounds
     anchors.fill: parent

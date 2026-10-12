@@ -25,6 +25,7 @@ PanelSlider 1.0 PanelSlider.qml
 PanelToolTip 1.0 PanelToolTip.qml
 PluginBarApi 1.0 PluginBarApi.qml
 PointerMoveGate 1.0 PointerMoveGate.qml
+SupersampledText 1.0 SupersampledText.qml
 ScreenMoveRemap 1.0 ScreenMoveRemap.qml
 PopupCard 1.0 PopupCard.qml
 SearchableDropdown 1.0 SearchableDropdown.qml
