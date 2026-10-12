@@ -1,0 +1,36 @@
+# LiquidIA: vidro líquido sobre o DoxIA. Mesmo esqueleto escuro, puxado para
+# um carvão quente, com o vermelho virando laranja (#ff2a2a -> #ff9a1f).
+mode = "dark"
+
+accent = "#ff5a1f"
+selection = "#4a2620"
+muted = "#5e4440"
+
+background = "#120a0a"
+dark_background = "#0d0707"
+darker_background = "#080404"
+lighter_background = "#2a1714"
+
+foreground = "#f2e4de"
+dark_foreground = "#a8908a"
+light_foreground = "#fbf1ec"
+bright_foreground = "#ffffff"
+
+hyprland_active_border = "rgba(ff2a2aee) rgba(ff9a1fee) 45deg"
+hyprland_inactive_border = "rgba(ffffff1f)"
+
+red = "#ff3b3b"
+yellow = "#ffc23d"
+orange = "#ff8a1f"
+green = "#6bc46a"
+cyan = "#3cc8c0"
+blue = "#5aa9ff"
+magenta = "#ff6fae"
+brown = "#b8301a"
+
+bright_red = "#ff7a6e"
+bright_yellow = "#ffd77a"
+bright_green = "#a2e3a0"
+bright_cyan = "#8ce3dd"
+bright_blue = "#9ccaff"
+bright_magenta = "#ffa3cb"
