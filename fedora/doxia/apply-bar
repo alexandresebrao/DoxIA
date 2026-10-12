@@ -85,7 +85,7 @@ jq '
   # where Omarchy puts it) goes to the right corner showing only date and time.
   (.bar.layout.center // [] | map(select(.id == "omarchy.clock")) | first // null) as $clock
   | if .bar.centerAnchor == null or .bar.centerAnchor == "omarchy.clock" then .bar.centerAnchor = "doxia.media" else . end
-  | if .bar | has("floating") then . else .bar.floating = true end
+  | if .bar.floating == null then .bar.floating = true else . end
   | .bar.layout |= (
     (.left, .center, .right) |= renamed
     # No indicators group (dictation, recording, night light, DND, stay awake):
