@@ -53,7 +53,7 @@ assert(
 )
 for (const edge of ['top', 'bottom', 'left', 'right']) {
   assert(
-    new RegExp(`${edge}: root\\.barHidden && root\\.position === "${edge}" \\? -root\\.barSize : 0`).test(barSource),
+    new RegExp(`${edge}: root\\.barHidden && root\\.position === "${edge}" \\? -root\\.windowSize : 0`).test(barSource),
     `a hidden bar parks past the ${edge} edge`
   )
 }

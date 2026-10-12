@@ -56,6 +56,9 @@ Item {
   property bool locked: false
   property bool useTransparentForeground: false
   property bool transparent: false
+  // bar.floating in shell.json: the bar becomes a plate held off the screen
+  // edges by floatGap, rounded like the windows (Hyprland's decoration:rounding).
+  property bool floating: false
   property bool centerSectionHovered: false
   // One bar surface exists per monitor and each reports into this count, so a
   // pointer crossing from one monitor's bar to another's stays counted however
@@ -557,6 +560,9 @@ Item {
 
   readonly property bool vertical: position === "left" || position === "right"
   readonly property int barSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
+  readonly property int floatGap: floating ? Style.space(8) : 0
+  // The layer surface: the bar plus, when floating, the gap to the screen edge.
+  readonly property int windowSize: barSize + floatGap
 
   function normalizePosition(value) {
     return BarModel.normalizePosition(value)
@@ -586,6 +592,7 @@ Item {
 
     position = normalizePosition(config.position)
     setRequestedTransparency(config.transparent === true)
+    floating = config.floating === true
     locked = config.locked === true
     centerAnchor = Util.canonicalWidgetId(config.centerAnchor || "")
 
@@ -1252,10 +1259,10 @@ Item {
     }
 
     margins {
-      top: root.barHidden && root.position === "top" ? -root.barSize : 0
-      bottom: root.barHidden && root.position === "bottom" ? -root.barSize : 0
-      left: root.barHidden && root.position === "left" ? -root.barSize : 0
-      right: root.barHidden && root.position === "right" ? -root.barSize : 0
+      top: root.barHidden && root.position === "top" ? -root.windowSize : 0
+      bottom: root.barHidden && root.position === "bottom" ? -root.windowSize : 0
+      left: root.barHidden && root.position === "left" ? -root.windowSize : 0
+      right: root.barHidden && root.position === "right" ? -root.windowSize : 0
     }
 
     anchors {
@@ -1265,15 +1272,31 @@ Item {
       right: root.position === "right" || !root.vertical
     }
 
-    implicitWidth: root.vertical ? root.barSize : 0
-    implicitHeight: root.vertical ? 0 : root.barSize
-    color: root.transparent ? "transparent" : root.background
+    implicitWidth: root.vertical ? root.windowSize : 0
+    implicitHeight: root.vertical ? 0 : root.windowSize
+    color: root.transparent || root.floating ? "transparent" : root.background
     surfaceFormat.opaque: false
     WlrLayershell.namespace: "omarchy-bar"
     WlrLayershell.layer: WlrLayer.Top
 
-    Loader {
+    // The floating plate: off the screen edge and both ends by floatGap, flush
+    // with the side that faces the windows (Hyprland's gaps_out spaces them).
+    Rectangle {
+      id: floatingPlate
+      visible: root.floating
       anchors.fill: parent
+      anchors.topMargin: root.position === "bottom" ? 0 : root.floatGap
+      anchors.bottomMargin: root.position === "top" ? 0 : root.floatGap
+      anchors.leftMargin: root.position === "right" ? 0 : root.floatGap
+      anchors.rightMargin: root.position === "left" ? 0 : root.floatGap
+      radius: Math.min(Style.cornerRadius, Math.min(width, height) / 2)
+      color: root.transparent ? "transparent" : root.background
+      border.width: root.transparent ? 0 : 1
+      border.color: Qt.rgba(root.barForeground.r, root.barForeground.g, root.barForeground.b, 0.1)
+    }
+
+    Loader {
+      anchors.fill: root.floating ? floatingPlate : parent
       sourceComponent: root.vertical ? verticalBar : horizontalBar
 
       // A child of the loader, not a sibling of the sections: an ancestor stays
