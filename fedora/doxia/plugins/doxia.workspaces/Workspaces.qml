@@ -5,8 +5,8 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
-// Workspaces soltos, com ícone nos espaços fixos: fundo leve no hover e traço
-// na cor de destaque do tema embaixo do ativo (estilo PatternFly).
+// Workspaces soltos, com ícone nos espaços fixos: fundo leve no hover e uma
+// pílula de vidro na cor de destaque do tema que desliza até o ativo.
 BarWidget {
   id: root
   moduleName: "doxia.workspaces"
@@ -88,6 +88,41 @@ BarWidget {
   implicitWidth: vertical ? barSize : flow.implicitWidth + 8
   implicitHeight: vertical ? flow.implicitHeight + 8 : barSize
 
+  readonly property int focusedIndex: {
+    var ids = workspaceIds()
+    return Hyprland.focusedWorkspace ? ids.indexOf(Hyprland.focusedWorkspace.id) : -1
+  }
+  readonly property Item focusedPlate: focusedIndex >= 0 ? plates.itemAt(focusedIndex) : null
+
+  // Pílula do ativo: vidro tingido com o destaque, borda clara e brilho no topo.
+  Rectangle {
+    id: pill
+    visible: root.focusedPlate !== null
+    x: root.focusedPlate ? flow.x + root.focusedPlate.x : 0
+    y: root.focusedPlate ? flow.y + root.focusedPlate.y + (root.focusedPlate.height - height) / 2 : 0
+    width: root.focusedPlate ? root.focusedPlate.width : 0
+    height: root.plateH
+    radius: height / 2
+    border.width: 1
+    border.color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.45)
+    gradient: Gradient {
+      GradientStop { position: 0; color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.30) }
+      GradientStop { position: 1; color: Qt.rgba(root.cAccent.r, root.cAccent.g, root.cAccent.b, 0.14) }
+    }
+    Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+    Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+
+    Rectangle {
+      anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
+      height: parent.height / 2
+      radius: parent.radius
+      gradient: Gradient {
+        GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.28) }
+        GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0) }
+      }
+    }
+  }
+
   Grid {
     id: flow
     anchors.centerIn: parent
@@ -96,6 +131,7 @@ BarWidget {
     spacing: 4
 
     Repeater {
+      id: plates
       model: root.workspaceIds()
 
       Item {
@@ -110,21 +146,13 @@ BarWidget {
         height: root.barSize
 
         Rectangle {
-          anchors.fill: parent
-          anchors.topMargin: Math.round(root.barSize * 0.14)
-          anchors.bottomMargin: Math.round(root.barSize * 0.14)
-          radius: 3
+          anchors.centerIn: parent
+          width: parent.width
+          height: root.plateH
+          radius: height / 2
           color: root.cWhite
-          opacity: plate.hovered && !plate.focused ? 0.08 : 0
+          opacity: plate.hovered && !plate.focused ? 0.1 : 0
           Behavior on opacity { NumberAnimation { duration: 120 } }
-        }
-        Rectangle {
-          anchors.horizontalCenter: parent.horizontalCenter
-          anchors.bottom: parent.bottom
-          height: Math.max(2, Math.round(root.barSize * 0.09))
-          width: plate.focused ? parent.width - 4 : 0
-          color: root.cAccent
-          Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         }
 
         Text {
@@ -134,7 +162,7 @@ BarWidget {
           font.family: root.fontFamily
           font.pixelSize: Math.round(root.plateH * (isIcon ? 0.52 : 0.58))
           font.bold: plate.focused || plate.occupied
-          color: plate.focused ? root.cBright : (plate.occupied ? root.cWhite : root.cDim)
+          color: plate.focused ? root.cAccent : (plate.occupied ? root.cWhite : root.cDim)
         }
 
         MouseArea {

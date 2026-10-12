@@ -560,7 +560,7 @@ Item {
 
   readonly property bool vertical: position === "left" || position === "right"
   readonly property int barSize: vertical ? Style.bar.sizeVertical : Style.bar.sizeHorizontal
-  readonly property int floatGap: floating ? Style.space(8) : 0
+  readonly property int floatGap: floating ? Style.space(4) : 0
   // The layer surface: the bar plus, when floating, the gap to the screen edge.
   readonly property int windowSize: barSize + floatGap
 
@@ -1384,13 +1384,13 @@ Item {
 
         LeftModules {
           anchors.left: parent.left
-          anchors.leftMargin: Style.space(8)
+          anchors.leftMargin: root.floating ? Style.space(4) : Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
         }
 
         RightModules {
           anchors.right: parent.right
-          anchors.rightMargin: Style.space(8)
+          anchors.rightMargin: root.floating ? Style.space(4) : Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
         }
       }
@@ -1406,13 +1406,13 @@ Item {
 
         LeftModules {
           anchors.top: parent.top
-          anchors.topMargin: Style.space(8)
+          anchors.topMargin: root.floating ? Style.space(4) : Style.space(8)
           anchors.horizontalCenter: parent.horizontalCenter
         }
 
         RightModules {
           anchors.bottom: parent.bottom
-          anchors.bottomMargin: Style.space(8)
+          anchors.bottomMargin: root.floating ? Style.space(4) : Style.space(8)
           anchors.horizontalCenter: parent.horizontalCenter
         }
       }
