@@ -83,7 +83,7 @@ Item {
     color: root.active && root.useActiveColor ? root.activeColor : root.foreground
     font.family: root.fontFamily
     font.pixelSize: root.fontSize
-    renderType: Text.NativeRendering
+    renderType: Text.CurveRendering
     rotation: root.textRotation
     horizontalAlignment: Text.AlignHCenter
     verticalAlignment: Text.AlignVCenter

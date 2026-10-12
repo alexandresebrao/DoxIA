@@ -34,7 +34,7 @@ Item {
     color: root.color
     font.family: root.fontFamily
     font.pixelSize: root.renderedFontSize
-    renderType: Text.NativeRendering
+    renderType: Text.CurveRendering
   }
 
   Rectangle {
