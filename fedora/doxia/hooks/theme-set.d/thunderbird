@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Depois da troca de tema: pinta o Thunderbird (flatpak) com as cores do tema.
+# O omarchy-theme-set gera thunderbird.css a partir de
+# ~/.config/omarchy/themed/thunderbird.css.tpl; aqui ele vira o userChrome.css de
+# cada perfil, com a preferência que manda o Thunderbird lê-lo. Vale no próximo
+# início do Thunderbird.
+#
+# Sem perfil ainda (Thunderbird nunca aberto), cria um perfil vazio já marcado como
+# o desta instalação, para ele abrir no tema desde o primeiro início. A chave
+# [Install...] é o hash do caminho da instalação, fixo no flatpak
+# (/app/lib/thunderbird); sem ela o Thunderbird ignora o perfil e cria outro.
+
+css=$HOME/.local/state/omarchy/current/theme/thunderbird.css
+app=$HOME/.var/app/org.mozilla.thunderbird_esr
+root=$app/.thunderbird
+
+[[ -f $css ]] || exit 0
+flatpak info org.mozilla.thunderbird_esr &>/dev/null || exit 0
+
+if [[ ! -f $root/profiles.ini ]]; then
+  mkdir -p "$root/doxia.default"
+  cat >"$root/profiles.ini" <<'INI'
+[Profile0]
+Name=default
+IsRelative=1
+Path=doxia.default
+Default=1
+
+[General]
+StartWithLastProfile=1
+Version=2
+
+[InstallBD520B11F73A6B64]
+Default=doxia.default
+Locked=1
+INI
+  printf '[InstallBD520B11F73A6B64]\nDefault=doxia.default\nLocked=1\n' >"$root/installs.ini"
+fi
+
+# Path= de cada perfil, relativo à pasta do Thunderbird ou absoluto.
+while IFS= read -r path; do
+  [[ $path == /* ]] || path=$root/$path
+  [[ -d $path ]] || continue
+
+  mkdir -p "$path/chrome"
+  cp "$css" "$path/chrome/userChrome.css"
+
+  pref='user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);'
+  grep -qxF "$pref" "$path/user.js" 2>/dev/null || echo "$pref" >>"$path/user.js"
+done < <(sed -n 's/^Path=//p' "$root/profiles.ini")
