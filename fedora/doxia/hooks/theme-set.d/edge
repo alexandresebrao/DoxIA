@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# Depois da troca de tema: pinta o Microsoft Edge (flatpak, estável ou Dev) com
+# as cores do tema. O Edge não usa a cor de tema do Chromium (a que o Chrome do
+# DoxIA recebe); os temas dele são extensões de tema. O omarchy-theme-set gera
+# edge-theme.json a partir de ~/.config/omarchy/themed/edge-theme.json.tpl; aqui
+# ele vira o manifest.json de uma extensão de tema na pasta do app, e o atalho do
+# Edge em ~/.local/share/applications passa a abri-lo com --load-extension (uma
+# extensão carregada assim só vale enquanto o Edge for aberto com ela). A
+# versão muda a cada troca, para o Edge refazer o tema. Com o Edge fechado, os
+# perfis também recebem o modo claro ou escuro do tema (o Edge grava as
+# preferências ao sair, então com ele aberto isso fica para a próxima troca).
+# Vale no próximo início.
+
+theme=$HOME/.local/state/omarchy/current/theme
+json=$theme/edge-theme.json
+[[ -f $json ]] || exit 0
+mode=$(omarchy-theme-color --file "$theme/colors.toml" mode 2>/dev/null || true)
+
+for id in com.microsoft.Edge com.microsoft.EdgeDev; do
+  flatpak info "$id" &>/dev/null || continue
+
+  ext=$HOME/.var/app/$id/data/doxia-theme
+  mkdir -p "$ext"
+  version="1.$(date +%y%j).$((10#$(date +%H%M))).$((10#$(date +%S)))"
+  sed "s/\"version\": \"1.0\"/\"version\": \"$version\"/" "$json" >"$ext/manifest.json"
+
+  for exports in /var/lib/flatpak/exports/share/applications "$HOME/.local/share/flatpak/exports/share/applications"; do
+    [[ -f $exports/$id.desktop ]] || continue
+    mkdir -p "$HOME/.local/share/applications"
+    sed "/^Exec=/s| $id | $id --load-extension=$ext |; /^Exec=/s| $id\$| $id --load-extension=$ext|" \
+      "$exports/$id.desktop" >"$HOME/.local/share/applications/$id.desktop"
+    break
+  done
+
+  pgrep -u "$UID" -x msedge >/dev/null && continue
+  python3 - "$HOME/.var/app/$id/config" "$mode" <<'PY' || true
+import json, os, sys
+from pathlib import Path
+
+config, mode = sys.argv[1], sys.argv[2]
+scheme = {"light": 1, "dark": 2}.get(mode, 0)  # 0 segue o sistema
+for prefs in Path(config).glob("microsoft-edge*/*/Preferences"):
+    try:
+        data = json.loads(prefs.read_text())
+    except (OSError, ValueError):
+        continue
+    theme = data.setdefault("browser", {}).setdefault("theme", {})
+    if theme.get("color_scheme2") == scheme:
+        continue
+    theme["color_scheme2"] = scheme
+    tmp = prefs.with_name("Preferences.doxia-tmp")
+    tmp.write_text(json.dumps(data, separators=(",", ":")))
+    os.replace(tmp, prefs)
+PY
+done
