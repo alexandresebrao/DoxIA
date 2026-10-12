@@ -129,18 +129,23 @@ BarWidget {
     property string tip: ""
     // A barra só mostra o tooltip enquanto o alvo diz que está com o mouse.
     readonly property bool tooltipHovered: root.hoveredMeter === meter
+    // Centrado na altura da barra.
+    y: parent ? Math.round((parent.height - height) / 2) : 0
+    spacing: Style.space(3)
 
-    // Caixa do ícone. Os desenhos Lucide da fonte DoxIA Shell passam da
-    // largura do caractere mono; em pé, a caixa é larga e o glifo fica
-    // centrado como nos outros ícones da barra. Girado de lado, a caixa tem a
-    // altura medida do desenho e ele é centrado por ela.
+    // Caixa do tamanho do desenho: os ícones Lucide da fonte DoxIA Shell passam
+    // da largura do caractere mono e não ficam centrados na linha do Text, então
+    // o desenho é medido e centrado (girado de lado, largura e altura trocam).
     Item {
       id: iconBox
       readonly property bool sideways: meter.iconRotation % 180 !== 0
       readonly property rect ink: glyphMetrics.tightBoundingRect
+      // Centro do desenho em relação ao centro do Text, antes de girar: a
+      // linha do Text inclui a descida da fonte, então o desenho fica alto.
+      readonly property real dx: ink.x + ink.width / 2 - glyph.implicitWidth / 2
       readonly property real dy: glyph.baselineOffset + ink.y + ink.height / 2 - glyph.implicitHeight / 2
       anchors.verticalCenter: parent.verticalCenter
-      width: sideways ? Math.ceil(ink.height) : Math.round(Style.bar.iconFont * 1.4)
+      width: Math.ceil(sideways ? ink.height : ink.width)
       height: Math.round(Style.bar.iconFont * 1.2)
 
       TextMetrics {
@@ -152,7 +157,8 @@ BarWidget {
       Text {
         id: glyph
         anchors.centerIn: parent
-        anchors.horizontalCenterOffset: iconBox.sideways ? -iconBox.dy : 0
+        anchors.horizontalCenterOffset: iconBox.sideways ? -iconBox.dy : -iconBox.dx
+        anchors.verticalCenterOffset: iconBox.sideways ? iconBox.dx : -iconBox.dy
         text: meter.icon
         rotation: meter.iconRotation
         color: meter.iconColor
