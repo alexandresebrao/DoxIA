@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# Depois da troca de tema: pinta o Firefox (flatpak) com as cores do tema.
+# O omarchy-theme-set gera firefox.css e firefox-content.css a partir dos
+# templates em ~/.config/omarchy/themed; aqui eles viram o userChrome.css e o
+# userContent.css de cada perfil, com as preferências que mandam o Firefox lê-los
+# e usar o modo claro ou escuro do tema. Vale no próximo início do Firefox.
+#
+# Sem perfil no flatpak ainda, traz o do Firefox de RPM (~/.config/mozilla ou
+# ~/.mozilla), se houver, ou cria um vazio. Em todo caso o perfil fica marcado
+# como o desta instalação: a chave [Install...] é o hash do caminho da
+# instalação, fixo no flatpak (/app/lib/firefox); sem ela o Firefox ignora o
+# perfil e cria outro.
+
+theme=$HOME/.local/state/omarchy/current/theme
+app=$HOME/.var/app/org.mozilla.firefox
+root=$app/.mozilla/firefox
+install=CF146F38BCAB2D21
+
+[[ -f $theme/firefox.css ]] || exit 0
+flatpak info org.mozilla.firefox &>/dev/null || exit 0
+
+if [[ ! -f $root/profiles.ini ]]; then
+  old=
+  for dir in "$HOME/.config/mozilla/firefox" "$HOME/.mozilla/firefox"; do
+    [[ -f $dir/profiles.ini ]] && { old=$dir; break; }
+  done
+
+  if [[ -n $old ]]; then
+    mkdir -p "$(dirname "$root")"
+    cp -a "$old" "$root"
+    # O perfil que o Firefox de RPM abria: o da instalação dele ou o Default=1.
+    python3 - "$root/profiles.ini" "$install" <<'PY'
+import configparser, sys
+path, install = sys.argv[1], sys.argv[2]
+ini = configparser.RawConfigParser()
+ini.optionxform = str
+ini.read(path)
+profiles = [s for s in ini.sections() if s.startswith("Profile")]
+chosen = next((ini[s]["Default"] for s in ini.sections() if s.startswith("Install") and "Default" in ini[s]), None)
+if chosen is None:
+    chosen = next((ini[s]["Path"] for s in profiles if ini[s].get("Default") == "1"), None)
+if chosen is None and profiles:
+    chosen = ini[profiles[0]]["Path"]
+for s in [s for s in ini.sections() if s.startswith("Install")]:
+    ini.remove_section(s)
+for s in profiles:
+    ini[s].pop("Default", None)
+    if ini[s].get("Path") == chosen:
+        ini[s]["Default"] = "1"
+ini["Install" + install] = {"Default": chosen, "Locked": "1"}
+with open(path, "w") as f:
+    ini.write(f, space_around_delimiters=False)
+with open(path.replace("profiles.ini", "installs.ini"), "w") as f:
+    f.write(f"[{install}]\nDefault={chosen}\nLocked=1\n")
+PY
+  else
+    mkdir -p "$root/doxia.default"
+    cat >"$root/profiles.ini" <<INI
+[Profile0]
+Name=default
+IsRelative=1
+Path=doxia.default
+Default=1
+
+[General]
+StartWithLastProfile=1
+Version=2
+
+[Install$install]
+Default=doxia.default
+Locked=1
+INI
+    printf '[%s]\nDefault=doxia.default\nLocked=1\n' "$install" >"$root/installs.ini"
+  fi
+fi
+
+# 0 escuro, 1 claro: a interface e as páginas que respeitam o modo seguem o tema.
+mode=$(omarchy-theme-color --file "$theme/colors.toml" mode 2>/dev/null || true)
+[[ $mode == "light" ]] && scheme=1 || scheme=0
+
+# Path= de cada perfil, relativo à pasta do Firefox ou absoluto.
+while IFS= read -r path; do
+  [[ $path == /* ]] || path=$root/$path
+  [[ -d $path ]] || continue
+
+  mkdir -p "$path/chrome"
+  cp "$theme/firefox.css" "$path/chrome/userChrome.css"
+  [[ -f $theme/firefox-content.css ]] && cp "$theme/firefox-content.css" "$path/chrome/userContent.css"
+
+  # user.js vale a cada início; as linhas do tema são trocadas, as do usuário ficam.
+  touch "$path/user.js"
+  sed -i '/"toolkit.legacyUserProfileCustomizations.stylesheets"\|"browser.theme.toolbar-theme"\|"browser.theme.content-theme"/d' "$path/user.js"
+  cat >>"$path/user.js" <<JS
+user_pref("toolkit.legacyUserProfileCustomizations.stylesheets", true);
+user_pref("browser.theme.toolbar-theme", $scheme);
+user_pref("browser.theme.content-theme", $scheme);
+JS
+done < <(sed -n 's/^Path=//p' "$root/profiles.ini")
