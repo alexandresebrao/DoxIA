@@ -1,0 +1,37 @@
+# LiquidOceanIA: o vidro líquido do LiquidIA em tom de oceano. Fundo claro e
+# enevoado (cinza-azulado), texto em azul-marinho, o líquido e os destaques
+# de azul a ciano (#1f6bff -> #2fd4ff).
+mode = "light"
+
+accent = "#1f7ae0"
+selection = "#c6d8ee"
+muted = "#9aa8b8"
+
+background = "#e8eef3"
+dark_background = "#dce4ec"
+darker_background = "#d0dae4"
+lighter_background = "#f4f7fa"
+
+foreground = "#1b2a3d"
+dark_foreground = "#5b6b80"
+light_foreground = "#12203a"
+bright_foreground = "#0b1426"
+
+hyprland_active_border = "rgba(1f6bffee) rgba(2fd4ffee) 45deg"
+hyprland_inactive_border = "rgba(1b2a3d24)"
+
+red = "#c8323c"
+yellow = "#a87a0a"
+orange = "#cc6a16"
+green = "#2e8b57"
+cyan = "#0f8fa8"
+blue = "#1f6fd1"
+magenta = "#8a4fd0"
+brown = "#8b5a2b"
+
+bright_red = "#e0525b"
+bright_yellow = "#c99a1e"
+bright_green = "#3fae6f"
+bright_cyan = "#1fb0cc"
+bright_blue = "#4a8ff0"
+bright_magenta = "#a673e6"
