@@ -6,7 +6,7 @@ import qs.Commons
 import qs.Ui
 
 // Workspaces soltos, com ícone nos espaços fixos: fundo leve no hover e traço
-// vermelho embaixo do ativo (estilo PatternFly, como o tema DoxIA).
+// na cor de destaque do tema embaixo do ativo (estilo PatternFly).
 BarWidget {
   id: root
   moduleName: "doxia.workspaces"
@@ -16,7 +16,7 @@ BarWidget {
   // Paleta do tema atual (colors.toml).
   property var pal: ({})
   function c(name, fallback) { return pal[name] || fallback }
-  readonly property color cRed: c("red", "#ee0000")
+  readonly property color cAccent: c("accent", c("red", "#ee0000"))
   readonly property color cWhite: c("foreground", "#d8dde6")
   readonly property color cDim: c("dark_foreground", "#6b7590")
   readonly property color cBright: c("bright_foreground", "#f4f6fa")
@@ -123,7 +123,7 @@ BarWidget {
           anchors.bottom: parent.bottom
           height: Math.max(2, Math.round(root.barSize * 0.09))
           width: plate.focused ? parent.width - 4 : 0
-          color: root.cRed
+          color: root.cAccent
           Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         }
 
