@@ -46,6 +46,10 @@ test_home="$TMPDIR/home"
 stub_bin="$TMPDIR/bin"
 log="$TMPDIR/quickshell.log"
 mkdir -p "$test_root" "$test_home" "$stub_bin"
+# The test shell runs on the live session, and its idle service would
+# launch the screensaver and lock the real screen from an unthemed home.
+mkdir -p "$test_home/.local/state/omarchy/indicators"
+touch "$test_home/.local/state/omarchy/indicators/stay-awake"
 cp -a "$ROOT/shell" "$test_root/shell"
 ln -s "$ROOT/config" "$test_root/config"
 ln -s "$ROOT/bin" "$test_root/bin"
@@ -435,7 +439,8 @@ pass "shell IPC summon and hide contract works"
 [[ $(shell_ipc notifications setDnd false) == "off" ]] || fail_with_log "notifications IPC toggles DND"
 [[ $(shell_ipc media ping) == "ok" ]] || fail_with_log "media IPC responds"
 jq -e '.hasPlayer | type == "boolean"' <<<"$(shell_ipc media status)" >/dev/null || fail_with_log "media IPC returns status JSON"
-jq -e '.enabled | type == "boolean"' <<<"$(shell_ipc idle status)" >/dev/null || fail_with_log "idle IPC returns status JSON"
+jq -e '.enabled == false and .stayAwake == true' <<<"$(shell_ipc idle status)" >/dev/null ||
+  fail_with_log "idle IPC returns status JSON, with idle off so the test shell cannot lock the live session"
 jq -e '.locked | type == "boolean"' <<<"$(shell_ipc lock status)" >/dev/null || fail_with_log "lock IPC returns status JSON"
 [[ $(shell_ipc shell setPluginEnabled "$keep_service_id" true) == "ok" ]] ||
   fail_with_log "keepLoaded fixture service could not be enabled"
