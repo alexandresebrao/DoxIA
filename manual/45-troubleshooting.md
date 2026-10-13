@@ -6,20 +6,16 @@ First try to [rollback your system](47-system-snapshots.md) the version before y
 
 ### Why are some apps so large on my display?
 
-Omarchy assumes a 2x high-resolution display, which requires setting `GDK_SCALE` to 2 in `~/.config/hypr/monitors.lua`. But if you're on a 1x display, you can change `local omarchy_gdk_scale = 2` to 1 (and then restart any app that's oversized). See [the manual on monitors](33-monitors.md).
+The monitor scale is too high for your display. Step it down with `Super + Alt + /`, or set it in `~/.config/mango/monitors.conf` with `scale:1` on your monitor's rule (and then restart any app that's still oversized). See [the manual on monitors](33-monitors.md).
 
 For Spotify, you can use `Ctrl + Minus` to shrink the UI (and `Ctrl + Plus` to make it bigger).
 
 ### Why isn't Caps Lock working?
 
-In Omarchy, Caps Lock has been designated to be the xcompose key. That's how you get [quick emojis](07-hotkeys.md#quick-emojis) and [other autocompletions](07-hotkeys.md#quick-completions) done. If you really miss using Caps Lock, you can remap the xcompose key to something else by editing `~/.config/hypr/input.lua`, like setting it to the right alt key:
+In Omarchy, Caps Lock has been designated to be the xcompose key. That's how you get [quick emojis](07-hotkeys.md#quick-emojis) and [other autocompletions](07-hotkeys.md#quick-completions) done. If you really miss using Caps Lock, you can remap the xcompose key to something else by editing `~/.config/mango/input.conf`, like setting it to the right alt key:
 
-```
-hl.config({
-  input = {
-    kb_options = "compose:ralt",
-  },
-})
+```ini
+xkb_rules_options=compose:ralt
 ```
 
 ### My Wi-Fi, Bluetooth, audio, or trackpad just stopped working

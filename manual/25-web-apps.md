@@ -8,7 +8,7 @@ If you wish to remove a web app, just go to _Remove > Web App_ in the Omarchy me
 
 It's best if you log into all your accounts using a regular browser before using the web app shortcuts. The thin wrapper frame doesn't work well with 1password, so just easier to be logged in directly first.
 
-All the keyboard hotkeys for these web apps can be changed in `~/.config/hypr/bindings.lua`.
+All the keyboard hotkeys for these web apps can be changed in `~/.config/mango/bindings.conf`.
 
 When you're in a web app, you can copy the current URL to the clipboard using `Shift + Alt + L`.
 

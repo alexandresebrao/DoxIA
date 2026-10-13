@@ -1,22 +1,14 @@
 # Monitors
 
-Omarchy assumes you're running on a 2x-capable retina-class display by default. This is what you need to get those nice, crisp programmer fonts. It's what almost all new premium laptops with high-resolution screens are optimized for. It's what you'd want to run on a 27" 5K [Apple Studio Display](https://www.apple.com/studio-display/)/[ProArt PA27JCV](https://www.asus.com/us/displays-desktops/monitors/proart/proart-display-5k-pa27jcv/)/[Samsung S9](https://www.samsung.com/us/computing/monitors/5k/27-viewfinity-s9-5k-monitor-with-thunderbolt-4-matte-display-and-smart-features-ls27c900panxza/)/[Kuycon G27P](https://kuycon.us/monitors/G27P/) or 32" 6K [Apple XDR](https://www.apple.com/pro-display-xdr/)/[ProArt PA32QCV](https://www.asus.com/displays-desktops/monitors/proart/proart-display-6k-pa32qcv/)/[Kuycon G32P](https://kuycon.us/monitors/G32P/).
+Omarchy is designed around a 2x-capable retina-class display. This is what you need to get those nice, crisp programmer fonts. It's what almost all new premium laptops with high-resolution screens are optimized for. It's what you'd want to run on a 27" 5K [Apple Studio Display](https://www.apple.com/studio-display/)/[ProArt PA27JCV](https://www.asus.com/us/displays-desktops/monitors/proart/proart-display-5k-pa27jcv/)/[Samsung S9](https://www.samsung.com/us/computing/monitors/5k/27-viewfinity-s9-5k-monitor-with-thunderbolt-4-matte-display-and-smart-features-ls27c900panxza/)/[Kuycon G27P](https://kuycon.us/monitors/G27P/) or 32" 6K [Apple XDR](https://www.apple.com/pro-display-xdr/)/[ProArt PA32QCV](https://www.asus.com/displays-desktops/monitors/proart/proart-display-6k-pa32qcv/)/[Kuycon G32P](https://kuycon.us/monitors/G32P/).
 
-But if you're not running a display with a PPI of 218 or above, you'll want to change the monitor settings. For example, if you have a 27" or 32" 4K, you can use fractional scaling by opening `~/.config/hypr/monitors.lua` (via _Setup > Monitors_ in the Omarchy menu) and switching to the recommendation for that combo:
+In DoxIA, mango starts every monitor at 1x, which suits a 1080p or 1440p display. For a high-resolution screen, set the scale in `~/.config/mango/monitors.conf` (via _Setup > Monitors_ in the Omarchy menu). List your outputs and their modes with `wlr-randr`, then add a rule. For example, 2x on a 5K display or 1.6x on a 27" or 32" 4K:
 
-```lua
-local omarchy_gdk_scale = 2
-local omarchy_monitor_scale = 1.6
+```ini
+monitor_rule=name:^DP-1$,width:3840,height:2160,refresh:60,x:0,y:0,scale:1.6
 ```
 
-If you're using a 1080p or 1440p display, you'll probably just want to use 1x scaling, so you can use:
-
-```lua
-local omarchy_gdk_scale = 1
-local omarchy_monitor_scale = 1
-```
-
-Changes to `GDK_SCALE` apply to applications started after the change (and GTK only honors whole numbers, so keep it at the nearest integer of your monitor scale). So make sure you quit the windows that you have that are oversized after the change (or close all windows with `Ctrl + Alt + Del`!).
+The name is a regular expression, so anchor it with `^` and `$` for an exact match. Wayland apps follow the new scale right away; apps running through Xwayland may need a restart.
 
 You can also quickly step through the major monitor scaling ratios (1x, 1.25x, 1.6x, 2x, 3x, 4x) using `Super + /` to go higher and `Super + Alt + /` to go lower. If you have the default configuration, these changes will also persist past reboot.
 
@@ -38,9 +30,7 @@ When you're extending, closing the lid on the laptop will automatically turn off
 
 ### Arranging multiple screens
 
-Hyprland works great with multiple screens. Read more about how to lay them out in [the Hyprland monitor documentation](https://wiki.hypr.land/Configuring/Basics/Monitors/). You can [bind specific workspaces to specific monitors](https://wiki.hypr.land/Configuring/Basics/Workspace-Rules/) as well. In Omarchy, these rules go in `~/.config/hypr/monitors.lua` as `hl.monitor` entries — the file ships with commented examples for pinning a specific monitor to a resolution, position, and rotation.
-
-You can also checkout [Hyprmon](https://github.com/erans/hyprmon/), if you'd like a TUI to help you with the positioning of multiple screens.
+mango works great with multiple screens. Lay them out with `x:` and `y:` positions in `~/.config/mango/monitors.conf` as `monitor_rule=` lines — the file ships with commented examples for pinning a specific monitor to a resolution, position, and rotation. Read more in [the mango monitor documentation](https://github.com/mangowm/mango/tree/main/docs). `wlr-randr` shows every connected output with its modes and current position.
 
 ### Controlling brightness
 
@@ -50,6 +40,6 @@ Monitor brightness is controlled by the dedicated function keys for brightness u
 
 If you're using an Apple display, the regular keyboard brightness keys will also automatically work, if you're focused on the Apple display. This is done through the `asdcontrol` command.
 
-Note that if you're using an Apple 6K XDR display, you may see a phantom screen in your `hyprctl monitors` listing. You can turn this off with something like `hl.monitor({ output = "DP-2", disabled = true })` via _Setup > Monitors_.
+Note that if you're using an Apple 6K XDR display, you may see a phantom screen in your `wlr-randr` listing. You can turn this off with something like `monitor_rule=name:^DP-2$,disable:1` via _Setup > Monitors_.
 
 On Intel machines, you should be connecting to Apple displays using a regular Thunderbolt cable. On other machines without Thunderbolt, you'll typically have to use a [DP + USB-A -> USB-C cable](https://www.amazon.com/dp/B0BNX7MS6N) to make it work.

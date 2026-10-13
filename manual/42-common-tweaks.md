@@ -10,28 +10,22 @@ By default, tray icons, like Dropbox, 1password, or Steam, are hidden behind the
 
 ### Rounded window corners
 
-Omarchy's default design is one of square corners, but if you like to soften that up a bit, you can change `~/.config/hypr/looknfeel.lua` so rounding is no longer commented out:
+Omarchy's own themes use square corners (DoxIA's LiquidIA themes come rounded already). To set the roundness yourself, uncomment this line in `~/.config/mango/looknfeel.conf` and pick a radius. Your file is loaded after the theme, so it wins:
 
-```
-hl.config({
-  decoration = {
-    -- Use round window corners.
-    rounding = 8,
-  },
-})
+```ini
+# Round window corners.
+border_radius=8
 ```
 
 ### Remove window gaps
 
-On laptop displays, some people prefer not to waste any pixels on window gaps (or even a top bar, which you can toggle off with `Super + Shift + Space`). You can toggle all gaps and borders off with `Super + Shift + Backspace`, or remove them permanently by removing the comments in this section of `~/.config/hypr/looknfeel.lua`:
+On laptop displays, some people prefer not to waste any pixels on window gaps (or even a top bar, which you can toggle off with `Super + Shift + Space`). You can toggle the gaps off with `Super + Shift + Backspace`, or remove gaps and borders permanently by removing the comments in this section of `~/.config/mango/looknfeel.conf`:
 
-```
-hl.config({
-  general = {
-    -- No gaps between windows or borders.
-    gaps_in = 0,
-    gaps_out = 0,
-    border_size = 0,
-  },
-})
+```ini
+# No gaps between windows or borders.
+gap_inner_horizontal=0
+gap_inner_vertical=0
+gap_outer_horizontal=0
+gap_outer_vertical=0
+border_px=0
 ```

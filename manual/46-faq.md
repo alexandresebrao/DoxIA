@@ -2,16 +2,12 @@
 
 ### How do I switch between keyboard layouts?
 
-Edit your `~/.config/hypr/input.lua` file and add this to switch between layouts on `Left Alt + Right Alt`:
+Edit your `~/.config/mango/input.conf` file and add this to switch between layouts on `Left Alt + Right Alt`:
 
-```
-hl.config({
-  input = {
-    -- Use multiple keyboard layouts and switch between them with Left Alt + Right Alt
-    kb_layout = "us,fr",
-    kb_options = "compose:caps,shift:both_capslock_cancel,grp:alts_toggle",
-  },
-})
+```ini
+# Use multiple keyboard layouts and switch between them with Left Alt + Right Alt
+xkb_rules_layout=us,fr
+xkb_rules_options=compose:caps,shift:both_capslock_cancel,grp:alts_toggle
 ```
 
 The bar will automatically show your current keyboard layout once you have multiple layouts configured (and you can click it to switch too).
@@ -78,7 +74,7 @@ Run _Remove > Package_ to see every package that's installed. Then you can selec
 
 And you can use _Remove > Web App_ from the Omarchy menu to remove any of the preinstalled web apps you don't want.
 
-Or run _Remove > Preinstalls_ to sweep out all the preinstalled extras — web apps, TUIs, and optional applications — in one go. The hotkeys that launched them go away with them, so you're left with a clean slate of bindings to fill with your own in `~/.config/hypr/bindings.lua`.
+Or run _Remove > Preinstalls_ to sweep out all the preinstalled extras — web apps, TUIs, and optional applications — in one go. The hotkeys that launched them go away with them, so you're left with a clean slate of bindings to fill with your own in `~/.config/mango/bindings.conf`.
 
 ---
 

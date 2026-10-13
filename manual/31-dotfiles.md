@@ -8,12 +8,13 @@ Here's a list of the key files in `~/.config` and what they control:
 
 | File                  | Purpose              |
 | ----------------------- | --------------------- |
-| `~/.config/hypr/hyprland.lua` | The main Hyprland config. Loads the Omarchy defaults plus your override files below. [Learn more about Hyprland configs](https://wiki.hypr.land/Configuring/).  |
-| `~/.config/hypr/bindings.lua` | Your own keybindings and overrides of the defaults. |
-| `~/.config/hypr/monitors.lua` | Controls your monitors, resolution, and position. |
-| `~/.config/hypr/input.lua` | Controls your keyboard layout, mouse, and trackpad settings. |
-| `~/.config/hypr/looknfeel.lua` | Controls gaps, borders, animations, and the rest of the look. |
-| `~/.config/hypr/autostart.lua` | Controls extra processes started with the session. |
+| `~/.config/mango/config.conf` | The main mango config. Loads the Omarchy defaults plus your override files below. Check it for errors with `mango -p`. [Learn more about mango configs](https://github.com/mangowm/mango/tree/main/docs).  |
+| `~/.config/mango/bindings.conf` | Your own keybindings and overrides of the defaults. |
+| `~/.config/mango/monitors.conf` | Controls your monitors, resolution, and position. |
+| `~/.config/mango/input.conf` | Controls your keyboard layout, mouse, and trackpad settings. |
+| `~/.config/mango/looknfeel.conf` | Controls gaps, borders, animations, and the rest of the look. |
+| `~/.config/mango/autostart.conf` | Controls extra processes started with the session. |
+| `~/.config/mango/windows.conf` | Window rules: which apps float, their size, and more. |
 | `~/.config/omarchy/shell.json` | Controls the Omarchy shell: bar position, layout, and widgets, plus screensaver, lock, and idle timings. |
 | `~/.config/foot/foot.ini` | Controls your terminal (foot is the default). |
 | `~/.XCompose` | Defines your quick-access emoji and name/email autocomplete. Make sure to run `omarchy-restart-xcompose` after making changes. |
@@ -22,10 +23,10 @@ If you end up making a lot of changes to tweak your own setup, it's a good idea 
 
 ### Starting your own apps with the session
 
-If you want something to run every time you log in — a sync daemon, a chat app, your own script — put it in `~/.config/hypr/autostart.lua`:
+If you want something to run every time you log in — a sync daemon, a chat app, your own script — put it in `~/.config/mango/autostart.conf`:
 
-```lua
-o.launch_on_start("my-service")
+```ini
+exec_once=uwsm-app -- my-service
 ```
 
 That starts the command as part of the session, so it's properly cleaned up when you log out again.
@@ -64,12 +65,14 @@ Omarchy ships with a bunch of ergonomic aliases and helpful functions, but it's 
 
 Look, this is your computer. You can do whatever you want with it, but I would advise against making changes to the files in `/usr/share/omarchy` directly. They belong to the Omarchy pacman package, so your changes will simply be overwritten on the next update. You're better off just overwriting any default values you don't like in the `~/.config/*` folder instead.
 
-You can change just about everything that way, like the default keybindings. Just edit `~/.config/hypr/bindings.lua` to, say, replace [Obsidian](https://obsidian.md/) with [Joplin](https://joplinapp.org/) (install with `omarchy-pkg-add joplin-bin`):
+You can change just about everything that way, like the default keybindings. Just edit `~/.config/mango/bindings.conf` to, say, replace [Obsidian](https://obsidian.md/) with [Joplin](https://joplinapp.org/) (install with `omarchy-pkg-add joplin-bin`). A bind on a key Omarchy already uses replaces Omarchy's, and the comment right above it is what the keybindings menu shows:
 
+```ini
+# Joplin
+bind=SUPER+SHIFT,O,spawn,uwsm-app -- joplin-desktop
 ```
-hl.unbind("SUPER + SHIFT + O")
-o.bind("SUPER + SHIFT + O", "Joplin", "joplin-desktop")
-```
+
+To drop one of Omarchy's binds without putting anything on the key, add `# unbind=SUPER+SHIFT,O` instead.
 
 If you insist on hacking on the internal Omarchy files, switch to the dev channel via _Update > Channel > Dev_. That links Omarchy to a git checkout of the source code in `~/omarchy`, which you're free to change to your heart's content. Ain't nobody here to tell you what to do!
 

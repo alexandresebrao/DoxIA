@@ -21,7 +21,7 @@ From the terminal, the same switches are `omarchy toggle <thing>`. Run `omarchy 
 | Suspend | — | `omarchy toggle suspend` |
 | Hybrid GPU | — | `omarchy toggle hybrid gpu` |
 
-The touchpad, touchscreen, and hybrid GPU switches live under _Trigger > Hardware_ (`Super + Ctrl + H`) rather than under Toggle, since they only show up when you actually have that hardware. The touchpad and touchscreen ones survive a Hyprland reload — the disabled device's name is saved to a small state file that Hyprland reads on startup to disable it again.
+The touchpad, touchscreen, and hybrid GPU switches live under _Trigger > Hardware_ (`Super + Ctrl + H`) rather than under Toggle, since they only show up when you actually have that hardware. The touchpad and touchscreen ones survive a reload and a new login — the setting is saved to a small state file that mango reads on startup.
 
 The Toggle menu also carries a few things that aren't `omarchy toggle` commands but behave the same: battery percentage in the bar, workspace layout (`Super + L`), window gaps (`Super + Shift + Backspace`), and the 1-window square aspect (`Super + Ctrl + Backspace`).
 
@@ -41,18 +41,13 @@ Inactive indicators are hidden. Hover the area around them and they fade in dimm
 
 ### Night light
 
-`Super + Ctrl + N` warms the screen to 4000K, and hitting it again puts it back to 6500K. It's driven by hyprsunset, which the toggle starts for you if it isn't already running.
+`Super + Ctrl + N` warms the screen to 4000K, and hitting it again puts it back to 6500K. It's driven by gammastep, which holds the temperature for as long as it runs and returns the screen to normal when it stops.
 
-By default hyprsunset does nothing to your screen at all. `~/.config/hypr/hyprsunset.conf` ships with an identity profile precisely so the display stays untouched until you ask for warmth. If you'd rather have it switch by the clock, replace that with a time profile:
+For a different temperature, set it directly:
 
+```bash
+omarchy nightlight temperature 3500
 ```
-profile {
-    time = 20:00
-    temperature = 4000
-}
-```
-
-Then start hyprsunset at login by adding `o.launch_on_start("hyprsunset")` to `~/.config/hypr/autostart.lua`. The 4000K/6500K pair used by the toggle is fixed, so the config file is where you go if you want a different temperature.
 
 ### Do not disturb
 

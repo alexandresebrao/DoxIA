@@ -1,48 +1,41 @@
 # Keyboard, Mouse, Trackpad
 
-Hyprland lets you configure all your inputs in great detail. You can change the keyboard repeat to be supersonically fast or make the trackpad use natural scrolling. You change all of it in `~/.config/hypr/input.lua`, which you can also reach via _Setup > Input_ in the Omarchy menu (`Super + Space`). Anything you set there replaces Omarchy's defaults.
+mango lets you configure all your inputs in great detail. You can change the keyboard repeat to be supersonically fast or make the trackpad use natural scrolling. You change all of it in `~/.config/mango/input.conf`, which you can also reach via _Setup > Input_ in the Omarchy menu (`Super + Space`). Anything you set there replaces Omarchy's defaults.
 
 Here's an example:
 
-```lua
-hl.config({
-  input = {
-    -- Use multiple keyboard layouts and switch between them with Left Alt + Right Alt
-    kb_layout = "us,dk",
-    kb_options = "compose:caps,shift:both_capslock_cancel,grp:alts_toggle",
+```ini
+# Use multiple keyboard layouts and switch between them with Left Alt + Right Alt
+xkb_rules_layout=us,dk
+xkb_rules_options=compose:caps,shift:both_capslock_cancel,grp:alts_toggle
 
-    -- Change speed of keyboard repeat
-    repeat_rate = 40,
-    repeat_delay = 600,
+# Change speed of keyboard repeat
+repeat_rate=40
+repeat_delay=600
 
-    -- Increase sensitivity for mouse/trackpad (default: 0)
-    sensitivity = 0.35,
+# Increase sensitivity for the mouse and the trackpad (-1.0 to 1.0, default: 0)
+mouse_accel_speed=0.35
+trackpad_accel_speed=0.35
 
-    touchpad = {
-      -- Use natural (inverse) scrolling
-      natural_scroll = true,
+# Use natural (inverse) scrolling on the trackpad
+trackpad_natural_scrolling=1
 
-      -- Use two-finger clicks for right-click instead of lower-right corner
-      clickfinger_behavior = true,
+# Use two-finger clicks for right-click instead of lower-right corner
+trackpad_click_method=2
 
-      -- Control the speed of your scrolling
-      scroll_factor = 0.3,
-    },
-  },
-})
-
--- Scroll faster in the terminal
-o.window("(Alacritty|kitty|foot)", { scroll_touchpad = 1.5 })
+# Control the speed of your trackpad scrolling
+trackpad_scroll_factor=0.3
 ```
 
-You can [see all the input options](https://wiki.hypr.land/Configuring/Basics/Variables/#input) on the Hyprland wiki for inputs.
+Check the file with `mango -p` after editing. You can [see all the input options](https://github.com/mangowm/mango/blob/main/docs/configuration/input.md) in the mango documentation.
 
 ### Trackpad gestures
 
-You can also turn on [touchpad gestures](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Gestures/), like swiping with three fingers to change workspaces:
+Omarchy ships with touchpad gestures already on: swipe with three fingers to move focus between windows, and with four fingers to change workspaces (up or down opens the overview). Add your own in `~/.config/mango/bindings.conf`, on a direction and finger count Omarchy doesn't use yet, like three fingers up or down for the overview:
 
-```lua
-hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
+```ini
+gesturebind=none,up,3,toggleoverview
+gesturebind=none,down,3,toggleoverview
 ```
 
 On Dell XPS laptops with a haptic touchpad, you can also set the click strength to low, mid, or high under _Trigger > Hardware > Touchpad Haptics_.
@@ -53,12 +46,8 @@ Omarchy runs the [fcitx5](https://fcitx-im.org/) input method framework as part 
 
 ### Use ALT as SUPER
 
-On some keyboards, it's not convenient to use the primary meta key (Windows/cmd key) as SUPER. You can change this to be ALT instead using this change:
+On some keyboards, it's not convenient to use the primary meta key (Windows/cmd key) as SUPER. You can change this to be ALT instead with this line in `~/.config/mango/input.conf`:
 
-```lua
-hl.config({
-  input = {
-    kb_options = "compose:caps,shift:both_capslock_cancel,altwin:swap_alt_win",
-  },
-})
+```ini
+xkb_rules_options=compose:caps,shift:both_capslock_cancel,altwin:swap_alt_win
 ```

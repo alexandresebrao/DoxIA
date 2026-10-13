@@ -124,7 +124,7 @@ You can see all the main keyboard bindings with `Super + K` (Tmux bindings with 
 | `Super + Shift + Alt + X`           | X Compose |
 | `Super + Shift + Y`           | YouTube |
 
-Change/add bindings in `~/.config/hypr/bindings.lua`.
+Change/add bindings in `~/.config/mango/bindings.conf`.
 
 ## Universal clipboard
 

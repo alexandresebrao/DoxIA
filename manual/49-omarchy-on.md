@@ -22,7 +22,7 @@ The Steam Deck runs on Arch, which means you can run Omarchy on your Steam Deck.
 
 ### NixOS
 
-Omarchy is really Arch + Hyprland, but Henry Sipp has [ported the essence of the setup to NixOS](https://github.com/henrysipp/omarchy-nix). So if you've been nix-pilled, here's a good starting point. It may or may not stay up-to-date with the latest Omarchy changes, but it's pretty cool none the less!
+Omarchy is really Arch + Hyprland (DoxIA is its Fedora + mango take), but Henry Sipp has [ported the essence of the setup to NixOS](https://github.com/henrysipp/omarchy-nix). So if you've been nix-pilled, here's a good starting point. It may or may not stay up-to-date with the latest Omarchy changes, but it's pretty cool none the less!
 
 ### Something else!
 

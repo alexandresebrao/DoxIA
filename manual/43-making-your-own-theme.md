@@ -2,7 +2,7 @@
 
 You can add your own themes to `~/.config/omarchy/themes`. Just copy one of the existing ones as a base (look in `/usr/share/omarchy/themes`), then tweak to your delight. As long as your theme is inside that folder, it'll be included in the theme selection menu.
 
-The main file you have to tweak is `colors.toml`. That defines the color set that's then used to generate configurations for the terminal (Foot/Alacritty/Ghostty/Kitty), btop, Chromium, Hyprland, Neovim, Helix, VSCode, Obsidian, and the entire Omarchy shell (top bar, menu, notifications, OSD, and lock screen).
+The main file you have to tweak is `colors.toml`. That defines the color set that's then used to generate configurations for the terminal (Foot/Alacritty/Ghostty/Kitty), btop, Chromium, mango, Neovim, Helix, VSCode, Obsidian, and the entire Omarchy shell (top bar, menu, notifications, OSD, and lock screen).
 
 You can also use the included Aether application to create a new theme using a lovely GUI interface to play with colors and search for backgrounds. Just start it via the apps menu on `Super + Alt + Space`.
 
@@ -10,7 +10,7 @@ You can also use the included Aether application to create a new theme using a l
 
 A theme you write yourself in `~/.config/omarchy/themes` can contain whatever you like — it's your machine and your file, and Omarchy applies all of it.
 
-A theme you install from someone else's repo with `omarchy theme install` keeps everything that's colour, and loses the handful of files that would run code on your machine: any `.lua` file, the terminal configs (`alacritty.toml`, `foot.ini`, `ghostty.conf`, `kitty.conf`), and `vscode.json`. A theme's `hyprland.lua` is Lua your compositor runs at login, a terminal config names the program your terminal starts, and `vscode.json` names a VSCode extension to install. Installing someone's theme should change what your desktop looks like, never what it runs.
+A theme you install from someone else's repo with `omarchy theme install` keeps everything that's colour, and loses the handful of files that would run code on your machine: any `.lua` file, the terminal configs (`alacritty.toml`, `foot.ini`, `ghostty.conf`, `kitty.conf`), the mango configs (`mango.conf`, `mango-looknfeel.conf`), and `vscode.json`. A `.lua` file is code Neovim runs, a terminal config names the program your terminal starts, a mango config can start programs with `exec=`, and `vscode.json` names a VSCode extension to install. Installing someone's theme should change what your desktop looks like, never what it runs.
 
 Everything else still works exactly as the theme author wrote it — `btop.theme`, `chromium.theme`, `helix.toml`, `icons.theme`, `shell.toml`, the backgrounds and the previews are all kept. Only what was dropped gets regenerated from `colors.toml` on your machine.
 
@@ -40,6 +40,6 @@ If you want to distribute your theme so others can use it, you need to put it on
 
 That leftover `[themename]` becomes the theme's directory name, so it has to be one Omarchy can hand around safely: it must start with a letter, a digit, or an underscore, and the rest may hold letters, digits, `.`, `_`, `+`, and `-`. Capitals are lowercased for you, but anything else — a space, a quote, a non-English character — is refused at install time rather than turned into a directory name. So `omarchy-tokyo-night-theme`, `omarchy-flexoki_light-theme`, and `omarchy-c++-theme` all install fine.
 
-Remember that once it's installed from a repo, any `.lua`, terminal config or `vscode.json` it ships is dropped, so don't build the theme around those.
+Remember that once it's installed from a repo, any `.lua`, terminal config, mango config or `vscode.json` it ships is dropped, so don't build the theme around those.
 
 You can have your theme added to [the extra themes page](https://omarchy.org/themes/) by sending a pull request to [the omarchy-site repo](https://github.com/omacom-io/omarchy-site).
