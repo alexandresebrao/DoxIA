@@ -5,7 +5,7 @@
   <br><sub><a href="docs/media/doxia-intro.mp4">Assista ao vídeo com som</a></sub>
 </p>
 
-DoxIA é um desktop Hyprland + Quickshell para **Fedora**, todo em **português do Brasil**,
+DoxIA é um desktop [mango](https://github.com/mangowm/mango) + Quickshell para **Fedora**, todo em **português do Brasil**,
 pensado para quem desenvolve: Node.js e Java já vêm gerenciados, a barra tem um painel
 para subir os serviços do dia a dia e há uma ISO própria de instalação. Ele pode ser
 instalado ao lado de um desktop que já existe, como o KDE Plasma, sem mexer nele.
@@ -17,7 +17,9 @@ vão nas issues deste repositório.
 
 ### Recursos
 
-- Hyprland, Quickshell, uwsm e gpu-screen-recorder vindos do COPR
+- mango como compositor (wlroots), numa build do DoxIA publicada nos releases deste
+  repositório com uma correção para máquinas sem GPU (como VMs do Hyper-V); Quickshell e
+  gpu-screen-recorder vindos do COPR e a sessão gerenciada pelo uwsm
 - Menus, painéis, notificações e mensagens de OSD em pt-BR
 - Identidade DoxIA: sessão no login, tela de login, logos do Sobre e da proteção de tela,
   saudação do terminal e MOTD
@@ -35,7 +37,16 @@ vão nas issues deste repositório.
 - zsh como shell de login, com Oh My Zsh, zsh-autosuggestions, zsh-syntax-highlighting e o
   tema DoxIA (pasta, branch do git e as versões do Node.js e do Java em uso); um `~/.zshrc`
   que já exista mantém o tema e os plugins dele
-- ONLYOFFICE do Flathub, em pt-BR
+- Janela **Atualizar DoxIA** (menu Atualizar e ícone na barra): mostra o que vai mudar,
+  pede a senha uma vez e instala os pacotes na hora ou no próximo reinício; apps Flatpak
+  atualizam sem senha. Roda com prioridade baixa para o computador continuar usável
+- **Painel Rápido** (`Super + Alt + P`): formulários de chamado do Jira Service Management,
+  listas de tarefas do Jira, disparo de pipelines do GitLab, links e comandos, configurados
+  com a skill `/painel` do Claude Code ou em `~/.config/omarchy/painel.json`
+- Temas LiquidIA (padrão), LiquidOceanIA e DoxIA, com ícones Lucide na barra e nos menus
+- Ditado por voz com o Voxtype
+- Google Chrome e Claude Code instalados; Firefox, Thunderbird (cliente de e-mail padrão) e
+  ONLYOFFICE (em pt-BR, no lugar do LibreOffice) vêm do Flathub
 - `tuned-ppd` com um pequeno shim de `powerprofilesctl` para o menu de energia
 - Tela de bloqueio com PAM ajustado para o Fedora
 
@@ -47,13 +58,15 @@ sudo bash ~/.local/share/omarchy/fedora/install-system.sh
 bash ~/.local/share/omarchy/fedora/install-user.sh
 ```
 
-Depois saia da sessão e escolha **DoxIA (Hyprland uwsm)** na tela de login.
+Depois saia da sessão e escolha **DoxIA** na tela de login.
 
 O script de usuário faz backup de toda configuração que substitui (`*.bak-omarchy-<data>`)
 e não mexe no autostart, nas variáveis de ambiente nem nas configurações do Chromium do KDE.
 
-Para atualizar uma instalação (git pull, depois tema, identidade visual, fonte de ícones,
-menu, MOTD e tela de login) sem mexer no layout da barra nem nos plugins dela, rode
+Para atualizar, use **Atualizar** no menu: ele atualiza o DoxIA (git pull), os pacotes do
+sistema, os apps Flatpak e as ferramentas do mise, e depois roda o `fedora/update.sh`, que
+reaplica tema, identidade visual, fonte de ícones, menu, MOTD e tela de login sem mexer no
+layout da barra nem nos plugins dela. O `fedora/update.sh` também pode ser rodado sozinho:
 `bash ~/.local/share/omarchy/fedora/update.sh`.
 
 `Super + K` mostra os atalhos e `Super + Espaço` abre o menu.
@@ -61,11 +74,12 @@ menu, MOTD e tela de login) sem mexer no layout da barra nem nos plugins dela, r
 ### ISO de instalação
 
 `fedora/iso/build.sh` gera um instalador DoxIA: o netinstall do Fedora (Anaconda)
-reconstruído com lorax com o nome DoxIA, os logos genéricos no lugar dos do Fedora e um
-tema do instalador nas cores da tela de login. O kickstart define pt-BR, teclado brasileiro
-e horário de São Paulo, deixa disco, rede e conta de usuário para o instalador e clona a
-versão mais recente da branch `fedora` deste repositório para rodar os scripts de instalação
-acima. Em seguida atualiza todos os pacotes, então o primeiro boot já sai atualizado.
+reconstruído com lorax com o nome DoxIA e os logos genéricos no lugar dos do Fedora. Na
+frente do Anaconda roda um assistente próprio, no estilo do Windows 98, que pergunta
+idioma, rede, disco (o disco inteiro ou partições feitas à mão no blivet-gui), conta de
+usuário e nome do computador, e depois mostra o progresso da instalação. O kickstart usa
+teclado brasileiro e horário de São Paulo e clona a versão mais recente da branch `fedora`
+deste repositório para rodar os scripts de instalação acima. Em seguida atualiza todos os pacotes, então o primeiro boot já sai atualizado.
 A instalação precisa de internet.
 
 ```bash
@@ -76,15 +90,15 @@ sudo bash ~/.local/share/omarchy/fedora/iso/build.sh ~/doxia-iso
 O GitHub Actions só gera a ISO quando uma tag é enviada (`git tag v1.2 && git push origin v1.2`)
 ou quando o workflow **DoxIA ISO** é iniciado manualmente; pushes na `fedora` não geram ISO.
 
-Crie uma conta de usuário no instalador: o desktop é configurado para esse usuário.
+O desktop é configurado para a conta de usuário criada no assistente.
 `fedora/iso/make-installer-art.py` gera de novo as imagens do instalador.
 
 ### Créditos
 
 Baseado no [Omarchy](https://github.com/basecamp/omarchy) (MIT, © DHH). Não afiliado à
 Basecamp. Os nomes `omarchy-*` (comandos, `~/.local/share/omarchy`, `~/.config/omarchy`)
-foram mantidos para facilitar o merge com o upstream. O manual original, em inglês,
-está em [`manual/`](manual/).
+foram mantidos para facilitar o merge com o upstream. O manual, em inglês e adaptado ao
+mango, está em [`manual/`](manual/).
 
 ### Licença
 
