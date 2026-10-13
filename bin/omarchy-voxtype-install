@@ -27,7 +27,7 @@ if gum confirm "Instalar o Voxtype + modelo de IA (~500MB) para ativar o ditado?
   fi
   voxtype setup systemd
 
-  hyprctl reload >/dev/null
+  omarchy-restart-mango
   omarchy-restart-shell
   omarchy-notification-send -g  "Ditado do Voxtype pronto" "Segure F9 para ditar (ou alterne com Super + Ctrl + X)." -t 10000
 fi

@@ -18,7 +18,7 @@ if omarchy-cmd-present voxtype; then
   omarchy-pkg-drop voxtype
   rm -rf ~/.config/voxtype
   rm -rf ~/.local/share/voxtype
-  hyprctl reload >/dev/null
+  omarchy-restart-mango
 else
   echo "O Voxtype não estava instalado."
 fi

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# omarchy:summary=Reload the mango configuration (used by the Omarchy theme switching).
+
+mmsg dispatch reload_config >/dev/null 2>&1 || true
