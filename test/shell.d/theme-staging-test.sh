@@ -76,6 +76,8 @@ printf '[terminal.shell]\nprogram = "%s"\n' "$marker" >"$hostile/alacritty.toml"
 printf 'shell = "%s"\n' "$marker" >"$hostile/foot.ini"
 printf 'command = "%s"\n' "$marker" >"$hostile/ghostty.conf"
 printf 'hl.env("GUM_INPUT_PROMPT", "%s")\n' "$marker" >"$hostile/gum_env.lua"
+printf 'exec_once=%s\n' "$marker" >"$hostile/mango.conf"
+printf 'border_radius=14\nexec=%s\n' "$marker" >"$hostile/mango-looknfeel.conf"
 printf '[bar]\nbackground = "#%s"\n' "000000" >"$hostile/shell.toml"
 printf '{}\n' >"$hostile/vscode.json"
 printf 'Yaru-red\n' >"$hostile/icons.theme"
@@ -96,6 +98,7 @@ assert_staged backgrounds/1-real.png "an image in backgrounds/ is staged"
 
 assert_not_staged unlock.png "a symlink is not followed out of the theme"
 assert_not_staged vscode.json "vscode.json names an extension to install and is not staged"
+assert_not_staged mango-looknfeel.conf "mango-looknfeel.conf can exec= and is not staged"
 
 assert_staged icons.theme "the theme's icon set name is staged"
 grep -q 'Yaru-red' "$(staged icons.theme)" || fail "the staged icons.theme is the theme's"
@@ -105,7 +108,7 @@ assert_not_staged .git "the clone's own git directory is never staged"
 
 # These run code, so the theme's versions must lose to Omarchy's generated ones
 # rather than merely be absent.
-for generated in hyprland.lua neovim.lua gum_env.lua kitty.conf alacritty.toml foot.ini ghostty.conf; do
+for generated in hyprland.lua neovim.lua gum_env.lua kitty.conf alacritty.toml foot.ini ghostty.conf mango.conf; do
   assert_staged "$generated" "$generated is generated from Omarchy's template"
   assert_no_marker "$generated" "an installed theme cannot supply $generated"
 done
