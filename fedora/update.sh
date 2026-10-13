@@ -325,6 +325,10 @@ fi
 bash "$HOME/.config/omarchy/hooks/theme-set.d/firefox"
 bash "$HOME/.config/omarchy/hooks/theme-set.d/edge"
 
+echo "==> Atualizar DoxIA window (sudo)"
+# Its own app, so this script reloading the shell no longer closes it.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-atualizar" || echo "  Not installed; the shell panel stands in."
+
 echo "==> Runtime packages installs before this one missed (sudo)"
 # perl-JSON-PP: the clipboard history capture and omarchy-menu-select/-input.
 rpm -q perl-JSON-PP &>/dev/null || sudo dnf install -y perl-JSON-PP

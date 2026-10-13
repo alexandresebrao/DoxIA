@@ -1,9 +1,19 @@
 #!/bin/bash
 
 # omarchy:summary=Open the Atualizar DoxIA window
+# omarchy:args=[--prefs]
 
-# The window is the omarchy.update shell plugin. Without a running shell, fall
-# back to the update in a terminal.
-if [[ $(omarchy-shell shell summon omarchy.update '{}' 2>/dev/null) != *ok* ]]; then
+# The window is its own app (fedora/doxia/atualizar, installed by
+# fedora/doxia/install-atualizar), so the update can reload and restart the
+# shell under it. A second launch raises the open window. Without the app,
+# the omarchy.update shell panel; without a running shell, the update in a
+# terminal.
+if omarchy-cmd-present doxia-atualizar; then
+  exec setsid uwsm-app -- doxia-atualizar "$@"
+fi
+
+payload='{}'
+[[ ${1:-} == "--prefs" ]] && payload='{"tab": "prefs"}'
+if [[ $(omarchy-shell shell summon omarchy.update "$payload" 2>/dev/null) != *ok* ]]; then
   exec omarchy-launch-floating-terminal-with-presentation omarchy-update
 fi

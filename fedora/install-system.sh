@@ -33,6 +33,9 @@ echo "==> mango (the DoxIA build, from this repository's releases)"
 # Also enables the kaleedtc/mangowm COPR for scenefx, with mangowm excluded.
 bash "$omarchy_path/fedora/doxia/install-mango"
 
+echo "==> Atualizar DoxIA window (from this repository's releases)"
+bash "$omarchy_path/fedora/doxia/install-atualizar" || echo "  Not installed; the shell panel stands in."
+
 echo "==> Installing packages"
 packages=(
   # Session and portals. mangowm ships mango-portals.conf, which routes screen
