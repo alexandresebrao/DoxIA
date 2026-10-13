@@ -340,6 +340,13 @@ esac
 SH
 chmod +x "$stub_bin/curl"
 
+# The lock service blanks and wakes the screens through these. Real ones would
+# put the live session's monitors to sleep while the test locks its own shell.
+for command in omarchy-brightness-display omarchy-brightness-keyboard omarchy-system-wake; do
+  printf '#!/bin/bash\n:\n' >"$stub_bin/$command"
+  chmod +x "$stub_bin/$command"
+done
+
 OMARCHY_PATH="$test_root" \
 HOME="$test_home" \
 XDG_CONFIG_HOME="$test_home/.config" \
@@ -562,7 +569,7 @@ pass "direct panel IPC opens and closes default panels"
 # the shape duplicate component loads produced, where a sync pass that ran
 # while a widget's asynchronous load was still in flight started a second one.
 # Checked before the reload below, which rebuilds widgets by design.
-screens=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || true)
+screens=$(mmsg get all-monitors 2>/dev/null | jq '.monitors | length' 2>/dev/null || true)
 [[ $screens =~ ^[0-9]+$ ]] && (( screens > 0 )) || screens=1
 # No matches is the good case, and pipefail would otherwise abort the run.
 worst=$(grep -oE "another handler is registered for target [a-z.-]+" "$log" |
