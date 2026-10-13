@@ -12,12 +12,14 @@ set -e
 
 offline=()
 [[ ${1:-} == "--offline" ]] && offline=(--offline)
+# dnf fetches 3 packages at a time by default, so one slow mirror holds up the rest.
+dnf_args=(upgrade --refresh -y --setopt=max_parallel_downloads=10)
 
 if [[ -n ${OMARCHY_UPDATE_GUI:-} ]]; then
   step=system
   (( ${#offline[@]} )) && step=download
   echo -e "\e[32m\nUpdate system packages\e[0m"
-  sudo dnf upgrade --refresh -y "${offline[@]}" 2>&1 | {
+  sudo dnf "${dnf_args[@]}" "${offline[@]}" 2>&1 | {
     # Downloads fill the first half and the transaction the second; an offline
     # run stops after the downloads and its test transaction.
     phase_start=0 phase_size=0.5 last=-1
@@ -40,4 +42,4 @@ if [[ -n ${OMARCHY_UPDATE_GUI:-} ]]; then
 fi
 
 echo -e "\e[32m\nUpdate system packages\e[0m"
-sudo dnf upgrade --refresh -y "${offline[@]}"
+sudo dnf "${dnf_args[@]}" "${offline[@]}"

@@ -47,13 +47,13 @@ run_system_pkgs() {
 : >"$test_tmp/dnf-output"
 
 run_system_pkgs || fail "a terminal upgrade that works reports a failure"
-[[ $(<"$test_tmp/dnf-calls") == "upgrade --refresh -y" ]] ||
+[[ $(<"$test_tmp/dnf-calls") == "upgrade --refresh -y --setopt=max_parallel_downloads=10" ]] ||
   fail "a terminal upgrade runs dnf upgrade --refresh -y" "$(<"$test_tmp/dnf-calls")"
 [[ ! -s $test_tmp/state-calls ]] || fail "a terminal upgrade reports no window progress"
 pass "a terminal upgrade installs the packages now"
 
 run_system_pkgs --offline || fail "a staged upgrade that works reports a failure"
-[[ $(<"$test_tmp/dnf-calls") == "upgrade --refresh -y --offline" ]] ||
+[[ $(<"$test_tmp/dnf-calls") == "upgrade --refresh -y --setopt=max_parallel_downloads=10 --offline" ]] ||
   fail "--offline stages the upgrade for the next boot" "$(<"$test_tmp/dnf-calls")"
 pass "--offline stages the upgrade for the next boot"
 
