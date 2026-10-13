@@ -91,9 +91,16 @@ status=$?
 set -e
 
 (( status == 127 )) || fail "snapshot create exits 127 without snapper" "got $status"
-grep -qF 'omarchy-snapshot create || (($? == 127))' "$ROOT/bin/omarchy-update" ||
-  fail "update ignores only the missing-snapper exit code"
 pass "snapshot create keeps the quiet 127 path for systems without snapper"
+
+# DoxIA's update checks for Snapper before it gets that far and skips the step,
+# so a snapshot that does run and fails is the only failure left: it warns and
+# carries on.
+grep -qF 'omarchy-cmd-present snapper || snapshot=false' "$ROOT/bin/omarchy-update" ||
+  fail "update skips the snapshot when Snapper is absent"
+grep -qF 'Continuing the update without a snapshot' "$ROOT/bin/omarchy-update" ||
+  fail "update continues past a failed snapshot instead of aborting"
+pass "update skips a missing Snapper and survives a failed snapshot"
 
 # The quattro upgrade runs under set -e, so a failed snapshot has to be warned
 # past there too or it aborts the whole upgrade at the snapshot step.
