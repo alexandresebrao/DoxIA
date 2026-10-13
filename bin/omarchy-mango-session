@@ -26,6 +26,10 @@ if [[ $(systemd-detect-virt 2>/dev/null) == "microsoft" ]]; then
   # buffers, so repaint the whole output every frame.
   export WLR_SCENE_DEBUG_DAMAGE=rerender
   export WLR_SCENE_DISABLE_DIRECT_SCANOUT=1
+  # Even with full repaints the atomic path still flickers: hyperv_drm only
+  # copies the FB_DAMAGE_CLIPS regions to VRAM. Legacy page flips copy the
+  # whole framebuffer.
+  export WLR_DRM_NO_ATOMIC=1
 fi
 
 exec mango "$@"
