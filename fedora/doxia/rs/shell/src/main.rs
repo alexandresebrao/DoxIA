@@ -1,7 +1,8 @@
 // doxia-shell: the long-running half of the DoxIA shell, taking over from
 // Quickshell one surface at a time: the OSD, the notifications, the polkit
-// agent and the lock screen so far. It owns org.doxia.Shell on the session bus and answers the
-// same IPC calls Quickshell does for those targets (ipc.rs), which
+// agent, the lock screen, the Omarchy menu and the Start menu so far. It
+// owns org.doxia.Shell on the session bus and answers the same IPC calls
+// Quickshell does for those targets (ipc.rs), which
 // bin/omarchy-shell tries first:
 //
 //   busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
@@ -9,12 +10,17 @@
 //
 // Running doxia-shell again while it runs does nothing.
 
+mod apps;
+mod card;
+mod iniciar;
 mod ipc;
 mod lock;
+mod menu;
 mod notify;
 mod osd;
 mod polkit;
 mod quickshell;
+mod run;
 
 use gtk::prelude::*;
 use gtk::{gio, glib};
@@ -72,6 +78,23 @@ fn main() -> glib::ExitCode {
     crate::quickshell::disable("omarchy.lock");
     let l = lock.clone();
     ipc.add("lock", Box::new(move |method, _| l.ipc(method)));
+
+    // Quickshell's plugin surface for the plugins taken over (the menu
+    // and the Start menu so far); any other plugin, or a call with none,
+    // stays Quickshell's.
+    let omarchy_menu = menu::OmarchyMenu::new(app);
+    let iniciar = iniciar::Iniciar::new(app);
+    ipc.add(
+      "shell",
+      Box::new(move |method, args| {
+        let not_ours = || Some("Target not found.".to_string());
+        match args.first().map(String::as_str) {
+          Some("omarchy.menu") => omarchy_menu.ipc(method, &args[1..]),
+          Some("doxia.iniciar") => iniciar.ipc(method, &args[1..]),
+          _ => not_ours(),
+        }
+      }),
+    );
 
     let polkit = polkit::Polkit::new(app);
     polkit.start();

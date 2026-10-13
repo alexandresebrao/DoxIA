@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-atualizar"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-painel"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -111,17 +111,19 @@ dependencies = [
 
 [[package]]
 name = "doxia-shell"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "doxia-theme",
+ "gio-unix",
  "gtk4",
  "gtk4-layer-shell",
+ "pangocairo",
  "serde_json",
 ]
 
 [[package]]
 name = "doxia-theme"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "gtk4",
  "serde_json",
@@ -325,6 +327,31 @@ dependencies = [
  "libc",
  "system-deps 9.0.0",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "gio-unix"
+version = "0.22.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce8d768735e229742c135afa3d3326604088d2df0679901cdb05e791fe2fbe0a"
+dependencies = [
+ "gio",
+ "gio-unix-sys",
+ "glib",
+ "libc",
+]
+
+[[package]]
+name = "gio-unix-sys"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c01dbb58f92f67548d85e2209e073acc7ee04e107c7e04ee69b49e38b4933b4"
+dependencies = [
+ "gio-sys",
+ "glib-sys",
+ "gobject-sys",
+ "libc",
+ "system-deps 9.0.0",
 ]
 
 [[package]]
@@ -646,6 +673,31 @@ dependencies = [
  "glib-sys",
  "gobject-sys",
  "libc",
+ "system-deps 9.0.0",
+]
+
+[[package]]
+name = "pangocairo"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd199a0fef965b3ebda91a929a1ab5e7729538882c68e8de38e1904d2e094757"
+dependencies = [
+ "cairo-rs",
+ "glib",
+ "pango",
+ "pangocairo-sys",
+]
+
+[[package]]
+name = "pangocairo-sys"
+version = "0.22.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a649a616d67ae68539bc85f00fb45d36fba742ed20fc20e6712a15d8ee52bd3f"
+dependencies = [
+ "cairo-sys-rs",
+ "glib-sys",
+ "libc",
+ "pango-sys",
  "system-deps 9.0.0",
 ]
 

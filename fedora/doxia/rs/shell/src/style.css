@@ -125,3 +125,71 @@ entry.lock-entry text placeholder { color: $LK_PLACEHOLDER; font-size: $FS_LOCK_
 entry.lock-entry.error text placeholder { color: $LK_TEXT_ERROR; font-style: italic; }
 entry.lock-entry text selection { background: $LK_SELECTION; }
 .lock-fingerprint { color: $LK_PLACEHOLDER; font-size: $FS_LOCK_FIELD; margin-left: 12px; }
+
+/* The Omarchy menu, like shell/plugins/menu/Menu.qml: [menu] colors, the card
+   drawn in card.rs, rows that fill with the selected color. */
+window.menu-window { background: $MENU_SCRIM; }
+.menu-header { font-size: $FS_HEADING; color: $MENU_TEXT; }
+.menu-header.placeholder { color: alpha($MENU_TEXT, 0.58); }
+.menu-row { border-radius: $R_CTRL; color: $MENU_TEXT; }
+.menu-row.selected { background: $MENU_SEL_BG; }
+.menu-row.selected label { color: $MENU_SEL_TEXT; }
+.menu-row.selected .menu-detail { color: alpha($MENU_TEXT, 0.52); }
+.menu-icon { font-size: $FS_ICON_LARGE; color: $MENU_TEXT; }
+.menu-label { font-size: $FS_HEADING; font-weight: 500; color: $MENU_TEXT; }
+.menu-detail { font-size: $FS_SMALL; color: alpha($MENU_TEXT, 0.52); }
+.menu-chevron { font-size: $FS_HEADING; color: alpha($MENU_TEXT, 0.36); }
+.menu-row.selected .menu-chevron { color: alpha($MENU_SEL_TEXT, 0.36); }
+.menu-divider { min-height: 1px; background: alpha($MENU_TEXT, 0.2); }
+.menu-empty-icon { font-size: $FS_DISPLAY_LARGE; color: alpha($MENU_SEL_TEXT, 0.8); }
+.menu-empty { font-size: $FS_TITLE; color: alpha($MENU_TEXT, 0.7); }
+.menu-confirm { background: alpha($BG, 0.7); border-radius: $R_CTRL; }
+.menu-confirm-text { font-size: $FS_TITLE; color: $MENU_TEXT; }
+.menu-confirm-button { padding: 8px 0; border-radius: $R_CTRL; color: $MENU_TEXT; }
+.menu-confirm-button.selected { background: $MENU_SEL_BG; color: $MENU_SEL_TEXT; }
+.menu-confirm-button.destructive.selected { background: alpha($URGENT, 0.35); }
+
+/* The Start menu, like fedora/doxia/plugins/doxia.iniciar/Iniciar.qml: the
+   menu's colors in Windows 98 relief: the theme border, a light top/left and
+   dark bottom/right edge, then a mid one, no rounding. */
+window.iniciar-window { background: transparent; }
+.iniciar-column {
+  background: $IN_FACE;
+  border: 1px solid transparent;
+  border-image: $IN_BORDER 1;
+}
+/* Iniciar.qml stacks its translucent relief over a black rectangle, so the
+   column reads nearly opaque: black under the relief, the menu's face over
+   the light, shadow and mid tones inside. */
+.iniciar-relief {
+  background: #000000;
+  border-style: solid;
+  border-width: 1px;
+  border-color: $IN_LIGHT #000000 #000000 $IN_LIGHT;
+}
+.iniciar-inner {
+  background: linear-gradient($IN_FACE, $IN_FACE), linear-gradient($IN_MID, $IN_MID),
+    linear-gradient($IN_SHADOW, $IN_SHADOW), linear-gradient($IN_LIGHT, $IN_LIGHT);
+  border-style: solid;
+  border-width: 1px;
+  border-color: $IN_MID $IN_SHADOW $IN_SHADOW $IN_MID;
+  padding: 3px;
+}
+.iniciar-banner { background: linear-gradient(to bottom, $IN_BANNER_TOP, $IN_BANNER_BOTTOM); }
+.iniciar-row { color: $MENU_TEXT; }
+.iniciar-row.selected { background: $MENU_SEL_BG; color: $MENU_SEL_TEXT; }
+.iniciar-row.selected label { color: $MENU_SEL_TEXT; }
+.iniciar-label { font-size: $FS_BODY; color: $MENU_TEXT; }
+.iniciar-row.root .iniciar-label { font-size: $FS_TITLE; }
+.iniciar-row.disabled .iniciar-label { color: alpha($MENU_TEXT, 0.55); font-style: italic; }
+.iniciar-row image { color: $MENU_TEXT; }
+.iniciar-row.selected image { color: $MENU_SEL_TEXT; }
+.iniciar-row image.gray { -gtk-icon-filter: grayscale(1); }
+.iniciar-row.disabled image { opacity: 0.5; }
+.iniciar-emblem { color: $MENU_TEXT; }
+.iniciar-row.selected .iniciar-emblem { color: $MENU_SEL_TEXT; }
+.iniciar-arrow { font-size: 8px; color: $MENU_TEXT; }
+.iniciar-sep-line { min-height: 1px; border-bottom: 1px solid $IN_MID; background: #000000; }
+.iniciar-field-label, .iniciar-field-text { font-size: $FS_BODY; color: $MENU_TEXT; }
+.iniciar-field { background: $IN_FIELD; border-style: solid; border-width: 1px 0 0 1px; border-color: $IN_LIGHT; }
+.iniciar-hint { font-size: $FS_SMALL; color: alpha($MENU_TEXT, 0.55); }

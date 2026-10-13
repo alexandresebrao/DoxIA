@@ -9,7 +9,7 @@ falls back to the shell piece while the app is not installed.
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
-| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent and the lock screen so far |
+| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent, the lock screen, the Omarchy menu and the Start menu so far |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -107,6 +107,38 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   the QML service; a lock left behind by a client that died is locked again
   at startup (the stranded-lock check). Quickshell's `omarchy.lock` goes to
   `disabledPlugins` like the other two.
+
+- `shell` (the plugin surface): `summon`, `toggle`, `hide` and `call` for
+  the plugins doxia-shell has taken over, `omarchy.menu` and
+  `doxia.iniciar`; for any other plugin, or a call without one (`ping`,
+  `listPlugins`), it answers "Target not found." and the call goes on to
+  Quickshell. Both plugins stay enabled there: the menu's bar button is a
+  Quickshell widget, and either menu still opens from Quickshell when
+  doxia-shell is not running.
+
+- The Omarchy menu (`menu/`), replacing `shell/plugins/menu`: the same JSONC
+  files (`default/omarchy/omarchy-menu.jsonc`, then
+  `~/.config/omarchy/extensions/omarchy-menu.jsonc` over it, both watched),
+  routes and aliases, search with the divider between this menu's matches
+  and deeper ones, the providers (apps, fonts, power profiles), the
+  `when:`/`checked:` guards batched into one bash run (`menu/model.rs` is
+  `MenuModel.js` with its tests), the select and input prompts of
+  `omarchy-menu-select`/`-input` (selection and done files), and Delete to
+  uninstall an app. The card is drawn with cairo (`card.rs`): GTK's
+  `border-image` ignores `border-radius`. Not carried over: the "Launching…"
+  OSD for slow apps.
+
+- The Start menu (`iniciar/`), replacing `fedora/doxia/plugins/doxia.iniciar`:
+  the Windows 98 cascade in the menu's colors (the relief is stacked over
+  black, as in the QML, so it reads nearly opaque). Programs come from the
+  same app list as the menu's Apps, which honors `OnlyShowIn`/`NotShowIn`;
+  the QML one read the desktop entries without them, so GNOME-only entries
+  such as Yelp no longer show. Each submenu opens level with the row that
+  opened it, as the QML meant to.
+
+- Commands the menus start run in a scope of their own
+  (`systemd-run --user --scope`, `run.rs`): doxia-shell is a service, and
+  restarting it (the update does) would otherwise end everything it started.
 
 ## CSS gotchas
 

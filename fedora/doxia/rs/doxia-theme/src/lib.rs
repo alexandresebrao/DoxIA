@@ -33,6 +33,42 @@ impl Rgb {
     format!("rgba({},{},{},{:.3})", c(self.0), c(self.1), c(self.2), a.clamp(0.0, 1.0))
   }
 
+  // Qt.lighter: the HSV value times the factor; past full value, the
+  // overflow comes out of the saturation.
+  fn lighter(self, factor: f64) -> Rgb {
+    let (r, g, b) = (self.0, self.1, self.2);
+    let max = r.max(g).max(b);
+    let min = r.min(g).min(b);
+    let (mut s, mut v) = (if max > 0.0 { (max - min) / max } else { 0.0 }, max * factor);
+    if v > 1.0 {
+      s = (s - (v - 1.0)).max(0.0);
+      v = 1.0;
+    }
+    // Hue from the original channels; rebuild at the new s and v.
+    let d = max - min;
+    let h = if d <= 0.0 {
+      0.0
+    } else if max == r {
+      ((g - b) / d).rem_euclid(6.0)
+    } else if max == g {
+      (b - r) / d + 2.0
+    } else {
+      (r - g) / d + 4.0
+    };
+    let c = v * s;
+    let x = c * (1.0 - (h % 2.0 - 1.0).abs());
+    let (r1, g1, b1) = match h as u32 {
+      0 => (c, x, 0.0),
+      1 => (x, c, 0.0),
+      2 => (0.0, c, x),
+      3 => (0.0, x, c),
+      4 => (x, 0.0, c),
+      _ => (c, 0.0, x),
+    };
+    let m = v - c;
+    Rgb(r1 + m, g1 + m, b1 + m)
+  }
+
   // Qt.darker: the HSV value divided by the factor.
   fn darker(self, factor: f64) -> Rgb {
     let max = self.0.max(self.1).max(self.2);
@@ -266,6 +302,21 @@ pub fn css(app_css: &str) -> String {
     border_image(&shell, shell.get("lock", "border-error").unwrap_or(""), &p.urgent.alpha(lk_border_alpha), 0);
   let lk_selection = section_rgb("lock", "selection", p.accent).alpha(shell.num("lock", "selection-alpha").unwrap_or(0.45));
   let popup_border = border_image(&shell, shell.get("popups", "border").unwrap_or(""), &p.accent.css(), 0);
+  // [menu]: Color.qml's menu group; the card itself is drawn (menu_card).
+  let menu_scrim = section_rgb("menu", "scrim", p.bg).alpha(shell.num("menu", "scrim-alpha").unwrap_or(0.5));
+  let menu_text = shell.get("menu", "text").and_then(css_color).unwrap_or_else(|| p.fg.css());
+  let menu_sel_bg =
+    section_rgb("menu", "selected-background", p.fg).alpha(shell.num("menu", "selected-background-alpha").unwrap_or(0.08));
+  let menu_sel_text = shell.get("menu", "selected-text").and_then(css_color).unwrap_or_else(|| p.accent.css());
+  // The Start menu (doxia.iniciar): the menu's colors in Windows 98 relief.
+  let face = section_rgb("menu", "background", p.bg);
+  let face_alpha = shell.num("menu", "background-alpha").unwrap_or(1.0);
+  let menu_border = border_image(
+    &shell,
+    shell.get("menu", "border").unwrap_or(""),
+    &p.fg.alpha(shell.num("menu", "border-alpha").unwrap_or(1.0)),
+    0,
+  );
 
   let vars = [
     ("$FG", p.fg.css()),
@@ -329,6 +380,18 @@ pub fn css(app_css: &str) -> String {
     ("$PK_SCRIM", pk_scrim),
     ("$PK_BORDER_ERROR", pk_border_error),
     ("$PK_BORDER", pk_border),
+    ("$MENU_SCRIM", menu_scrim),
+    ("$MENU_TEXT", menu_text),
+    ("$MENU_SEL_BG", menu_sel_bg),
+    ("$MENU_SEL_TEXT", menu_sel_text),
+    ("$IN_FACE", face.alpha(face_alpha)),
+    ("$IN_LIGHT", face.lighter(2.2).alpha(face_alpha)),
+    ("$IN_MID", face.lighter(1.6).alpha(face_alpha)),
+    ("$IN_SHADOW", face.darker(1.5).alpha(face_alpha)),
+    ("$IN_FIELD", face.darker(2.2).alpha(face_alpha)),
+    ("$IN_BANNER_TOP", face.darker(1.4).alpha(face_alpha)),
+    ("$IN_BANNER_BOTTOM", p.accent.darker(1.45).css()),
+    ("$IN_BORDER", menu_border),
     ("$LK_BG", lk_bg),
     ("$LK_TEXT", section_rgb("lock", "text", p.fg).css()),
     ("$LK_PLACEHOLDER", lk_placeholder),
@@ -364,6 +427,82 @@ pub fn css(app_css: &str) -> String {
     out = out.replace(k, &v);
   }
   out
+}
+
+// "#rrggbb", "rgba(rrggbbaa)" or "rgb(rrggbb)" as RGBA, for cairo.
+fn rgba_of(token: &str) -> Option<[f64; 4]> {
+  let t = token.trim();
+  let (hex, alpha) = if let Some(h) = t.strip_prefix("rgba(").and_then(|r| r.strip_suffix(')')) {
+    (h, h.get(6..8).and_then(|a| u8::from_str_radix(a, 16).ok()).map(|a| a as f64 / 255.0).unwrap_or(1.0))
+  } else if let Some(h) = t.strip_prefix("rgb(").and_then(|r| r.strip_suffix(')')) {
+    (h, 1.0)
+  } else if t.starts_with('#') {
+    (t, 1.0)
+  } else {
+    return None;
+  };
+  let Rgb(r, g, b) = Rgb::hex(&hex[..6.min(hex.len())])?;
+  Some([r, g, b, alpha])
+}
+
+// A border for cairo: its colors (one is flat) and Hyprland's angle, which
+// runs from the x axis.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Paint {
+  pub colors: Vec<[f64; 4]>,
+  pub angle: f64,
+}
+
+fn paint(shell: &Toml, value: &str, fallback: [f64; 4], opacity: f64, depth: u8) -> Paint {
+  if let Some((section, key)) = value.split_once('.').filter(|(s, _)| !s.contains(['(', '#', ' '])) {
+    if depth < 4 {
+      if let Some(v) = shell.get(section, key) {
+        return paint(shell, v, fallback, opacity, depth + 1);
+      }
+    }
+  }
+  let mut colors = Vec::new();
+  let mut angle = 0.0;
+  for part in value.split_whitespace() {
+    if let Some(deg) = part.strip_suffix("deg") {
+      angle = deg.parse().unwrap_or(0.0);
+    } else if let Some(c) = rgba_of(part) {
+      colors.push(c);
+    }
+  }
+  if colors.is_empty() {
+    colors.push(fallback);
+  }
+  for c in &mut colors {
+    c[3] *= opacity;
+  }
+  Paint { colors, angle }
+}
+
+// A card the shell draws as a BorderSurface: fill, border and corners.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Card {
+  pub fill: [f64; 4],
+  pub border: Paint,
+  pub border_width: f64,
+  pub radius: f64,
+}
+
+// The [menu] card of Color.qml and Border.qml: background with its alpha,
+// the border (usually hyprland.active-border-foreground) at border-alpha,
+// 2px wide, mango's corner rounding.
+pub fn menu_card() -> Card {
+  let dir = theme_dir();
+  let colors = dir.join("colors.toml");
+  let shell = Toml::read(&dir.join("shell.toml"));
+  let fg = color_value(&colors, "foreground").unwrap_or(Rgb(0.79, 0.8, 0.8));
+  let bg = color_value(&colors, "background").unwrap_or(Rgb(0.063, 0.075, 0.082));
+  let Rgb(r, g, b) = shell.get("menu", "background").and_then(Rgb::hex).unwrap_or(bg);
+  let fill = [r, g, b, shell.num("menu", "background-alpha").unwrap_or(1.0)];
+  let border_alpha = shell.num("menu", "border-alpha").unwrap_or(1.0);
+  let border = paint(&shell, shell.get("menu", "border").unwrap_or(""), [fg.0, fg.1, fg.2, 1.0], border_alpha, 0);
+  let border_width = shell.num("menu", "border-width").unwrap_or(2.0).max(0.0);
+  Card { fill, border, border_width, radius: rounding() as f64 }
 }
 
 // Keeps one app's CSS in place and current: reload() rebuilds it when the
@@ -416,6 +555,23 @@ mod tests {
       "linear-gradient(45deg, rgba(31,107,255,0.933), rgba(47,212,255,0.933))"
     );
     assert_eq!(border_image(&shell, "#1f7ae0", "#000000", 0), "linear-gradient(#1f7ae0, #1f7ae0)");
+  }
+
+  #[test]
+  fn lighter_matches_qt() {
+    // QColor("#120a0a").lighter(220) is #271616 and #ff0000's lighter(150)
+    // #ff7f7f: Qt truncates to integers, this rounds.
+    assert_eq!(Rgb::hex("#120a0a").unwrap().lighter(2.2).css(), "#281616");
+    assert_eq!(Rgb::hex("#ff0000").unwrap().lighter(1.5).css(), "#ff8080");
+  }
+
+  #[test]
+  fn paints_resolve_references_and_scale_alpha() {
+    let shell = Toml(vec![("hyprland".into(), "active-border-foreground".into(), "rgba(ff000080) rgb(00ff00) 45deg".into())]);
+    let p = paint(&shell, "hyprland.active-border-foreground", [0.0; 4], 0.5, 0);
+    assert_eq!(p.angle, 45.0);
+    assert_eq!(p.colors, vec![[1.0, 0.0, 0.0, 128.0 / 255.0 * 0.5], [0.0, 1.0, 0.0, 0.5]]);
+    assert_eq!(paint(&shell, "", [1.0, 1.0, 1.0, 1.0], 1.0, 0).colors, vec![[1.0; 4]]);
   }
 }
 
