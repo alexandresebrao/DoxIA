@@ -84,10 +84,10 @@ lock_state() {
 }
 
 sync_clamshell() {
-  # Lid transitions can temporarily stall Hyprland IPC. This is best-effort:
+  # Lid transitions can temporarily stall compositor IPC. This is best-effort:
   # the lid binding and monitor watcher also reconcile clamshell state.
   timeout --kill-after=0.1s 0.4s \
-    omarchy-hyprland-monitor-clamshell >/dev/null 2>&1 || true
+    omarchy-mango-monitor-clamshell >/dev/null 2>&1 || true
 }
 
 # logind suspends whether or not this wait succeeded, so a failure here means
@@ -104,7 +104,7 @@ report_unsecured() {
   exit 1
 }
 
-# Request the lock before touching monitor state, so a stuck Hyprland IPC call
+# Request the lock before touching monitor state, so a stuck compositor IPC call
 # cannot consume the window before Quickshell has begun securing the session.
 request_lock
 sync_clamshell

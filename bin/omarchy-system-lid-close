@@ -17,4 +17,4 @@ if omarchy-hw-laptop-closed && ! omarchy-hw-external-monitors; then
   omarchy-system-lock >/dev/null 2>&1 || true
 fi
 
-omarchy-hyprland-monitor-clamshell
+omarchy-mango-monitor-clamshell

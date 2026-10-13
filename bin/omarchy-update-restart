@@ -36,9 +36,9 @@ elif [[ -f $HOME/.local/state/omarchy/reboot-required ]]; then
   confirm_reboot "Updates require reboot. Ready?" "A atualização pede um reinício"
 fi
 
-running_hyprland=$(readlink /proc/$(pgrep -x Hyprland)/exe 2>/dev/null)
-if [[ $running_hyprland == *"(deleted)"* ]]; then
-  confirm_reboot "Hyprland has been updated. Reboot?" "O Hyprland foi atualizado"
+running_mango=$(readlink /proc/$(pgrep -x mango)/exe 2>/dev/null)
+if [[ $running_mango == *"(deleted)"* ]]; then
+  confirm_reboot "mango has been updated. Reboot?" "O mango foi atualizado"
 fi
 
 for file in "$HOME"/.local/state/omarchy/restart-*-required; do
