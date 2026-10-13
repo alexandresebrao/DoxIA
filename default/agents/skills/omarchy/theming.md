@@ -26,11 +26,11 @@ Additional user backgrounds for any theme (stock or custom) go in
 
 A theme the user wrote by hand in `~/.config/omarchy/themes` is unrestricted, as
 are Omarchy's own themes. From a theme cloned by `omarchy theme install`, Omarchy
-drops only what runs code: any `*.lua` (Hyprland requires a theme's
-`hyprland.lua` and `gum_env.lua` at login, Neovim loads `neovim.lua` at startup),
+drops only what runs code: any `*.lua` (Neovim loads `neovim.lua` at startup),
 the terminal configs `alacritty.toml`, `foot.ini`, `ghostty.conf` and
-`kitty.conf` (each names the program the terminal launches), and `vscode.json`
-(names a VS Code extension to install). Those are regenerated from `colors.toml`
+`kitty.conf` (each names the program the terminal launches), `mango.conf` and
+`mango-looknfeel.conf` (mango runs their `exec=` lines and spawn binds), and
+`vscode.json` (names a VS Code extension to install). Those are regenerated from `colors.toml`
 through `$OMARCHY_PATH/default/themed/*.tpl`, and named on stderr.
 
 Everything else a cloned theme ships is kept, including `btop.theme`,

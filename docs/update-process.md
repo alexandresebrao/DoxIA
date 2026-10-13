@@ -98,14 +98,6 @@ sudo env OMARCHY_ALLOW_DIRECT_PACMAN=1 pacman -Syu
 The guard does not start `omarchy update` itself because pacman is already in a
 transaction setup path; it only aborts with instructions.
 
-The `omarchy` package also installs ALPM hooks for `omarchy-settings` /
-`omarchy-settings-dev` installs and upgrades. The pre-transaction hook runs
-`omarchy-hyprland-reload-guard pause` to disable live Hyprland config reloads
-while `/usr/share/omarchy/default/hypr/**` is replaced. The post-transaction
-hook runs `omarchy-hyprland-reload-guard resume`, forces one `hyprctl reload`,
-and restores the session's previous `misc.disable_autoreload` and
-`debug.suppress_errors` values.
-
 ## Path 1: `omarchy update`
 
 High-level flow:
@@ -294,7 +286,7 @@ scripts.
 | `omarchy-update-mise` | Runs `mise up` for mise-managed tools. | **Keep.** Mise-managed tools are intentionally part of the blessed update path. |
 | `omarchy-update-orphan-pkgs` | Lists orphans and prompts before removal; noninteractive mode never removes. | **Keep for now.** Safe because it is prompt-only. |
 | `omarchy-update-analyze-logs` | Scans `/tmp/omarchy-update.log` for known failure patterns, currently initramfs generation. | **Keep/expand.** Useful safety net; should grow only for high-signal checks. |
-| `omarchy-update-restart` | Prompts for reboot after kernel/Hyprland updates, restarts components with `restart-*-required` markers, and always restarts the shell. | **Keep.** Important final step; may eventually include service-restart checks. |
+| `omarchy-update-restart` | Prompts for reboot after kernel/mango updates, restarts components with `restart-*-required` markers, and always restarts the shell. | **Keep.** Important final step; may eventually include service-restart checks. |
 | `omarchy-update-firmware` | Manual firmware update command using fwupd. Not part of the normal update pipeline. | **Keep separate.** Firmware is not a routine system update step. |
 | `omarchy-update-time` | Restarts `systemd-timesyncd`. | **Question.** Not really an update command. Consider renaming/moving under system/time maintenance. |
 

@@ -41,6 +41,6 @@ grep -Fxq 'install:omarchy-install-service-1password' "$launch_log" ||
   fail "1Password launcher starts the installer when missing"
 pass "1Password launcher starts the installer when missing"
 
-grep -Fq '{ omarchy = "1password" }' "$ROOT/default/hypr/bindings/applications.lua" ||
+grep -Eq '^bind=[^,]+,[^,]+,spawn,omarchy-launch-1password$' "$ROOT"/default/mango/bindings/*.conf ||
   fail "1Password keybinding uses the conditional launcher"
 pass "1Password keybinding uses the conditional launcher"

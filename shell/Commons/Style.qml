@@ -477,10 +477,8 @@ QtObject {
     onLoadFailed: root.resolveFontFamily()
   }
 
-  // Re-poll Hyprland a beat after either input file changes. Hyprland's
-  // auto-reload runs asynchronously when its sourced .lua files change,
-  // so racing it with an immediate hyprctl gives the old value. 200ms is
-  // generous enough for Hyprland to settle without being user-visible.
+  // Re-read the mango options a beat after the watched file changes, so an
+  // editor's write-then-rename has settled. 200ms is not user-visible.
   property Timer refreshTimer: Timer {
     id: refreshTimer
     interval: 200
@@ -488,11 +486,10 @@ QtObject {
     onTriggered: root.refresh()
   }
 
-  // `omarchy toggle window-gaps` creates/removes this flag file. Hyprland
-  // reloads its config when sourced files change, then hyprctl reflects
-  // the new effective value.
-  property FileView windowNoGapsToggle: FileView {
-    path: Quickshell.env("HOME") + "/.local/state/omarchy/toggles/hypr/window-no-gaps.lua"
+  // border_radius and the outer gap the user sets in ~/.config/mango
+  // (theme switches refresh through IPC instead).
+  property FileView userLooknfeel: FileView {
+    path: Quickshell.env("HOME") + "/.config/mango/looknfeel.conf"
     watchChanges: true
     printErrors: false
     onFileChanged: refreshTimer.restart()

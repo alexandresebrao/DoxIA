@@ -96,7 +96,6 @@ default/**                     ──►  omarchy-settings    /usr/share/omarchy
   │                                                       (sourced by every shell/session entry point; see "Env bootstrap")
   ├─ bashrc                                             /usr/share/omarchy/etc-overrides/dot.bashrc
   │                                                       → /etc/skel/.bashrc (post_install cp -f)
-  ├─ hypr/toggles/flags.lua                             /etc/skel/.local/state/omarchy/toggles/hypr/
   ├─ nautilus-python/extensions/*.py                    /etc/skel/.local/share/nautilus-python/extensions/
   ├─ tensaku/state.toml                                 /etc/skel/.local/state/tensaku/state.toml
   ├─ uwsm/env.d/10-omarchy                              /usr/share/uwsm/env.d/
@@ -164,7 +163,7 @@ Sourced by every entry point that needs the env set:
 ```
 /etc/profile.d/omarchy.sh                      (system login shells)
 /etc/skel/.bashrc                              (interactive shells)
-/usr/share/uwsm/env.d/10-omarchy               (Hyprland session via uwsm)
+/usr/share/uwsm/env.d/10-omarchy               (mango session via uwsm)
 /usr/share/omarchy/default/bash/envs           (SSH / non-login bash)
 ```
 
@@ -192,8 +191,8 @@ It only does the things `/etc/skel` can't:
 - Skill symlinks into `~/.agents/skills/<name>`, `~/.claude/skills/<name>`, `~/.codex/skills/<name>`, `~/.pi/agent/skills/<name>`, `~/.hermes/skills/<name>`, and each existing `~/.hermes/profiles/*/skills/<name>` → `$OMARCHY_PATH/default/agents/skills/<name>`, looping over every skill directory there (currently `omarchy` and `diagnose-crash`) so new skills need no edit. Symlinks (not copies) so `omarchy dev link` against a dev checkout repoints them correctly. Hermes profile dirs are only linked when they already exist — provision does not create Hermes profiles.
 - `xdg-user-dirs-update` (Templates/Public/Desktop folded back into `$HOME`)
   and `~/.config/gtk-3.0/bookmarks` (needs `$HOME` expansion).
-- Hyprland's package-owned default input reads `XKBLAYOUT` / `XKBVARIANT`
-  from `/etc/vconsole.conf`; no per-user Hyprland config rewrite is needed.
+- The keyboard layout is set in `~/.config/mango/input.conf`
+  (`xkb_rules_layout`); `default/mango/input.conf` only holds the defaults.
 - `xdg-settings set default-web-browser chromium.desktop` and
   `xdg-mime default HEY.desktop x-scheme-handler/mailto` (XDG-aware paths).
 - `omarchy-refresh-applications` (composes generated `.desktop` launchers).
@@ -305,7 +304,7 @@ When an existing user wants to reset to shipped defaults:
 
 Replaying `/etc/skel` over `$HOME` is exactly what `useradd -m` does for a
 brand-new user, so this one copy resyncs `.bashrc`, `.config/**`,
-`.local/share/applications/`, the nautilus-python extensions, hypr toggles,
+`.local/share/applications/`, the nautilus-python extensions,
 branding files, and the shipped migration markers in a single pass.
 
 Then it runs `omarchy-refresh-limine`, `omarchy-refresh-plymouth`, and the

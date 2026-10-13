@@ -112,9 +112,9 @@ tests; follow [`agents/skills/visual-verification.md`](agents/skills/visual-veri
 To copy a default config to user config with automatic backup:
 
 ```bash
-omarchy-refresh-config hypr/hyprland.lua
+omarchy-refresh-config mango/config.conf
 ```
 
-This copies `$OMARCHY_PATH/config/hypr/hyprland.lua` to `~/.config/hypr/hyprland.lua`. The argument
+This copies `$OMARCHY_PATH/config/mango/config.conf` to `~/.config/mango/config.conf`. The argument
 is interpolated into both paths and only checked with `[[ -e ]]`, so pass a plain relative path: a
 name containing `..` resolves and copies, landing outside `~/.config` rather than being rejected.

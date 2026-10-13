@@ -78,7 +78,7 @@ pass "commands --check passes"
 "$CLI" commands --all >/dev/null
 pass "commands --all does not crash"
 
-"$CLI" commands --all --json | jq -e '.commands[] | select(.route == "omarchy hyprland window gaps toggle" and .summary != "undocumented")' >/dev/null
+"$CLI" commands --all --json | jq -e '.commands[] | select(.route == "omarchy cmd terminal cwd" and .summary != "undocumented")' >/dev/null
 pass "fallback commands are inferred and documented"
 
 "$CLI" commands --all --json | jq -e '.commands[] | select(.route == "omarchy dev benchmark cli")' >/dev/null

@@ -2,9 +2,9 @@
 name: omarchy
 description: >
   REQUIRED for end-user customization of Linux desktop, window manager, or system config.
-  Use when editing ~/.config/hypr/, ~/.config/omarchy/,
+  Use when editing ~/.config/mango/, ~/.config/omarchy/,
   ~/.config/alacritty/, ~/.config/foot/, ~/.config/kitty/, or ~/.config/ghostty/.
-  Triggers: Hyprland, window rules, animations, keybindings, monitors, gaps, borders,
+  Triggers: mango, window rules, animations, keybindings, monitors, gaps, borders,
   blur, opacity, omarchy-shell, bar, terminal config, themes, background,
   night light, idle, lock screen, screenshots, reminders, layer rules, workspace
   settings, display config, and user-facing omarchy commands. Excludes Omarchy
@@ -13,7 +13,7 @@ description: >
 
 # Omarchy Skill
 
-Manage [Omarchy](https://omarchy.org/) Linux systems - a beautiful, modern, opinionated Arch Linux distribution with Hyprland.
+Manage [Omarchy](https://omarchy.org/) Linux systems - a beautiful, modern, opinionated Linux distribution. DoxIA runs it on Fedora with the mango compositor.
 
 This skill is for end-user customization on installed systems.
 It is not for contributing to Omarchy source code.
@@ -22,7 +22,7 @@ It is not for contributing to Omarchy source code.
 
 **ALWAYS invoke this skill for end-user requests involving ANY of these:**
 
-- Editing ANY file in `~/.config/hypr/` (window rules, animations, keybindings, monitors, etc.)
+- Editing ANY file in `~/.config/mango/` (window rules, animations, keybindings, monitors, etc.)
 - Editing `~/.config/omarchy/shell.json` (status bar layout, widgets)
 - Editing terminal configs (alacritty, foot, kitty, ghostty)
 - Editing ANY file in `~/.config/omarchy/`
@@ -41,7 +41,7 @@ It is not for contributing to Omarchy source code.
 Deeper instructions for common areas live next to this file. Read the
 matching guide before starting:
 
-- [`hyprland.md`](hyprland.md) - keybindings, monitors, window rules, and other Hyprland config
+- [`mango.md`](mango.md) - keybindings, monitors, window rules, and other mango config
 - [`plugins.md`](plugins.md) - the Omarchy shell: bar layout, widgets, plugins, idle behavior
 - [`theming.md`](theming.md) - themes, backgrounds, and fonts
 - [`hooks.md`](hooks.md) - automation hooks that run on system events
@@ -72,7 +72,7 @@ overwritten on the next `omarchy update`.
 - Understand how omarchy commands work: `omarchy theme set --help` or `cat $(which omarchy-theme-set)`
 - See default configs before customizing: `cat "$OMARCHY_PATH/config/omarchy/shell.json"`
 - Check stock theme files to copy for customization
-- Reference default hyprland settings: `cat /usr/share/omarchy/default/hypr/*`
+- Reference default mango settings: `cat /usr/share/omarchy/default/mango/*.conf`
 
 **Always use these safe locations instead:**
 - `~/.config/` - User configuration (safe to edit)
@@ -99,8 +99,8 @@ Omarchy is built on:
 
 | Component | Purpose | Config Location |
 |-----------|---------|-----------------|
-| **Arch Linux** | Base OS | `/etc/`, `~/.config/` |
-| **Hyprland** | Wayland compositor/WM | `~/.config/hypr/` |
+| **Fedora** | Base OS | `/etc/`, `~/.config/` |
+| **mango** | Wayland compositor/WM | `~/.config/mango/` |
 | **Omarchy shell** | Status bar + notifications (Quickshell) | `~/.config/omarchy/shell.json` |
 | **Launcher/menus** | Quickshell menu | `~/.config/omarchy/extensions/omarchy-menu.jsonc` |
 | **Alacritty/Foot/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
@@ -152,7 +152,7 @@ Run `omarchy --help` for the full list. The most common groups:
 
 ## Configuration Locations
 
-Hyprland config lives in `~/.config/hypr/` — see [`hyprland.md`](hyprland.md).
+mango config lives in `~/.config/mango/` — see [`mango.md`](mango.md).
 The Omarchy shell (bar, notifications, plugins, idle) is configured in
 `~/.config/omarchy/shell.json` — see [`plugins.md`](plugins.md).
 
@@ -185,15 +185,15 @@ For simple changes, edit files in `~/.config/`:
 
 ```bash
 # 1. Read current config
-cat ~/.config/hypr/bindings.lua
+cat ~/.config/mango/bindings.conf
 
 # 2. Backup before changes
-cp ~/.config/hypr/bindings.lua ~/.config/hypr/bindings.lua.bak.$(date +%s)
+cp ~/.config/mango/bindings.conf ~/.config/mango/bindings.conf.bak.$(date +%s)
 
 # 3. Make changes with Edit tool
 
 # 4. Apply changes
-# - Hyprland: auto-reloads on save, but MUST validate with `hyprctl reload` and `hyprctl configerrors`
+# - mango: MUST validate with `mango -p`, then apply with `omarchy restart mango`
 # - Omarchy shell: shell.json and user plugin code under ~/.config/omarchy/plugins/ hot-reload on save
 # - Menus/launcher: ~/.config/omarchy/extensions/omarchy-menu.jsonc hot-reloads on save
 # - Terminals: apply with `omarchy restart terminal` (reloads running terminals; foot picks changes up in new windows)
@@ -206,7 +206,7 @@ When customizations go wrong:
 ```bash
 # Reset specific config (creates backup automatically)
 omarchy refresh shell
-omarchy refresh hyprland
+omarchy refresh mango
 
 # The refresh command:
 # 1. Backs up current config with timestamp
@@ -238,7 +238,7 @@ omarchy refresh <app>
 
 # Refresh specific config file
 # config-file path is relative to ~/.config/
-# eg. `omarchy refresh config hypr/hyprland.lua` will refresh ~/.config/hypr/hyprland.lua
+# eg. `omarchy refresh config mango/config.conf` will refresh ~/.config/mango/config.conf
 omarchy refresh config <config-file>
 
 # Full reinstall of configs (nuclear option)
@@ -278,10 +278,10 @@ This skill intentionally does not cover Omarchy source development. Do not use t
 ## Example Requests
 
 - "Change my theme to catppuccin" -> `omarchy theme set catppuccin`
-- "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, call `hl.unbind` if needed, then `o.bind` in `~/.config/hypr/bindings.lua`
-- "Configure my external monitor" -> Edit `~/.config/hypr/monitors.lua`
-- "Make the window gaps smaller" -> Edit `~/.config/hypr/looknfeel.lua`
-- "Turn on night light" -> `omarchy toggle nightlight` (for time-based schedules, edit `~/.config/hypr/hyprsunset.conf` profiles, then `omarchy restart hyprsunset`)
+- "Add a keybinding for Super+E to open file manager" -> Check existing bindings first, then add a `bind=` in `~/.config/mango/bindings.conf` (it replaces an Omarchy bind on the same key)
+- "Configure my external monitor" -> Edit `~/.config/mango/monitors.conf`
+- "Make the window gaps smaller" -> Edit `~/.config/mango/looknfeel.conf`
+- "Turn on night light" -> `omarchy toggle nightlight`
 - "Set a reminder to pickup jack in 15 minutes" -> `omarchy reminder 15 "Pickup Jack"`
 - "Show my reminders" -> `omarchy reminder show`
 - "Clear all reminders" -> `omarchy reminder clear`

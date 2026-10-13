@@ -99,6 +99,7 @@ assert_staged backgrounds/1-real.png "an image in backgrounds/ is staged"
 assert_not_staged unlock.png "a symlink is not followed out of the theme"
 assert_not_staged vscode.json "vscode.json names an extension to install and is not staged"
 assert_not_staged mango-looknfeel.conf "mango-looknfeel.conf can exec= and is not staged"
+assert_not_staged hyprland.lua "a .lua Omarchy no longer generates is not staged"
 
 assert_staged icons.theme "the theme's icon set name is staged"
 grep -q 'Yaru-red' "$(staged icons.theme)" || fail "the staged icons.theme is the theme's"
@@ -108,7 +109,7 @@ assert_not_staged .git "the clone's own git directory is never staged"
 
 # These run code, so the theme's versions must lose to Omarchy's generated ones
 # rather than merely be absent.
-for generated in hyprland.lua neovim.lua gum_env.lua kitty.conf alacritty.toml foot.ini ghostty.conf mango.conf; do
+for generated in neovim.lua gum_env.lua kitty.conf alacritty.toml foot.ini ghostty.conf mango.conf; do
   assert_staged "$generated" "$generated is generated from Omarchy's template"
   assert_no_marker "$generated" "an installed theme cannot supply $generated"
 done
@@ -209,8 +210,8 @@ pass "a theme name cannot climb out of the theme directories"
 # A denylist is only correct while someone adding a template classifies what it
 # generates. Every generated theme file is either denied to an installed theme or
 # recorded here as carrying colour, so a new template fails until it is placed.
-denied=(alacritty.toml foot.ini ghostty.conf kitty.conf gum_env.lua hyprland.lua mango.conf neovim.lua vscode.json)
-colour_only=(btop.theme chromium.theme claude.json helix.toml hermes.yaml hyprland-preview-share-picker.css keyboard.rgb obsidian.css pi.json shell.toml t3code.json vscode-theme.json)
+denied=(alacritty.toml foot.ini ghostty.conf kitty.conf gum_env.lua mango.conf neovim.lua vscode.json)
+colour_only=(btop.theme chromium.theme claude.json helix.toml hermes.yaml keyboard.rgb obsidian.css pi.json shell.toml t3code.json vscode-theme.json)
 
 for tpl in "$ROOT"/default/themed/*.tpl; do
   generated=$(basename "$tpl" .tpl)

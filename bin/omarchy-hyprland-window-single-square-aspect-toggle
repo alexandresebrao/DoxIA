@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# omarchy:summary=Toggle single-window square aspect ratio.
-
-case $(omarchy-hyprland-toggle single-window-aspect-ratio) in
-  on) omarchy-notification-send -g  "Proporção quadrada para janela única ativada" ;;
-  off) omarchy-notification-send -g  "Proporção quadrada para janela única desativada" ;;
-esac

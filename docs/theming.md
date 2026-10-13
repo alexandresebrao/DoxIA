@@ -30,8 +30,8 @@ A theme installed from a git repo is held to a much shorter list; see [What an i
 
 Template rendering only happens when the staged theme has `colors.toml`.
 Existing files are never overwritten by a template, so a hand-written
-`themes/<name>/shell.toml` or `hyprland.lua` wins over
-`default/themed/shell.toml.tpl` or `hyprland.lua.tpl`.
+`themes/<name>/shell.toml` or `mango.conf` wins over
+`default/themed/shell.toml.tpl` or `mango.conf.tpl`.
 
 User templates in `~/.config/omarchy/themed/*.tpl` are processed before the
 built-in templates. If a user template has the same output filename as a
@@ -51,7 +51,8 @@ instead of racing.
 
 `omarchy theme install <url>` is different. It clones a stranger's git repo straight into that same directory, so the contents are whatever the theme author pushed. `omarchy-theme-set` tells the two apart the way `omarchy-theme-extras` already does — a `.git` directory means it was cloned, while a plain directory or a symlink to a working copy is the user's own — and from a cloned one it drops only what can run code:
 
-- any `*.lua` — Hyprland `require`s a theme's `hyprland.lua` and `gum_env.lua` at login, and Neovim loads its `neovim.lua` at startup
+- any `*.lua` — Neovim loads a theme's `neovim.lua` at startup
+- `mango.conf`, `mango-looknfeel.conf` — mango sources them, and their `exec=` lines and spawn binds run commands
 - `alacritty.toml`, `foot.ini`, `ghostty.conf`, `kitty.conf` — each names the program the terminal launches
 - `vscode.json` — names the extension `omarchy-theme-set-vscode` installs, and a VS Code extension is arbitrary JavaScript
 
@@ -347,32 +348,29 @@ controls, and `Border.flat(color, width)` for a deliberate local border that
 should not be overridden by the active theme. `Color.<section>.border` is the
 flat first-stop color for consumers that cannot render full border specs.
 
-## Hyprland templates
+## mango templates
 
-Hyprland theme output is generated from `default/themed/hyprland.lua.tpl`.
-Use `hypr_gradient` for border values because Hyprland's Lua config wants a
-Lua string for solid colors and a Lua table for gradients:
+mango theme output is generated from `default/themed/mango.conf.tpl`. mango
+takes colors as `0xRRGGBBAA` and draws no gradient borders, so use
+`mango_color` for every color value: it resolves a palette key with a fallback
+and keeps the first stop of a gradient:
 
-```lua
-local active_border_color = {{ hypr_gradient hyprland_active_border accent }}
+```ini
+focus_color={{ mango_color hyprland_active_border accent }}
 ```
 
-For a solid fallback this renders:
+For a gradient `rgba(33ccffee) rgba(00ff99ee) 45deg` this renders
+`focus_color=0x33ccffee`. The palette keys keep their `hyprland_` names, so
+existing themes need no change.
 
-```lua
-local active_border_color = "#7aa2f7"
-```
-
-For a gradient it renders:
-
-```lua
-local active_border_color = { colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }
-```
+What colors can't say (corners, opacity, shadows, blur) goes in a hand-written
+`themes/<name>/mango-looknfeel.conf`, which mango sources right after the
+generated `mango.conf`; see `themes/liquidia/` for an example.
 
 ## Adding or overriding theme files
 
 - Add palette values to `themes/<name>/colors.toml`.
-- Hand-written overrides work everywhere except a `.lua`, a terminal config or a `vscode.json` in a theme cloned from a git repo; see [What an installed theme may not ship](#what-an-installed-theme-may-not-ship).
+- Hand-written overrides work everywhere except a `.lua`, a terminal config, a mango config or a `vscode.json` in a theme cloned from a git repo; see [What an installed theme may not ship](#what-an-installed-theme-may-not-ship).
 - Prefer generated files when the theme can be expressed with templates.
 - Add a hand-written file in `themes/<name>/` only when that theme needs to
   override the generated output entirely.

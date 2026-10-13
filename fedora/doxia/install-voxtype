@@ -68,12 +68,11 @@ WantedBy=graphical-session.target
 UNIT
 ln -sfn ../voxtype.service "$units/graphical-session.target.wants/voxtype.service"
 
-# On Atualizar the session is up: start it now, and let Hyprland pick up the
-# F9 bindings (default/hypr/bindings/voxtype.lua only binds when voxtype exists).
+# On Atualizar the session is up: start it now. The F9 binds in
+# default/mango/bindings/media.conf check for voxtype themselves.
 if [[ -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
   systemctl --user daemon-reload
   if systemctl --user is-active --quiet graphical-session.target; then
     systemctl --user start voxtype.service
-    hyprctl reload >/dev/null 2>&1 || true
   fi
 fi

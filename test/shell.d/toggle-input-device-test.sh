@@ -4,8 +4,6 @@ set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
-require_command lua
-
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -19,7 +17,7 @@ mkdir -p "$stub_dir" "$home_dir" "$xdg_decoy"
 
 toggles_file="$home_dir/.local/state/omarchy/toggles/mango/input.conf"
 
-# Legacy Hyprland state, still read by default/hypr/toggles.lua and the migration.
+# Legacy Hyprland state, which migrations/1787618700.sh still cleans up.
 state_dir="$home_dir/.local/state/omarchy/toggles/hypr"
 name_file="$state_dir/touchpad-disabled-name"
 state_lua="$state_dir/touchpad-disabled.lua"
@@ -155,33 +153,6 @@ done
 [[ ! -e $toggles_file ]] || fail "invalid arguments write no state"
 pass "invalid kinds and actions are rejected"
 
-# The legacy Hyprland reload must still load a stored device name only as data.
-# Public PoC device name: USB iProduct was once interpolated into hl.device({ name = "..." }).
-poc_name='trackpad"})os.execute("~/calc&")--'
-mkdir -p "$state_dir"
-printf '%s\n' "$poc_name" >"$name_file"
-
-HOME="$home_dir" XDG_STATE_HOME="$xdg_decoy" OMARCHY_PATH="$ROOT" POC_NAME="$poc_name" lua - <<'LUA'
-local seen, executed = {}, false
-hl = {
-  device = function(opts)
-    table.insert(seen, opts)
-  end,
-}
-os.execute = function()
-  executed = true
-end
-
-dofile(os.getenv("OMARCHY_PATH") .. "/default/hypr/bootstrap.lua")
-require("default.hypr.toggles")
-assert(executed == false, "reload must not run os.execute")
-assert(#seen == 1, "reload disables one device")
-assert(seen[1].enabled == false)
-assert(seen[1].name == os.getenv("POC_NAME"), "device name is passed as a string")
-LUA
-rm -f "$name_file"
-pass "Hyprland reload loads a stored device name only as data"
-
 # The migration runs with the same XDG decoy: legacy files were written to
 # ~/.local/state, so that is where it must look no matter what XDG says.
 run_migration() {
@@ -230,28 +201,3 @@ pass "an unreadable state file does not wedge the migration"
 run_migration
 [[ ! -s $log_file ]] || fail "migration with nothing to migrate does not reload"
 pass "migration no-ops with nothing left to migrate"
-
-# A compromised install carries a leftover generated touchpad-disabled.lua whose
-# device name broke out into os.execute. Until the migration deletes it, a reload
-# must not source it. toggles.lua excludes those two names from require_all, so the
-# payload never runs, while a current name-file disable still applies.
-reload_home="$tmpdir/reload-home"
-reload_state="$reload_home/.local/state/omarchy/toggles/hypr"
-mkdir -p "$reload_state"
-reload_marker="$tmpdir/reload-executed"
-rm -f "$reload_marker"
-printf 'hl.device({ name = "trackpad"})os.execute("touch %s")--", enabled = false })\n' "$reload_marker" \
-  >"$reload_state/touchpad-disabled.lua"
-printf 'elan-touchpad\n' >"$reload_state/touchpad-disabled-name"
-
-HOME="$reload_home" XDG_STATE_HOME="$reload_home/.local/state" OMARCHY_PATH="$ROOT" lua - <<'LUA'
-local disabled = {}
-hl = { device = function(opts) table.insert(disabled, opts) end }
-dofile(os.getenv("OMARCHY_PATH") .. "/default/hypr/bootstrap.lua")
-require("default.hypr.toggles")
-assert(#disabled == 1, "only the current name-file disable is applied")
-assert(disabled[1].name == "elan-touchpad", "disable uses the stored device name")
-assert(disabled[1].enabled == false)
-LUA
-[[ ! -e $reload_marker ]] || fail "a leftover legacy generated toggle Lua must not execute on reload"
-pass "reload excludes leftover legacy toggle Lua while applying the data disable"

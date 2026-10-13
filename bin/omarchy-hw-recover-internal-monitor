@@ -2,8 +2,12 @@
 
 # omarchy:summary=Clear the internal-monitor-disable toggle if no external display is connected.
 
-TOGGLE="$HOME/.local/state/omarchy/toggles/hypr/internal-monitor-disable.lua"
+# Runs before the session starts (omarchy-recover-internal-monitor.service), so
+# a laptop that boots without its external display never comes up dark. The
+# monitor watcher does the same while the session runs.
+FLAG="$HOME/.local/state/omarchy/toggles/mango/internal-monitor-disable"
 
-if [[ -f $TOGGLE ]] && ! omarchy-hw-external-monitors; then
-  rm -f "$TOGGLE"
+if [[ -f $FLAG ]] && ! omarchy-hw-external-monitors; then
+  rm -f "$FLAG"
+  omarchy-mango-monitor-apply
 fi

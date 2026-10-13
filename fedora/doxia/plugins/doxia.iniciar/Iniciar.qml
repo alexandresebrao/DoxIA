@@ -198,7 +198,7 @@ Item {
       root.omarchyMenuItem(),
       commandItem("Tema", "preferences-desktop-appearance", "omarchy-menu toggle theme"),
       commandItem("Papel de parede", "preferences-desktop-wallpaper", "omarchy-menu toggle background"),
-      commandItem("Atalhos de teclado", "preferences-desktop-keyboard-shortcuts", "omarchy-launch-config-editor \"$HOME/.config/hypr/bindings.lua\"")
+      commandItem("Atalhos de teclado", "preferences-desktop-keyboard-shortcuts", "omarchy-launch-config-editor \"$HOME/.config/mango/bindings.conf\"")
     ]
     var settingsApps = root.allApps().filter(function(entry) {
       return Model.listOf(entry.categories).indexOf("Settings") !== -1
