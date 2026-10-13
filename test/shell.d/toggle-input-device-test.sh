@@ -13,9 +13,13 @@ stub_dir="$tmpdir/bin"
 home_dir="$tmpdir/home"
 xdg_decoy="$tmpdir/xdg-decoy"
 log_file="$tmpdir/hyprctl.log"
+mmsg_log="$tmpdir/mmsg.log"
 marker="$tmpdir/marker"
 mkdir -p "$stub_dir" "$home_dir" "$xdg_decoy"
 
+toggles_file="$home_dir/.local/state/omarchy/toggles/mango/input.conf"
+
+# Legacy Hyprland state, still read by default/hypr/toggles.lua and the migration.
 state_dir="$home_dir/.local/state/omarchy/toggles/hypr"
 name_file="$state_dir/touchpad-disabled-name"
 state_lua="$state_dir/touchpad-disabled.lua"
@@ -27,15 +31,18 @@ case $1 in
   reload) printf 'reload\n' >>"$HYPRCTL_LOG" ;;
 esac
 EOF
-chmod +x "$stub_dir/hyprctl"
 
-for command in omarchy-osd mmsg; do
-  cat >"$stub_dir/$command" <<'EOF'
+# Never let the toggle reach the live mango session.
+cat >"$stub_dir/mmsg" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >>"$MMSG_LOG"
+EOF
+
+cat >"$stub_dir/omarchy-osd" <<'EOF'
 #!/bin/bash
 :
 EOF
-  chmod +x "$stub_dir/$command"
-done
+chmod +x "$stub_dir"/*
 
 stub_device() {
   local kind=$1
@@ -47,14 +54,20 @@ EOF
   chmod +x "$stub_dir/omarchy-hw-$kind"
 }
 
+no_device() {
+  printf '#!/bin/bash\n:\n' >"$stub_dir/omarchy-hw-$1"
+  chmod +x "$stub_dir/omarchy-hw-$1"
+}
+
 # XDG_STATE_HOME deliberately points away from HOME everywhere below: the
-# input-device state is hardcoded to ~/.local/state like the sibling toggle
-# tools and the pre-migration script, so nothing may read or write the XDG
+# input-device state is hardcoded to ~/.local/state, which is the path
+# config/mango/config.conf sources, so nothing may read or write the XDG
 # directory.
 run_toggle() {
   HOME="$home_dir" \
     XDG_STATE_HOME="$xdg_decoy" \
     HYPRCTL_LOG="$log_file" \
+    MMSG_LOG="$mmsg_log" \
     PATH="$stub_dir:$ROOT/bin:$PATH" \
     "$ROOT/bin/omarchy-toggle-input-device" "$@"
 }
@@ -64,89 +77,92 @@ assert_decoy_untouched() {
     fail "input-device state must ignore XDG_STATE_HOME"
 }
 
-: >"$log_file"
-stub_device touchpad 'elan-touchpad'
-
-run_toggle touchpad off
-[[ $(<"$name_file") == "elan-touchpad" ]] || fail "touchpad disable stores the device name as data"
-[[ ! -e $state_lua ]] || fail "touchpad disable writes no generated Lua"
-grep -Fx 'hl.device({ name = "elan-touchpad", enabled = false })' "$log_file" >/dev/null ||
-  fail "touchpad disable applies a quoted Lua device name"
-assert_decoy_untouched
-pass "touchpad disable persists the device name as data"
-
-: >"$log_file"
-run_toggle touchpad on
-[[ ! -e $name_file ]] || fail "touchpad enable clears the persisted device name"
-grep -Fx 'hl.device({ name = "elan-touchpad", enabled = true })' "$log_file" >/dev/null ||
-  fail "touchpad enable applies a quoted Lua device name"
-pass "touchpad enable clears persisted disable state"
-
-run_toggle touchpad
-[[ -f $name_file ]] || fail "default toggle action disables an enabled touchpad"
-run_toggle touchpad
-[[ ! -e $name_file ]] || fail "default toggle action enables a disabled touchpad"
-pass "default toggle action flips the persisted state"
-
-: >"$log_file"
-stub_device touchscreen 'wacom-hid-52eb-finger'
-ts_name_file="$state_dir/touchscreen-disabled-name"
-
-run_toggle touchscreen off
-[[ $(<"$ts_name_file") == "wacom-hid-52eb-finger" ]] ||
-  fail "touchscreen disable stores the device name as data"
-grep -Fx 'hl.device({ name = "wacom-hid-52eb-finger", enabled = false })' "$log_file" >/dev/null ||
-  fail "touchscreen disable applies a quoted Lua device name"
-run_toggle touchscreen on
-[[ ! -e $ts_name_file ]] || fail "touchscreen enable clears the persisted device name"
-pass "touchscreen routes through the same persisted-name state"
-
-: >"$log_file"
-rm -f "$marker"
-stub_device touchpad 'touchpad"; touch '"$marker"'; echo "'
-
-run_toggle touchpad off
-[[ ! -e $marker ]] || fail "touchpad disable does not execute metacharacters in the device name"
-[[ $(<"$name_file") == 'touchpad"; touch '"$marker"'; echo "' ]] ||
-  fail "a hostile device name is stored only as data"
-[[ ! -e $state_lua ]] || fail "a hostile device name is not written as Lua"
-grep -F 'hl.device({ name = "touchpad\"' "$log_file" >/dev/null ||
-  fail "hyprctl eval Lua-quotes quotes in the device name" "$(<"$log_file")"
-pass "touchpad disable treats USB device names as data"
-
-HOME="$home_dir" XDG_STATE_HOME="$xdg_decoy" OMARCHY_PATH="$ROOT" MARKER="$marker" lua - <<'LUA'
-local seen = {}
-hl = {
-  device = function(opts)
-    table.insert(seen, opts)
-  end,
+toggles() {
+  cat "$toggles_file" 2>/dev/null || true
 }
 
-dofile(os.getenv("OMARCHY_PATH") .. "/default/hypr/bootstrap.lua")
-require("default.hypr.toggles")
-assert(#seen == 1, "reload disables one device")
-assert(seen[1].enabled == false)
-assert(seen[1].name == 'touchpad"; touch ' .. os.getenv("MARKER") .. '; echo "', "device name is passed as a string")
-LUA
-pass "Hyprland reload loads the device name as a string"
+grep -Fx 'source_optional=~/.local/state/omarchy/toggles/mango/input.conf' "$ROOT/config/mango/config.conf" >/dev/null ||
+  fail "mango config sources the input-device toggles"
+pass "mango config sources the input-device toggles"
 
-# Public PoC device name: USB iProduct is interpolated into hl.device({ name = "..." }).
-# os.execute is stubbed so the string is only checked as data.
-poc_name='trackpad"})os.execute("~/calc&")--'
-stub_device touchpad "$poc_name"
+stub_device touchpad 'elan-touchpad'
+stub_device touchscreen 'wacom-hid-52eb-finger'
 
-run_toggle touchpad on
-: >"$log_file"
+: >"$mmsg_log"
 run_toggle touchpad off
-[[ $(<"$name_file") == "$poc_name" ]] || fail "PoC device name is stored only as data"
-[[ ! -e $state_lua ]] || fail "PoC device name is not written as Lua"
+[[ $(toggles) == "disable_trackpad=1" ]] || fail "touchpad disable writes disable_trackpad" "$(toggles)"
+grep -Fx 'dispatch reload_config' "$mmsg_log" >/dev/null || fail "touchpad disable reloads mango"
+assert_decoy_untouched
+pass "touchpad disable persists disable_trackpad and reloads mango"
 
-HOME="$home_dir" XDG_STATE_HOME="$xdg_decoy" OMARCHY_PATH="$ROOT" \
-  POC_NAME="$poc_name" EVAL_SNIPPET="$(<"$log_file")" lua - <<'LUA'
-local poc = os.getenv("POC_NAME")
-local snippet = os.getenv("EVAL_SNIPPET")
+run_toggle touchpad off
+[[ $(toggles) == "disable_trackpad=1" ]] || fail "disabling twice does not repeat the option" "$(toggles)"
+pass "disabling twice keeps a single option line"
+
+: >"$mmsg_log"
+run_toggle touchpad on
+[[ -z $(toggles) ]] || fail "touchpad enable clears disable_trackpad" "$(toggles)"
+grep -Fx 'dispatch reload_config' "$mmsg_log" >/dev/null || fail "touchpad enable reloads mango"
+pass "touchpad enable clears the option and reloads mango"
+
+run_toggle touchpad
+[[ $(toggles) == "disable_trackpad=1" ]] || fail "default toggle action disables an enabled touchpad"
+run_toggle touchpad
+[[ -z $(toggles) ]] || fail "default toggle action enables a disabled touchpad"
+pass "default toggle action flips the persisted state"
+
+run_toggle touchscreen off
+[[ $(toggles) == "touch_enable=0" ]] || fail "touchscreen disable writes touch_enable=0" "$(toggles)"
+run_toggle touchpad off
+run_toggle touchscreen on
+[[ $(toggles) == "disable_trackpad=1" ]] || fail "touchscreen enable keeps the touchpad disabled" "$(toggles)"
+run_toggle touchpad on
+[[ -z $(toggles) ]] || fail "both kinds can be enabled again" "$(toggles)"
+pass "touchpad and touchscreen toggle independently"
+
+rm -f "$toggles_file" "$marker"
+stub_device touchpad 'touchpad"; touch '"$marker"'; echo "'
+run_toggle touchpad off
+[[ ! -e $marker ]] || fail "touchpad disable does not execute metacharacters in the device name"
+[[ $(toggles) == "disable_trackpad=1" ]] || fail "the device name never reaches the mango config" "$(toggles)"
+run_toggle touchpad on
+pass "a hostile device name is neither executed nor persisted"
+
+rm -f "$toggles_file"
+: >"$mmsg_log"
+run_toggle touchpad on
+[[ ! -e $toggles_file ]] || fail "enable with no saved state writes nothing"
+grep -Fx 'dispatch reload_config' "$mmsg_log" >/dev/null || fail "enable with no saved state still reloads"
+pass "enable without saved state is a no-op reload"
+
+no_device touchpad
+set +e
+run_toggle touchpad off >/dev/null 2>&1
+status=$?
+set -e
+(( status != 0 )) || fail "disable errors when no device is found"
+[[ ! -e $toggles_file ]] || fail "no state is written when no device is found"
+pass "disable errors when no device is found"
+
+for args in "" "keyboard" "touchpad sideways"; do
+  set +e
+  # shellcheck disable=SC2086
+  run_toggle $args >/dev/null 2>&1
+  status=$?
+  set -e
+  (( status == 1 )) || fail "rejects invalid arguments: '$args'"
+done
+[[ ! -e $toggles_file ]] || fail "invalid arguments write no state"
+pass "invalid kinds and actions are rejected"
+
+# The legacy Hyprland reload must still load a stored device name only as data.
+# Public PoC device name: USB iProduct was once interpolated into hl.device({ name = "..." }).
+poc_name='trackpad"})os.execute("~/calc&")--'
+mkdir -p "$state_dir"
+printf '%s\n' "$poc_name" >"$name_file"
+
+HOME="$home_dir" XDG_STATE_HOME="$xdg_decoy" OMARCHY_PATH="$ROOT" POC_NAME="$poc_name" lua - <<'LUA'
 local seen, executed = {}, false
-
 hl = {
   device = function(opts)
     table.insert(seen, opts)
@@ -156,62 +172,15 @@ os.execute = function()
   executed = true
 end
 
-assert(load(snippet, "eval", "t"))()
-assert(executed == false, "quoted hyprctl eval must not run os.execute")
-assert(#seen == 1)
-assert(seen[1].name == poc)
-assert(seen[1].enabled == false)
-
-seen, executed = {}, false
-assert(load('hl.device({ name = "' .. poc .. '", enabled = false })', "unquoted", "t"))()
-assert(executed == true, "unquoted interpolation is the Lua injection")
-
-seen, executed = {}, false
 dofile(os.getenv("OMARCHY_PATH") .. "/default/hypr/bootstrap.lua")
 require("default.hypr.toggles")
 assert(executed == false, "reload must not run os.execute")
-assert(#seen == 1)
-assert(seen[1].name == poc)
+assert(#seen == 1, "reload disables one device")
+assert(seen[1].enabled == false)
+assert(seen[1].name == os.getenv("POC_NAME"), "device name is passed as a string")
 LUA
-pass "PoC device name cannot execute via eval or reload"
-
-cat >"$stub_dir/omarchy-hw-touchpad" <<'EOF'
-#!/bin/bash
-printf 'evil\nname\n'
-EOF
-chmod +x "$stub_dir/omarchy-hw-touchpad"
-
 rm -f "$name_file"
-set +e
-run_toggle touchpad off >/dev/null 2>&1
-status=$?
-set -e
-(( status != 0 )) || fail "disable rejects a device name with a newline"
-[[ ! -e $name_file ]] || fail "a rejected device name is not persisted"
-pass "disable rejects control characters in a device name"
-
-printf 'elan-touchpad\n' >"$name_file"
-set +e
-run_toggle touchpad on >/dev/null 2>&1
-status=$?
-set -e
-(( status != 0 )) || fail "enable still reports an invalid device name"
-[[ ! -e $name_file ]] || fail "enable clears persisted state even with an invalid device name"
-pass "a bad device name cannot wedge the persisted disable"
-
-cat >"$stub_dir/omarchy-hw-touchpad" <<'EOF'
-#!/bin/bash
-:
-EOF
-chmod +x "$stub_dir/omarchy-hw-touchpad"
-
-set +e
-run_toggle touchpad off >/dev/null 2>&1
-status=$?
-set -e
-(( status != 0 )) || fail "disable errors when no device is found"
-[[ ! -e $name_file ]] || fail "no state is written when no device is found"
-pass "disable errors when no device is found"
+pass "Hyprland reload loads a stored device name only as data"
 
 # The migration runs with the same XDG decoy: legacy files were written to
 # ~/.local/state, so that is where it must look no matter what XDG says.
