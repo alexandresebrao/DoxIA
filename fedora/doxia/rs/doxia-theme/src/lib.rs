@@ -256,6 +256,15 @@ pub fn css(app_css: &str) -> String {
   let pk_scrim = section_rgb("polkit", "scrim", p.bg).alpha(shell.num("polkit", "scrim-alpha").unwrap_or(0.5));
   let pk_border = border_image(&shell, shell.get("polkit", "border").unwrap_or(""), &p.accent.alpha(pk_border_alpha), 0);
   let pk_border_error = border_image(&shell, shell.get("polkit", "border-error").unwrap_or(""), &p.urgent.alpha(pk_border_alpha), 0);
+  // [lock]: Color.qml's lock group (the password field over the wallpaper).
+  let lk_border_alpha = shell.num("lock", "border-alpha").unwrap_or(1.0);
+  let lk_bg = section_rgb("lock", "background", p.bg).alpha(shell.num("lock", "background-alpha").unwrap_or(0.8));
+  let lk_placeholder = shell.get("lock", "placeholder").and_then(css_color).unwrap_or_else(|| p.fg.alpha(0.66));
+  let lk_border_active =
+    border_image(&shell, shell.get("lock", "border-active").unwrap_or(""), &p.accent.alpha(lk_border_alpha), 0);
+  let lk_border_error =
+    border_image(&shell, shell.get("lock", "border-error").unwrap_or(""), &p.urgent.alpha(lk_border_alpha), 0);
+  let lk_selection = section_rgb("lock", "selection", p.accent).alpha(shell.num("lock", "selection-alpha").unwrap_or(0.45));
   let popup_border = border_image(&shell, shell.get("popups", "border").unwrap_or(""), &p.accent.css(), 0);
 
   let vars = [
@@ -320,6 +329,15 @@ pub fn css(app_css: &str) -> String {
     ("$PK_SCRIM", pk_scrim),
     ("$PK_BORDER_ERROR", pk_border_error),
     ("$PK_BORDER", pk_border),
+    ("$LK_BG", lk_bg),
+    ("$LK_TEXT", section_rgb("lock", "text", p.fg).css()),
+    ("$LK_PLACEHOLDER", lk_placeholder),
+    ("$LK_TEXT_ERROR", section_rgb("lock", "text-error", p.urgent).css()),
+    ("$LK_BORDER_ACTIVE", lk_border_active),
+    ("$LK_BORDER_ERROR", lk_border_error),
+    ("$LK_SELECTION", lk_selection),
+    ("$FS_LOCK_FIELD", format!("{}px", (font("heading", 1.333) * 1.125).round())),
+    ("$FS_LOCK_DOTS", format!("{}px", (font("heading", 1.333) * 1.33).round())),
     ("$R_CTRL", if radius > 0 { format!("{radius}px") } else { "0".into() }),
     ("$R_CARD", r(6)),
     ("$R_ICON", r(5)),

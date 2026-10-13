@@ -9,7 +9,7 @@ falls back to the shell piece while the app is not installed.
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
-| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications and the polkit agent so far |
+| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent and the lock screen so far |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -93,6 +93,27 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   agent ("Error creating textual authentication agent"). Also, a
   CheckAuthorization with a unix-session subject aborts polkitd 127
   (assertion in push_subject).
+
+- `lock`: the lock screen, replacing `shell/plugins/lock` (`lock`,
+  `isLocked`, `status`, `preview`, `hidePreview`). ext-session-lock through
+  gtk4-layer-shell's session lock API (FFI to `gtk4-session-lock.h`; the Rust
+  crate has no binding), one field per monitor over the blurred wallpaper.
+  PAM runs in a child, `doxia-shell --pam <service>` (`lock/pam.rs`, FFI to
+  libpam; needs `pam-devel` to build), started through `/proc/self/exe` so it
+  still works after an update replaced the binary: the password against
+  `omarchy-lock-password`, an enrolled finger against
+  `omarchy-lock-fingerprint` in parallel. Same marker
+  (`$XDG_RUNTIME_DIR/omarchy-session-locked`), 5 s blank and wake on input as
+  the QML service; a lock left behind by a client that died is locked again
+  at startup (the stranded-lock check). Quickshell's `omarchy.lock` goes to
+  `disabledPlugins` like the other two.
+
+## CSS gotchas
+
+- GTK 4.22's `GtkPasswordEntry` has the CSS name `entry` (class `password`),
+  not `passwordentry`.
+- A gradient border over a translucent card: use `border-image`; a
+  `border-box` background layer shows through the card's fill.
 
 ## Font
 

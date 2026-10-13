@@ -109,7 +109,7 @@ switch slider {
 switch:checked slider { background: #ffffff; }
 
 /* Text field (shell/Ui/TextField.qml) */
-entry.field, passwordentry.field {
+entry.field {
   background: $NORMAL_FILL;
   color: $FG;
   border: 1px solid $NORMAL_BORDER;
@@ -119,10 +119,10 @@ entry.field, passwordentry.field {
   font-size: $FS_BODY;
   caret-color: $FG;
 }
-entry.field:hover, passwordentry.field:hover { background: $HOVER_FILL; border-color: $HOVER_BORDER; }
-entry.field:focus-within, passwordentry.field:focus-within { background: $FOCUS_FILL; border-color: $FOCUS_BORDER; }
-passwordentry.field text selection { background: $SELECTION; color: $FG; }
-passwordentry.field image { color: $DIM; }
+entry.field:hover { background: $HOVER_FILL; border-color: $HOVER_BORDER; }
+entry.field:focus-within { background: $FOCUS_FILL; border-color: $FOCUS_BORDER; }
+entry.field text selection { background: $SELECTION; color: $FG; }
+entry.field image { color: $DIM; }
 
 /* Dropdown */
 dropdown.choice > button {

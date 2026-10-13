@@ -1,6 +1,6 @@
 // doxia-shell: the long-running half of the DoxIA shell, taking over from
-// Quickshell one surface at a time: the OSD, the notifications and the polkit
-// agent so far. It owns org.doxia.Shell on the session bus and answers the
+// Quickshell one surface at a time: the OSD, the notifications, the polkit
+// agent and the lock screen so far. It owns org.doxia.Shell on the session bus and answers the
 // same IPC calls Quickshell does for those targets (ipc.rs), which
 // bin/omarchy-shell tries first:
 //
@@ -10,6 +10,7 @@
 // Running doxia-shell again while it runs does nothing.
 
 mod ipc;
+mod lock;
 mod notify;
 mod osd;
 mod polkit;
@@ -20,6 +21,13 @@ use gtk::{gio, glib};
 use std::rc::Rc;
 
 fn main() -> glib::ExitCode {
+  // The lock screen's PAM child (lock/pam.rs), before any GTK.
+  let args: Vec<String> = std::env::args().collect();
+  if args.get(1).map(String::as_str) == Some("--pam") {
+    let code = lock::pam::run(args.get(2).map(String::as_str).unwrap_or(""));
+    return glib::ExitCode::from(code as u8);
+  }
+
   let app = gtk::Application::builder().application_id("org.doxia.Shell").build();
 
   app.connect_startup(|app| {
@@ -59,6 +67,11 @@ fn main() -> glib::ExitCode {
     let notifications = notify::Notifications::new(app);
     let n = notifications.clone();
     ipc.add("notifications", Box::new(move |method, args| n.ipc(method, args)));
+
+    let lock = lock::Lock::new(app);
+    crate::quickshell::disable("omarchy.lock");
+    let l = lock.clone();
+    ipc.add("lock", Box::new(move |method, _| l.ipc(method)));
 
     let polkit = polkit::Polkit::new(app);
     polkit.start();

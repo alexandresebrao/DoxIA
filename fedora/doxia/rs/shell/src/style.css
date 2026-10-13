@@ -6,7 +6,8 @@ window.osd-window { background: transparent; }
 .osd-card {
   border: 2px solid transparent;
   border-radius: $R_CTRL;
-  background: linear-gradient($POPUP_FILL, $POPUP_FILL) padding-box, $POPUP_BORDER border-box;
+  background: $POPUP_FILL;
+  border-image: $POPUP_BORDER 1;
   padding: 16px;
   color: $POPUP_TEXT;
 }
@@ -37,7 +38,8 @@ window.notif-window { background: transparent; }
 .notif-card {
   border: 2px solid transparent;
   border-radius: $R_CTRL;
-  background: linear-gradient($NOTIF_BG, $NOTIF_BG) padding-box, $NOTIF_BORDER border-box;
+  background: $NOTIF_BG;
+  border-image: $NOTIF_BORDER 1;
   color: $NOTIF_TEXT;
 }
 window.doxia .notif-summary {
@@ -62,17 +64,19 @@ window.polkit-window { background: $PK_SCRIM; }
 .polkit-card {
   border: 2px solid transparent;
   border-radius: $R_CTRL;
-  background: linear-gradient($PK_BG, $PK_BG) padding-box, $PK_BORDER border-box;
+  background: $PK_BG;
+  border-image: $PK_BORDER 1;
   padding: 18px;
   min-height: 42px;
 }
-.polkit-card.error { background: linear-gradient($PK_BG, $PK_BG) padding-box, $PK_BORDER_ERROR border-box; }
+.polkit-card.error { background: $PK_BG;
+  border-image: $PK_BORDER_ERROR 1; }
 .polkit-card.fingerprint { padding: 18px 22px; }
 .polkit-glyph { font-size: $FS_ICON_LARGE; color: $PK_ACCENT; }
 .polkit-card.fingerprint .polkit-glyph { font-size: 29px; }
 .polkit-glyph.error { color: $PK_TEXT_ERROR; }
 
-passwordentry.polkit-entry {
+entry.polkit-entry {
   background: transparent;
   border: none;
   box-shadow: none;
@@ -82,9 +86,9 @@ passwordentry.polkit-entry {
   font-size: $FS_ICON_LARGE;
   caret-color: $PK_TEXT;
 }
-passwordentry.polkit-entry text placeholder { color: alpha($PK_TEXT, 0.36); }
-passwordentry.polkit-entry.error text placeholder { color: $PK_TEXT_ERROR; }
-passwordentry.polkit-entry image { color: $PK_TEXT; }
+entry.polkit-entry text placeholder { color: alpha($PK_TEXT, 0.36); }
+entry.polkit-entry.error text placeholder { color: $PK_TEXT_ERROR; }
+entry.polkit-entry image { color: $PK_TEXT; }
 
 .polkit-label {
   background: $PK_BG;
@@ -93,3 +97,31 @@ passwordentry.polkit-entry image { color: $PK_TEXT; }
   color: $PK_TEXT;
   font-size: $FS_SMALL;
 }
+
+/* Lock screen, like shell/plugins/lock/LockView.qml: the blurred wallpaper,
+   a 381x67 field with a 3px border, [lock] colors. */
+window.lock-window { background: $BG; }
+.lock-bg { filter: blur(40px) contrast(0.92); }
+.lock-field {
+  border: 3px solid transparent;
+  border-radius: $R_CTRL;
+  background: $LK_BG;
+  border-image: $LK_BORDER_ACTIVE 1;
+  padding: 0 18px;
+}
+.lock-field.error { background: $LK_BG;
+  border-image: $LK_BORDER_ERROR 1; }
+entry.lock-entry {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 61px;
+  color: $LK_TEXT;
+  font-size: $FS_LOCK_DOTS;
+  caret-color: $LK_TEXT;
+}
+entry.lock-entry text placeholder { color: $LK_PLACEHOLDER; font-size: $FS_LOCK_FIELD; }
+entry.lock-entry.error text placeholder { color: $LK_TEXT_ERROR; font-style: italic; }
+entry.lock-entry text selection { background: $LK_SELECTION; }
+.lock-fingerprint { color: $LK_PLACEHOLDER; font-size: $FS_LOCK_FIELD; margin-left: 12px; }
