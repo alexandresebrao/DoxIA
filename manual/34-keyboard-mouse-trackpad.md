@@ -42,7 +42,21 @@ On Dell XPS laptops with a haptic touchpad, you can also set the click strength 
 
 ### Typing in Chinese, Japanese, and other languages
 
-Omarchy runs the [fcitx5](https://fcitx-im.org/) input method framework as part of every session — it's what powers the CapsLock compose sequences. That means the plumbing for non-Latin input is already in place: install an input engine like `fcitx5-mozc` (Japanese) or `fcitx5-chinese-addons` (Chinese) with `omarchy pkg add`, plus `fcitx5-configtool` to add the engine to your input methods and set the key that switches between them.
+DoxIA doesn't run an input method by default. The CapsLock compose sequences don't need one: GTK, Qt, and Chromium apps read `~/.XCompose` themselves, and keeping [fcitx5](https://fcitx-im.org/) out from between the keyboard and every app keeps the ABNT2 dead keys working.
+
+To type Chinese, Japanese, or another language that needs an input method, install fcitx5 with an engine like `fcitx5-mozc` (Japanese) or `fcitx5-chinese-addons` (Chinese), plus `fcitx5-configtool` to add the engine to your input methods and set the key that switches between them:
+
+```bash
+omarchy pkg add fcitx5 fcitx5-mozc fcitx5-configtool
+```
+
+Then start it with your session by adding this line to `~/.config/mango/autostart.conf`:
+
+```ini
+exec_once=fcitx5 -d
+```
+
+If dead keys stop working afterwards, remove that line and log in again.
 
 ### Use ALT as SUPER
 
