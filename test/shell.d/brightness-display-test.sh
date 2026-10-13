@@ -12,12 +12,12 @@ call_log="$test_tmp/calls"
 runtime_dir="$test_tmp/runtime"
 mkdir -p "$mock_bin" "$runtime_dir"
 
-cat >"$mock_bin/omarchy-hyprland-monitor-focused-apple" <<'SH'
+cat >"$mock_bin/omarchy-mango-monitor-focused-apple" <<'SH'
 #!/bin/bash
 exit 1
 SH
 
-cat >"$mock_bin/omarchy-hyprland-monitor-focused" <<'SH'
+cat >"$mock_bin/omarchy-mango-monitor-focused" <<'SH'
 #!/bin/bash
 printf '%s\n' "${FOCUSED_MONITOR:-eDP-1}"
 SH
@@ -129,18 +129,21 @@ grep -F 'ddcutil --bus 7 --skip-ddc-checks --noverify setvcp 10 5' "$call_log" >
   fail "external low brightness writes the one-percent target"
 pass "external low brightness uses a one-percent step"
 
-cat >"$mock_bin/hyprctl" <<'SH'
+# The Apple check reads make and model from wlr-randr, and the focused output
+# from omarchy-mango-monitor-focused when no name is given.
+rm -f "$mock_bin/omarchy-mango-monitor-focused-apple"
+cat >"$mock_bin/wlr-randr" <<'SH'
 #!/bin/bash
 printf '%s\n' '[
-  {"name":"DP-1","focused":true,"make":"HPN","model":"OMEN X 25f"},
-  {"name":"DP-2","focused":false,"make":"Apple Computer Inc","model":"StudioDisplay"}
+  {"name":"DP-1","make":"HPN","model":"OMEN X 25f"},
+  {"name":"DP-2","make":"Apple Computer Inc","model":"StudioDisplay"}
 ]'
 SH
-chmod +x "$mock_bin/hyprctl"
+chmod +x "$mock_bin/wlr-randr"
 
-PATH="$mock_bin:$PATH" "$ROOT/bin/omarchy-hyprland-monitor-focused-apple" DP-2 || \
+PATH="$mock_bin:$PATH" "$ROOT/bin/omarchy-mango-monitor-focused-apple" DP-2 || \
   fail "named Apple display is detected independently of focus"
-if PATH="$mock_bin:$PATH" "$ROOT/bin/omarchy-hyprland-monitor-focused-apple"; then
+if FOCUSED_MONITOR=DP-1 PATH="$mock_bin:$PATH" "$ROOT/bin/omarchy-mango-monitor-focused-apple"; then
   fail "focused non-Apple display is not detected as Apple"
 fi
 pass "named Apple display is detected independently of focus"

@@ -45,13 +45,13 @@ SH
 }
 
 mock_clamshell() {
-  cat >"$mock_bin/omarchy-hyprland-monitor-clamshell" <<SH
+  cat >"$mock_bin/omarchy-mango-monitor-clamshell" <<SH
 #!/bin/bash
 
 echo clamshell >>"\$CALL_LOG"
 sleep ${1:-0}
 SH
-  chmod +x "$mock_bin/omarchy-hyprland-monitor-clamshell"
+  chmod +x "$mock_bin/omarchy-mango-monitor-clamshell"
 }
 
 # Called with no budget to exercise the value derived from logind's window.

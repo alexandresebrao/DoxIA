@@ -27,7 +27,7 @@ SH
 #!/bin/bash
 exit $docked
 SH
-  for command in omarchy-system-lock omarchy-hyprland-monitor-clamshell; do
+  for command in omarchy-system-lock omarchy-mango-monitor-clamshell; do
     cat >"$mock_bin/$command" <<SH
 #!/bin/bash
 echo $command >>"\$CALL_LOG"
@@ -51,7 +51,7 @@ run_lid_close
   fail "undocked lid close locks before anything else" "calls: ${calls[*]}"
 pass "undocked lid close locks before anything else"
 
-[[ ${calls[1]} == "omarchy-hyprland-monitor-clamshell" ]] ||
+[[ ${calls[1]} == "omarchy-mango-monitor-clamshell" ]] ||
   fail "undocked lid close still reconciles displays" "calls: ${calls[*]}"
 pass "undocked lid close still reconciles displays"
 
@@ -64,11 +64,11 @@ run_lid_close
   fail "docked lid close does not lock the session" "calls: ${calls[*]}"
 pass "docked lid close does not lock the session"
 
-[[ ${calls[0]} == "omarchy-hyprland-monitor-clamshell" ]] ||
+[[ ${calls[0]} == "omarchy-mango-monitor-clamshell" ]] ||
   fail "docked lid close reconciles displays" "calls: ${calls[*]}"
 pass "docked lid close reconciles displays"
 
-# Hyprland can replay a switch binding when the lid is already open, and an
+# mango can replay a switch binding when the lid is already open, and an
 # open lid must never lock the machine the user is sitting at.
 setup_scenario open 1 1
 run_lid_close
@@ -77,7 +77,7 @@ run_lid_close
   fail "an open lid never locks the session" "calls: ${calls[*]}"
 pass "an open lid never locks the session"
 
-# The lid handler runs from a Hyprland binding, so a lock that hangs or fails
+# The lid handler runs from a mango switch binding, so a lock that hangs or fails
 # must not stop the display reconciliation behind it.
 setup_scenario failing_lock 0 1
 cat >"$mock_bin/omarchy-system-lock" <<'SH'
@@ -88,6 +88,6 @@ SH
 chmod +x "$mock_bin/omarchy-system-lock"
 run_lid_close
 
-[[ ${calls[1]} == "omarchy-hyprland-monitor-clamshell" ]] ||
+[[ ${calls[1]} == "omarchy-mango-monitor-clamshell" ]] ||
   fail "a failing lock still reconciles displays" "calls: ${calls[*]}"
 pass "a failing lock still reconciles displays"

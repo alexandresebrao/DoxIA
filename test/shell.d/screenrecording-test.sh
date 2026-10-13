@@ -167,44 +167,45 @@ grep -F 'WEBCAM_DEVICE=$(omarchy-capture-webcam-list' "$ROOT/bin/omarchy-capture
   fail "screenrecording auto-detection uses capture-capable webcams"
 pass "screenrecording auto-detection uses the first capture-capable webcam"
 
-cat >"$stub_bin/hyprctl" <<'SH'
+# mango reports the monitor's layout box, already divided by its scale.
+cat >"$stub_bin/mmsg" <<'SH'
 #!/bin/bash
 
-case $1 in
-clients)
-  printf '[{"address":"0xabc","title":"%s","size":[%s,%s],"monitor":2}]\n' \
+case "$1 $2" in
+"get all-clients")
+  printf '{"clients":[{"id":7,"title":"%s","width":%s,"height":%s,"monitor":"DP-2"}]}\n' \
     "${OMARCHY_TEST_CLIENT_TITLE:-WebcamOverlay}" \
     "${OMARCHY_TEST_CLIENT_WIDTH:-178}" \
     "${OMARCHY_TEST_CLIENT_HEIGHT:-200}"
   ;;
-monitors)
-  printf '[{"id":2,"x":1280,"y":-100,"width":%s,"height":%s,"scale":%s}]\n' \
-    "${OMARCHY_TEST_MONITOR_WIDTH:-2560}" \
-    "${OMARCHY_TEST_MONITOR_HEIGHT:-1600}" \
-    "${OMARCHY_TEST_MONITOR_SCALE:-2}"
+"get all-monitors")
+  scale=${OMARCHY_TEST_MONITOR_SCALE:-2}
+  printf '{"monitors":[{"name":"DP-2","x":1280,"y":-100,"width":%s,"height":%s}]}\n' \
+    "$(( ${OMARCHY_TEST_MONITOR_WIDTH:-2560} / scale ))" \
+    "$(( ${OMARCHY_TEST_MONITOR_HEIGHT:-1600} / scale ))"
   ;;
-dispatch)
-  printf '%s\n' "$*" >>"$OMARCHY_TEST_HYPRCTL_ARGS"
+dispatch*)
+  printf '%s\n' "$*" >>"$OMARCHY_TEST_MMSG_ARGS"
   ;;
 esac
 SH
-chmod +x "$stub_bin/hyprctl"
+chmod +x "$stub_bin/mmsg"
 
-export OMARCHY_TEST_HYPRCTL_ARGS="$tmp_dir/hyprctl-args"
+export OMARCHY_TEST_MMSG_ARGS="$tmp_dir/mmsg-args"
 
 "$ROOT/bin/omarchy-capture-webcam-resize" smaller
 
-expected_hyprctl_args="$tmp_dir/expected-hyprctl-args"
+expected_mmsg_args="$tmp_dir/expected-mmsg-args"
 printf '%s\n' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 128, y = 144 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 2392, y = 516 })' >"$expected_hyprctl_args"
+  'dispatch resizewin,128,144 client,7' \
+  'dispatch movewin,2392,516 client,7' >"$expected_mmsg_args"
 
-if ! cmp -s "$OMARCHY_TEST_HYPRCTL_ARGS" "$expected_hyprctl_args"; then
-  fail "webcam resize preserves its aspect ratio and corner anchor" "$(diff -u "$expected_hyprctl_args" "$OMARCHY_TEST_HYPRCTL_ARGS")"
+if ! cmp -s "$OMARCHY_TEST_MMSG_ARGS" "$expected_mmsg_args"; then
+  fail "webcam resize preserves its aspect ratio and corner anchor" "$(diff -u "$expected_mmsg_args" "$OMARCHY_TEST_MMSG_ARGS")"
 fi
 pass "webcam resize preserves its aspect ratio and corner anchor"
 
-: >"$OMARCHY_TEST_HYPRCTL_ARGS"
+: >"$OMARCHY_TEST_MMSG_ARGS"
 OMARCHY_TEST_MONITOR_WIDTH=1920 \
   OMARCHY_TEST_MONITOR_HEIGHT=1080 \
   OMARCHY_TEST_MONITOR_SCALE=1 \
@@ -213,89 +214,87 @@ OMARCHY_TEST_MONITOR_WIDTH=1920 \
   "$ROOT/bin/omarchy-capture-webcam-resize" reset
 
 printf '%s\n' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 240, y = 270 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 2920, y = 670 })' >"$expected_hyprctl_args"
+  'dispatch resizewin,240,270 client,7' \
+  'dispatch movewin,2920,670 client,7' >"$expected_mmsg_args"
 
-if ! cmp -s "$OMARCHY_TEST_HYPRCTL_ARGS" "$expected_hyprctl_args"; then
-  fail "webcam default size adapts to monitor resolution" "$(diff -u "$expected_hyprctl_args" "$OMARCHY_TEST_HYPRCTL_ARGS")"
+if ! cmp -s "$OMARCHY_TEST_MMSG_ARGS" "$expected_mmsg_args"; then
+  fail "webcam default size adapts to monitor resolution" "$(diff -u "$expected_mmsg_args" "$OMARCHY_TEST_MMSG_ARGS")"
 fi
 pass "webcam default size adapts to monitor resolution"
 
-: >"$OMARCHY_TEST_HYPRCTL_ARGS"
+: >"$OMARCHY_TEST_MMSG_ARGS"
 OMARCHY_TEST_CLIENT_TITLE="Other Window" "$ROOT/bin/omarchy-capture-webcam-resize" larger
 
-if [[ -s $OMARCHY_TEST_HYPRCTL_ARGS ]]; then
-  fail "webcam resize ignores other windows" "$(cat "$OMARCHY_TEST_HYPRCTL_ARGS")"
+if [[ -s $OMARCHY_TEST_MMSG_ARGS ]]; then
+  fail "webcam resize ignores other windows" "$(cat "$OMARCHY_TEST_MMSG_ARGS")"
 fi
 pass "webcam resize ignores other windows"
 
 region_file="$XDG_RUNTIME_DIR/omarchy-screenrecord-region"
 
-: >"$OMARCHY_TEST_HYPRCTL_ARGS"
+: >"$OMARCHY_TEST_MMSG_ARGS"
 echo "800x600+100+100" >"$region_file"
 "$ROOT/bin/omarchy-capture-webcam-resize" reset
 
 printf '%s\n' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 133, y = 150 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 727, y = 510 })' >"$expected_hyprctl_args"
+  'dispatch resizewin,133,150 client,7' \
+  'dispatch movewin,727,510 client,7' >"$expected_mmsg_args"
 
-if ! cmp -s "$OMARCHY_TEST_HYPRCTL_ARGS" "$expected_hyprctl_args"; then
-  fail "webcam anchors to the recorded region" "$(diff -u "$expected_hyprctl_args" "$OMARCHY_TEST_HYPRCTL_ARGS")"
+if ! cmp -s "$OMARCHY_TEST_MMSG_ARGS" "$expected_mmsg_args"; then
+  fail "webcam anchors to the recorded region" "$(diff -u "$expected_mmsg_args" "$OMARCHY_TEST_MMSG_ARGS")"
 fi
 pass "webcam anchors to the recorded region"
 
 printf '%s\n' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 178, y = 200 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 2342, y = 460 })' >"$expected_hyprctl_args"
+  'dispatch resizewin,178,200 client,7' \
+  'dispatch movewin,2342,460 client,7' >"$expected_mmsg_args"
 
 for region in "not-a-region" ""; do
-  : >"$OMARCHY_TEST_HYPRCTL_ARGS"
+  : >"$OMARCHY_TEST_MMSG_ARGS"
   printf '%s' "$region" >"$region_file"
   "$ROOT/bin/omarchy-capture-webcam-resize" reset
 
-  if ! cmp -s "$OMARCHY_TEST_HYPRCTL_ARGS" "$expected_hyprctl_args"; then
-    fail "webcam falls back to the monitor for an unusable region" "$(diff -u "$expected_hyprctl_args" "$OMARCHY_TEST_HYPRCTL_ARGS")"
+  if ! cmp -s "$OMARCHY_TEST_MMSG_ARGS" "$expected_mmsg_args"; then
+    fail "webcam falls back to the monitor for an unusable region" "$(diff -u "$expected_mmsg_args" "$OMARCHY_TEST_MMSG_ARGS")"
   fi
 done
 pass "webcam falls back to the monitor for an unusable region"
 
 # A region too narrow for presets scaled from its height shrinks the whole
 # ladder, so the three sizes stay distinct and each one fits inside the margins
-: >"$OMARCHY_TEST_HYPRCTL_ARGS"
+: >"$OMARCHY_TEST_MMSG_ARGS"
 echo "200x1200+0+0" >"$region_file"
 for size in small medium large; do
   "$ROOT/bin/omarchy-capture-webcam-resize" "$size"
 done
 
 printf '%s\n' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 64, y = 72 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 96, y = 1088 })' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 89, y = 100 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 71, y = 1060 })' \
-  'dispatch hl.dsp.window.resize({ window = "address:0xabc", x = 120, y = 135 })' \
-  'dispatch hl.dsp.window.move({ window = "address:0xabc", x = 40, y = 1025 })' >"$expected_hyprctl_args"
+  'dispatch resizewin,64,72 client,7' \
+  'dispatch movewin,96,1088 client,7' \
+  'dispatch resizewin,89,100 client,7' \
+  'dispatch movewin,71,1060 client,7' \
+  'dispatch resizewin,120,135 client,7' \
+  'dispatch movewin,40,1025 client,7' >"$expected_mmsg_args"
 
-if ! cmp -s "$OMARCHY_TEST_HYPRCTL_ARGS" "$expected_hyprctl_args"; then
-  fail "webcam sizes stay distinct and inside a narrow region" "$(diff -u "$expected_hyprctl_args" "$OMARCHY_TEST_HYPRCTL_ARGS")"
+if ! cmp -s "$OMARCHY_TEST_MMSG_ARGS" "$expected_mmsg_args"; then
+  fail "webcam sizes stay distinct and inside a narrow region" "$(diff -u "$expected_mmsg_args" "$OMARCHY_TEST_MMSG_ARGS")"
 fi
 pass "webcam sizes stay distinct and inside a narrow region"
 
 rm -f "$region_file"
 
-grep -F 'o.bind("SUPER + ALT + code:34", "Make webcam overlay smaller", "omarchy-capture-webcam-resize smaller")' \
-  "$ROOT/default/hypr/bindings/utilities.lua" >/dev/null || fail "webcam smaller hotkey is configured"
-grep -F 'o.bind("SUPER + ALT + code:35", "Make webcam overlay larger", "omarchy-capture-webcam-resize larger")' \
-  "$ROOT/default/hypr/bindings/utilities.lua" >/dev/null || fail "webcam larger hotkey is configured"
+grep -Fx 'bind=SUPER+ALT,code:34,spawn,omarchy-capture-webcam-resize smaller' \
+  "$ROOT/default/mango/bindings/utilities.conf" >/dev/null || fail "webcam smaller hotkey is configured"
+grep -Fx 'bind=SUPER+ALT,code:35,spawn,omarchy-capture-webcam-resize larger' \
+  "$ROOT/default/mango/bindings/utilities.conf" >/dev/null || fail "webcam larger hotkey is configured"
 pass "webcam resize hotkeys are configured"
 
 grep -F -- '--wayland-app-id="WebcamOverlay-$WEBCAM_SIZE"' \
   "$ROOT/bin/omarchy-capture-screenrecording" >/dev/null || fail "webcam uses a dedicated size-specific app id"
 
-webcam_rules="$ROOT/default/hypr/apps/webcam-overlay.lua"
-grep -F 'move = { "(monitor_w-monitor_h*4/25-40)", "(monitor_h-monitor_h*9/50-40)" }' "$webcam_rules" >/dev/null || \
-  fail "small webcam starts at its final corner position"
-grep -F 'move = { "(monitor_w-monitor_h*2/9-40)", "(monitor_h-monitor_h/4-40)" }' "$webcam_rules" >/dev/null || \
-  fail "medium webcam starts at its final corner position"
-grep -F 'move = { "(monitor_w-monitor_h*3/10-40)", "(monitor_h-monitor_h*27/80-40)" }' "$webcam_rules" >/dev/null || \
-  fail "large webcam starts at its final corner position"
+# Each size opens floating in its corner without taking focus.
+for size in small medium large; do
+  grep -Eq "^window_rule=is_floating:1,.*is_open_silent:1,.*app_id:\\^WebcamOverlay-$size\\\$\$" \
+    "$ROOT/default/mango/windows.conf" || fail "$size webcam has its corner rule"
+done
 pass "webcam size rules place the initial window in its final corner"
