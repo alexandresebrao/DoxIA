@@ -4,17 +4,23 @@ source "$(dirname "$0")/base-test.sh"
 
 test_bin=$(mktemp -d)
 monitors_file=$(mktemp)
+runtime_dir=$(mktemp -d)
 
 cleanup() {
-  rm -rf "$test_bin"
+  rm -rf "$test_bin" "$runtime_dir"
   rm -f "$monitors_file"
 }
 trap cleanup EXIT
 
-cat >"$test_bin/hyprctl" <<'EOF'
+cat >"$test_bin/wlr-randr" <<'EOF'
 #!/bin/bash
-[[ $* == "monitors all -j" ]] || exit 1
+[[ $* == "--json" ]] || exit 1
 cat "$FAKE_MONITORS"
+EOF
+
+cat >"$test_bin/omarchy-mango-monitor-focused" <<'EOF'
+#!/bin/bash
+echo "$FAKE_FOCUSED"
 EOF
 
 cat >"$test_bin/omarchy-brightness-display" <<'EOF'
@@ -22,7 +28,7 @@ cat >"$test_bin/omarchy-brightness-display" <<'EOF'
 echo 42
 EOF
 
-cat >"$test_bin/omarchy-hyprland-monitor-scaling" <<'EOF'
+cat >"$test_bin/omarchy-mango-monitor-scaling" <<'EOF'
 #!/bin/bash
 echo 1.5
 EOF
@@ -33,11 +39,15 @@ chmod +x "$test_bin"/*
 # the same number of lines. A helper that dies mid-script drops its line and
 # silently shifts every field below it into the wrong property.
 state_lines=()
+# $1 outputs (wlr-randr --json), $2 focused output, $3 "mirror" while
+# wl-mirror runs.
 monitor_state() {
   printf '%s\n' "$1" >"$monitors_file"
+  rm -f "$runtime_dir/omarchy-monitor-mirror.pid"
+  [[ ${3:-} == "mirror" ]] && echo $$ >"$runtime_dir/omarchy-monitor-mirror.pid"
 
   mapfile -t state_lines < <(
-    FAKE_MONITORS="$monitors_file" PATH="$test_bin:$PATH" \
+    FAKE_MONITORS="$monitors_file" FAKE_FOCUSED="$2" XDG_RUNTIME_DIR="$runtime_dir" PATH="$test_bin:$PATH" \
       bash "$ROOT/bin/omarchy-monitor-state" 2>/dev/null
   )
 }
@@ -56,30 +66,21 @@ assert_line_count() {
     fail "$description" "expected 8 lines, got ${#state_lines[@]}"
 }
 
-extended='[
-  { "name": "eDP-1", "mirrorOf": "none", "disabled": false, "focused": false, "width": 1920, "height": 1080 },
-  { "name": "DP-1", "mirrorOf": "none", "disabled": false, "focused": true, "width": 2560, "height": 1440 }
-]'
+output() {
+  local name=$1 enabled=$2 width=$3 height=$4
+  printf '{ "name": "%s", "enabled": %s, "modes": [{ "width": %s, "height": %s, "current": %s }] }' \
+    "$name" "$enabled" "$width" "$height" "$enabled"
+}
 
-# Omarchy mirrors by pointing the external at the internal, so `mirrorOf` lands
-# on the external and the internal keeps saying "none".
-mirrored='[
-  { "name": "eDP-1", "mirrorOf": "none", "disabled": false, "focused": true, "width": 1920, "height": 1080 },
-  { "name": "DP-1", "mirrorOf": "eDP-1", "disabled": false, "focused": false, "width": 1920, "height": 1080 }
-]'
+extended="[$(output eDP-1 true 1920 1080), $(output DP-1 true 2560 1440)]"
 
-# A monitors.lua of the user's own can mirror the other way instead.
-reverse_mirrored='[
-  { "name": "eDP-1", "mirrorOf": "DP-1", "disabled": false, "focused": false, "width": 2560, "height": 1440 },
-  { "name": "DP-1", "mirrorOf": "none", "disabled": false, "focused": true, "width": 2560, "height": 1440 }
-]'
+# mango has no output mirroring; omarchy-mango-monitor-internal-mirror runs
+# wl-mirror onto the external, which stays an ordinary enabled output.
+mirrored="[$(output eDP-1 true 1920 1080), $(output DP-1 true 1920 1080)]"
 
-clamshell='[
-  { "name": "eDP-1", "mirrorOf": "none", "disabled": true, "focused": false, "width": 0, "height": 0 },
-  { "name": "DP-1", "mirrorOf": "none", "disabled": false, "focused": true, "width": 2560, "height": 1440 }
-]'
+clamshell="[$(output eDP-1 false 1920 1080), $(output DP-1 true 2560 1440)]"
 
-monitor_state "$extended"
+monitor_state "$extended" DP-1
 assert_line_count "monitor state answers every line while extended"
 assert_line 0 42 "monitor state reports brightness"
 assert_line 1 eDP-1 "monitor state names the internal monitor"
@@ -90,28 +91,23 @@ assert_line 5 DP-1 "monitor state reports the focused monitor"
 assert_line 6 1.5 "monitor state reports the scale"
 pass "monitor state keeps its lines aligned when nothing is mirrored"
 
-monitor_state "$mirrored"
+monitor_state "$mirrored" eDP-1 mirror
 assert_line_count "monitor state answers every line while mirroring"
 assert_line 4 DP-1 "monitor state names the mirroring external monitor"
 assert_line 5 eDP-1 "monitor state still reports the focused monitor while mirroring"
-pass "monitor state reports the external monitor when it mirrors the internal"
+pass "monitor state reports the external monitor while wl-mirror shows the internal"
 
-monitor_state "$reverse_mirrored"
-assert_line_count "monitor state answers every line while mirroring in reverse"
-assert_line 4 DP-1 "monitor state names the external monitor either way round"
-pass "monitor state reports the external monitor when the internal mirrors it"
-
-monitor_state "$clamshell"
+monitor_state "$clamshell" DP-1
 assert_line_count "monitor state answers every line while clamshelled"
 assert_line 1 eDP-1 "monitor state still names a disabled internal monitor"
 assert_line 3 "" "monitor state reports the internal monitor disabled"
 assert_line 4 "" "monitor state reports no mirror while clamshelled"
 pass "monitor state separates a disabled internal monitor from a missing one"
 
-monitor_state "$extended"
+monitor_state "$extended" DP-1
 [[ ${state_lines[7]-} == '[{"name":"eDP-1","enabled":true,"focused":false,"width":1920,"height":1080},{"name":"DP-1","enabled":true,"focused":true,"width":2560,"height":1440}]' ]] ||
   fail "monitor state lists every display for the panel" "actual: ${state_lines[7]-<missing>}"
-monitor_state "$clamshell"
+monitor_state "$clamshell" DP-1
 [[ ${state_lines[7]-} == '[{"name":"eDP-1","enabled":false,"focused":false,"width":0,"height":0},{"name":"DP-1","enabled":true,"focused":true,"width":2560,"height":1440}]' ]] ||
   fail "monitor state lists every display for the panel" "actual: ${state_lines[7]-<missing>}"
 pass "monitor state lists every display with its enabled and focused state"

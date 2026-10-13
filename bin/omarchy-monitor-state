@@ -3,21 +3,37 @@
 # omarchy:summary=Print monitor panel state for the shell
 # omarchy:group=monitor
 
-monitors_json=$(hyprctl monitors all -j)
-focused_monitor=$(printf '%s\n' "$monitors_json" | jq -r '[.[] | select(.focused == true)][0].name // ""')
+# wlr-randr lists disabled outputs too; mango's IPC only knows the live ones
+# but is the one that knows which has focus.
+outputs_json=$(wlr-randr --json 2>/dev/null || echo '[]')
+focused_monitor=$(omarchy-mango-monitor-focused 2>/dev/null | head -n 1)
 
 { omarchy-brightness-display --monitor "$focused_monitor" 2>/dev/null; echo; } | head -n 1
 
-printf '%s\n' "$monitors_json" | jq -r '
+# mango has no output mirroring: omarchy-mango-monitor-internal-mirror runs
+# wl-mirror onto the first enabled external monitor.
+mirror_pid_file="${XDG_RUNTIME_DIR:-/tmp}/omarchy-monitor-mirror.pid"
+mirror_target=""
+if [[ -f $mirror_pid_file ]] && kill -0 "$(<"$mirror_pid_file")" 2>/dev/null; then
+  mirror_target=external
+fi
+
+printf '%s\n' "$outputs_json" | jq -r --arg mirror "$mirror_target" '
   def internal: test("^(eDP|LVDS|DSI)-");
   ([.[] | select(.name | internal)][0].name // ""),
   ([.[] | select((.name | internal) | not)][0].name // ""),
-  ([.[] | select((.name | internal) and .disabled != true)][0].name // ""),
-  ([.[] | select(.mirrorOf != "none") | if (.name | internal) then .mirrorOf else .name end][0] // "")
+  ([.[] | select((.name | internal) and .enabled == true)][0].name // ""),
+  (if $mirror == "" then "" else ([.[] | select(((.name | internal) | not) and .enabled == true)][0].name // "") end)
 '
 
 printf '%s\n' "$focused_monitor"
-omarchy-hyprland-monitor-scaling 2>/dev/null || echo
+omarchy-mango-monitor-scaling 2>/dev/null || echo
 
-printf '%s\n' "$monitors_json" | jq -c \
-  '[.[] | {name, enabled:(.disabled != true), focused:(.focused == true), width, height}]'
+printf '%s\n' "$outputs_json" | jq -c --arg focused "$focused_monitor" '
+  [.[] | . as $o | ([.modes[]? | select(.current == true)][0] // {}) as $mode | {
+    name,
+    enabled: (.enabled == true),
+    focused: (.name == $focused),
+    width: ($mode.width // 0),
+    height: ($mode.height // 0)
+  }]'

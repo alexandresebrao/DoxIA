@@ -300,12 +300,12 @@ Panel {
     if (!name) return
     if (enabled && root.enabledDisplayCount <= 1) return
 
-    actionProc.command = ["hyprctl", "keyword", "monitor", name + (enabled ? ",disable" : ",preferred,auto,auto")]
+    actionProc.command = ["mmsg", "dispatch", (enabled ? "disable_monitor," : "enable_monitor,") + name]
     if (!actionProc.running) actionProc.running = true
   }
 
   function setScale(scale) {
-    actionProc.command = ["bash", "-c", "omarchy-hyprland-monitor-scaling " + scale]
+    actionProc.command = ["bash", "-c", "omarchy-mango-monitor-scaling " + scale]
     if (!actionProc.running) actionProc.running = true
   }
 
