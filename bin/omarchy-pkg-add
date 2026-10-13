@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Install Arch packages if they are missing
+# omarchy:summary=Install packages if they are missing
 # omarchy:args=<packages...>
 # omarchy:examples=omarchy pkg add jq ripgrep
 # omarchy:requires-sudo=true
