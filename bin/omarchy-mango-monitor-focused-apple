@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# omarchy:summary=Return success if the focused or named mango monitor is an Apple display.
+# omarchy:args=[monitor]
+
+monitor="${1:-$(omarchy-mango-monitor-focused 2>/dev/null)}"
+[[ -n $monitor ]] || exit 1
+
+wlr-randr --json 2>/dev/null | jq -e --arg monitor "$monitor" '
+  .[]
+  | select(.name == $monitor)
+  | select(.make == "Apple Computer Inc" and ((.model // "") | test("StudioDisplay|ProDisplayXDR|Studio XDR")))
+' >/dev/null

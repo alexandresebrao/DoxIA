@@ -29,14 +29,14 @@ backlight_brightness() {
   brightnessctl -d "$1" -m 2>/dev/null | awk -F, '{ gsub("%", "", $4); print $4; found=1 } END{ exit !found }'
 }
 
-[[ -n $monitor ]] || monitor="$(omarchy-hyprland-monitor-focused 2>/dev/null || true)"
+[[ -n $monitor ]] || monitor="$(omarchy-mango-monitor-focused 2>/dev/null || true)"
 
 monitor_is_internal() {
   [[ $monitor =~ ^(eDP|LVDS|DSI)- ]]
 }
 
 use_apple_display() {
-  omarchy-hyprland-monitor-focused-apple "$monitor"
+  omarchy-mango-monitor-focused-apple "$monitor"
 }
 
 use_ddc_display() {
@@ -59,15 +59,30 @@ fi
 
 step="$1"
 
+# DPMS: mango's sleep_monitor powers one output down without changing the
+# layout. The outputs put to sleep are kept in a runtime file so "on" wakes only
+# those, never a display a monitor rule turned off (clamshell, laptop display
+# off by hand).
+DPMS_FILE="${XDG_RUNTIME_DIR:-/tmp}/omarchy-dpms-off"
+
 if [[ $step == "off" ]]; then
-  hyprctl dispatch 'hl.dsp.dpms({ action = "disable" })' >/dev/null 2>&1
+  outputs=$(wlr-randr --json 2>/dev/null | jq -r '.[] | select(.enabled == true) | .name')
+  [[ -n $outputs ]] || exit 0
+  printf '%s\n' "$outputs" >>"$DPMS_FILE"
+  while read -r output; do
+    mmsg dispatch "sleep_monitor,^${output}\$" >/dev/null 2>&1
+  done <<<"$outputs"
   exit 0
 elif [[ $step == "on" ]]; then
-  # Skip the dispatch when every active display is already lit: a redundant
-  # DPMS enable right after system resume forces another modeset, which blanks
-  # the panel for a beat (visible flash at the unlock screen).
-  hyprctl monitors -j 2>/dev/null | jq -e '[.[] | select(.disabled == false)] | length > 0 and all(.dpmsStatus)' >/dev/null 2>&1 && exit 0
-  hyprctl dispatch 'hl.dsp.dpms({ action = "enable" })' >/dev/null 2>&1
+  # Skip when nothing was put to sleep: a redundant wake right after system
+  # resume forces another modeset, which blanks the panel for a beat (visible
+  # flash at the unlock screen).
+  [[ -f $DPMS_FILE ]] || exit 0
+  sort -u "$DPMS_FILE" | while read -r output; do
+    [[ $output =~ ^[A-Za-z0-9._-]+$ ]] || continue
+    mmsg dispatch "wakeup_monitor,^${output}\$" >/dev/null 2>&1
+  done
+  rm -f "$DPMS_FILE"
   exit 0
 fi
 
