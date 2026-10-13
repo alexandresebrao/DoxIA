@@ -43,4 +43,4 @@ unless `--no-preview` is passed.
 
 The ISO harness exercises compositor-level shortcuts with QMP virtual keyboard
 input. In-guest `wtype` is suitable for typing into focused controls, but it
-does not reliably prove that a global Hyprland keybinding works.
+does not reliably prove that a global mango keybinding works.

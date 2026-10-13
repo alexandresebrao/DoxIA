@@ -39,7 +39,7 @@ built-in template, the built-in output is skipped.
 
 After activation, `omarchy-theme-set` fires the `theme-set` hook
 (`~/.config/omarchy/hooks/theme-set*`, theme name in `$1`) and dispatches a
-parallel retint of running apps — terminals, Hyprland, btop, browser, editors,
+parallel retint of running apps — terminals, mango, btop, browser, editors,
 and the rest of the `post_theme_commands` list in `bin/omarchy-theme-set`.
 Making a new app follow theme changes means adding its restart/retint command
 to that list. Runs serialize on a `flock`, so scripted theme changes queue
@@ -156,7 +156,8 @@ percentage:
 
 ### Gradient helpers
 
-Some theme keys can be either a solid color or a Hyprland-style gradient:
+Some theme keys can be either a solid color or a gradient (the `hyprland_`
+prefix is historical; the keys keep it so existing themes need no change):
 
 ```toml
 hyprland_active_border = "rgba(33ccffee) rgba(00ff99ee) 45deg"
@@ -166,7 +167,7 @@ Gradient helper placeholders understand those values:
 
 | Helper | Use | Example output |
 |--------|-----|----------------|
-| `{{ hypr_gradient hyprland_active_border accent }}` | Hyprland Lua config | `{ colors = { "rgba(33ccffee)", "rgba(00ff99ee)" }, angle = 45 }` |
+| `{{ mango_color hyprland_active_border accent }}` | mango colors (first stop) | `0x33ccffee` |
 | `{{ shell_gradient hyprland_active_border accent }}` | shell border tokens | `rgba(33ccffee) rgba(00ff99ee) 45deg` |
 | `{{ gradient_start hyprland_active_border accent }}` | flat-color-only consumers | `#33ccff` |
 

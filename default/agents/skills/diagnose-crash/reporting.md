@@ -12,7 +12,7 @@ Omarchy's sphere of control is roughly:
 
 - the `omarchy-*` commands
 - the Quickshell shell and its plugins
-- the Hyprland and terminal configuration it ships
+- the mango and terminal configuration it ships
 - its themes
 - its install and migration scripts
 - how it packages and configures what it installs
