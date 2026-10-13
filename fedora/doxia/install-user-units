@@ -6,8 +6,9 @@
 # them in /usr/lib/systemd/user; here they point at the checkout's bin/ and
 # migrations/, like omarchy-sleep-lock in install-user.sh.
 # Enabled through the .wants symlinks, as the installer has no user manager to ask.
-# The agent and the notifiers run only in Hyprland: KDE has its own agent, and
-# the notifications need the DoxIA shell.
+# The agent and the notifiers run only in mango (XDG_CURRENT_DESKTOP from
+# default/mango/envs.conf): KDE has its own agent, and the notifications need
+# the DoxIA shell.
 # Run as the user by install-user.sh and fedora/update.sh.
 
 set -euo pipefail
@@ -21,12 +22,12 @@ omarchy_path=${OMARCHY_PATH:-$HOME/.local/share/omarchy}
 units=$HOME/.config/systemd/user
 
 for unit in bt-agent omarchy-crash-watch omarchy-migrate-notify omarchy-recover-internal-monitor; do
-  hyprland_only=()
+  mango_only=()
   [[ $unit == "omarchy-recover-internal-monitor" ]] ||
-    hyprland_only=(-e '/^\[Unit\]/a ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland')
+    mango_only=(-e '/^\[Unit\]/a ConditionEnvironment=XDG_CURRENT_DESKTOP=mango:wlroots')
   mkdir -p "$units"
   sed -e "s|/usr/bin/omarchy-|$omarchy_path/bin/omarchy-|g" \
-    -e "s|/usr/share/omarchy/migrations|$omarchy_path/migrations|g" "${hyprland_only[@]}" \
+    -e "s|/usr/share/omarchy/migrations|$omarchy_path/migrations|g" "${mango_only[@]}" \
     "$omarchy_path/default/systemd/user/$unit.service" > "$units/$unit.service"
 
   target=$(sed -n 's/^WantedBy=//p' "$units/$unit.service")
