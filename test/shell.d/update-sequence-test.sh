@@ -30,26 +30,42 @@ steps=(
   omarchy-update-analyze-logs
   omarchy-update-status
   omarchy-update-restart
+  omarchy-update-check
 )
 
 for step in "${steps[@]}"; do
   cat >"$stub_bin/$step" <<'STUB'
 #!/bin/bash
+# The package count and pending migrations are queries for the summary, not steps.
+[[ ${0##*/} == "omarchy-update-check" || ${1:-} == "--pending" ]] && exit 0
 printf '%s unattended=%s\n' "${0##*/}" "${OMARCHY_UPDATE_UNATTENDED:-}" >>"$STEP_LOG"
 [[ ${FAILING_STEP:-} != "${0##*/}" ]] || exit 1
 STUB
   chmod +x "$stub_bin/$step"
 done
 
+# The password is asked once up front and kept fresh while the update runs. The
+# update snapshots only where Snapper is installed, and omarchy-snapshot is the
+# stub above, so this one only has to be found.
+for command in sudo snapper; do
+  printf '#!/bin/bash\nexit 0\n' >"$stub_bin/$command"
+  chmod +x "$stub_bin/$command"
+done
+
 # OMARCHY_UPDATE_LOGGED stands in for the script(1) wrapper the update re-execs
-# itself under; the stubbed lock reports itself already held.
+# itself under; the stubbed lock reports itself already held. --now installs the
+# packages in this run: --boot stages them for dnf's offline update and reads
+# its state from the live system. XDG_CONFIG_HOME keeps the person's own update
+# preferences out of it.
 run_update() {
   : >"$test_tmp/steps"
   STEP_LOG="$test_tmp/steps" \
     FAILING_STEP="${FAILING_STEP:-}" \
     OMARCHY_UPDATE_LOGGED=1 \
+    OMARCHY_PATH="$test_tmp/omarchy" \
+    XDG_CONFIG_HOME="$test_tmp/config" \
     PATH="$stub_bin:$PATH" \
-    bash "$ROOT/bin/omarchy-update" "$@" >"$test_tmp/out" 2>"$test_tmp/err"
+    bash "$ROOT/bin/omarchy-update" --now "$@" >"$test_tmp/out" 2>"$test_tmp/err"
 }
 
 steps_run() {
