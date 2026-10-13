@@ -164,6 +164,11 @@ Item {
     resetAuthenticationState()
     idleBlankTimer.stop()
     sessionLock.locked = false
+    // `locked` can stay true after this (sessionLock.secure going back to
+    // false is not always notified), and then onLockedChanged never removes
+    // the marker: omarchy-restart-shell would take every later restart for an
+    // orphaned lock and lock the session again. Drop it here as well.
+    Quickshell.execDetached(["rm", "-f", Quickshell.env("XDG_RUNTIME_DIR") + "/omarchy-session-locked"])
     logEvent("unlocked")
     runWake()
   }
