@@ -49,9 +49,16 @@ if ! compgen -G "/dev/dri/renderD*" >/dev/null; then
   export WLR_RENDERER_ALLOW_SOFTWARE=1
 fi
 
-# hyperv_drm has no cursor plane, so the hardware cursor is invisible.
-if [[ $(systemd-detect-virt 2>/dev/null) == "microsoft" ]]; then
+virt=$(systemd-detect-virt 2>/dev/null)
+
+# hyperv_drm has no cursor plane, and vmwgfx rejects the GEM handles of the
+# cursor framebuffers (drmCloseBufferHandle EINVAL), so in both the hardware
+# cursor is invisible: draw it in software.
+if [[ $virt == "microsoft" || $virt == "vmware" ]]; then
   export WLR_NO_HARDWARE_CURSORS=1
+fi
+
+if [[ $virt == "microsoft" ]]; then
   # Partial redraws leave stale squares flickering on hyperv_drm's dumb
   # buffers, so repaint the whole output every frame.
   export WLR_SCENE_DEBUG_DAMAGE=rerender
