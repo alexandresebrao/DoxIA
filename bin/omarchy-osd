@@ -37,10 +37,6 @@ payload=$(jq -cn \
   --arg duration "$duration" \
   '{icon:$icon,message:$message,value:$value,progressText:$progressText,max:$max,duration:$duration}')
 
-# doxia-shell (fedora/doxia/rs/shell) draws it when running; Quickshell's OSD
+# doxia-shell draws it when running (omarchy-shell asks it first), Quickshell
 # otherwise.
-if busctl --user call org.doxia.Shell /org/doxia/Shell org.gtk.Actions Activate \
-  'sava{sv}' osd 1 s "$payload" 0 &>/dev/null; then
-  exit 0
-fi
 omarchy-shell -q osd show "$payload"

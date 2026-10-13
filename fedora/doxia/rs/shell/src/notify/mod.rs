@@ -1,0 +1,557 @@
+// The notification server (org.freedesktop.Notifications) and its popups,
+// replacing shell/plugins/notifications. Same rules: lifetimes by urgency,
+// hover pauses the countdown, do-not-disturb with its bypasses, replaces_id
+// updates in place, popups survive restarts and the last ten that left the
+// screen are the history. Same IPC (`omarchy-shell notifications <method>`).
+//
+// The bus name has one owner. doxia-shell queues for it and turns Quickshell's
+// service off in shell.json (quickshell::release_notifications); the name
+// comes here once Quickshell restarts without it. Until then the IPC target
+// answers "Target not found." and omarchy-shell keeps talking to Quickshell.
+
+mod card;
+pub mod markup;
+pub mod model;
+mod quickshell;
+mod store;
+
+use gtk::prelude::*;
+use gtk::{gdk, gio, glib};
+use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+use model::{CRITICAL, Entry, LOW, NORMAL};
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::time::Duration;
+use store::Store;
+
+const PATH: &str = "/org/freedesktop/Notifications";
+const IFACE: &str = "org.freedesktop.Notifications";
+const TICK_MS: i64 = 100;
+
+const XML: &str = r#"<node>
+  <interface name="org.freedesktop.Notifications">
+    <method name="GetCapabilities"><arg type="as" direction="out"/></method>
+    <method name="Notify">
+      <arg name="app_name" type="s" direction="in"/>
+      <arg name="replaces_id" type="u" direction="in"/>
+      <arg name="app_icon" type="s" direction="in"/>
+      <arg name="summary" type="s" direction="in"/>
+      <arg name="body" type="s" direction="in"/>
+      <arg name="actions" type="as" direction="in"/>
+      <arg name="hints" type="a{sv}" direction="in"/>
+      <arg name="expire_timeout" type="i" direction="in"/>
+      <arg name="id" type="u" direction="out"/>
+    </method>
+    <method name="CloseNotification"><arg name="id" type="u" direction="in"/></method>
+    <method name="GetServerInformation">
+      <arg name="name" type="s" direction="out"/>
+      <arg name="vendor" type="s" direction="out"/>
+      <arg name="version" type="s" direction="out"/>
+      <arg name="spec_version" type="s" direction="out"/>
+    </method>
+    <signal name="NotificationClosed"><arg name="id" type="u"/><arg name="reason" type="u"/></signal>
+    <signal name="ActionInvoked"><arg name="id" type="u"/><arg name="action_key" type="s"/></signal>
+  </interface>
+</node>"#;
+
+// NotificationClosed reasons.
+const EXPIRED: u32 = 1;
+const DISMISSED: u32 = 2;
+const CLOSED: u32 = 3;
+
+struct Popup {
+  entry: Entry,
+  // From a previous server generation (a restart) or a history replay: its
+  // id may now belong to a fresh notification, so it never matches one.
+  restored: bool,
+  // Whether a file under notifications/ mirrors it (replays have none).
+  has_file: bool,
+  has_default_action: bool,
+  lifetime: u64,
+  remaining: i64,
+  hovered: bool,
+  card: gtk::Box,
+}
+
+pub struct Notifications {
+  store: Store,
+  dnd: Cell<bool>,
+  owns_name: Cell<bool>,
+  next_id: Cell<u32>,
+  popups: RefCell<Vec<Popup>>,
+  conn: RefCell<Option<gio::DBusConnection>>,
+  window: gtk::Window,
+  column: gtk::Box,
+}
+
+fn now_ms() -> i64 {
+  glib::real_time() / 1000
+}
+
+impl Notifications {
+  pub fn new(app: &gtk::Application) -> Rc<Notifications> {
+    let window = gtk::Window::builder().application(app).decorated(false).resizable(false).build();
+    window.add_css_class("doxia");
+    window.add_css_class("notif-window");
+    window.init_layer_shell();
+    window.set_namespace(Some("omarchy-notifications"));
+    window.set_layer(Layer::Overlay);
+    window.set_keyboard_mode(KeyboardMode::None);
+    window.set_exclusive_zone(-1);
+    window.set_anchor(Edge::Top, true);
+    window.set_anchor(Edge::Right, true);
+    let column = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    column.set_halign(gtk::Align::End);
+    window.set_child(Some(&column));
+
+    let store = Store::new();
+    let me = Rc::new(Notifications {
+      dnd: Cell::new(store.load_dnd()),
+      store,
+      owns_name: Cell::new(false),
+      next_id: Cell::new(1),
+      popups: RefCell::default(),
+      conn: RefCell::default(),
+      window,
+      column,
+    });
+    me.place();
+
+    let weak = Rc::downgrade(&me);
+    glib::timeout_add_local(Duration::from_millis(TICK_MS as u64), move || {
+      let Some(me) = weak.upgrade() else { return glib::ControlFlow::Break };
+      me.tick();
+      glib::ControlFlow::Continue
+    });
+
+    me.restore();
+    me.store.sweep_images();
+    me
+  }
+
+  // Top-right, clear of the bar when it sits on the top or right edge.
+  pub fn place(&self) {
+    let p = doxia_theme::placement();
+    self.window.set_margin(Edge::Top, if p.bar_edge == "top" { p.clearance } else { p.gap });
+    self.window.set_margin(Edge::Right, if p.bar_edge == "right" { p.clearance } else { p.gap });
+  }
+
+  // ---- D-Bus ----------------------------------------------------------------
+
+  pub fn register(self: &Rc<Self>, conn: &gio::DBusConnection) {
+    *self.conn.borrow_mut() = Some(conn.clone());
+    let info = gio::DBusNodeInfo::for_xml(XML).expect("notifications xml");
+    let iface = info.lookup_interface(IFACE).expect("notifications interface");
+    let me = self.clone();
+    let registered = conn
+      .register_object(PATH, &iface)
+      .method_call(move |_conn, _sender, _path, _iface, method, params, invocation| {
+        let reply: Option<glib::Variant> = match method {
+          "GetCapabilities" => Some(
+            (vec!["actions", "body", "body-markup", "body-hyperlinks", "icon-static", "persistence"],).to_variant(),
+          ),
+          "GetServerInformation" => Some(("doxia-shell", "DoxIA", env!("CARGO_PKG_VERSION"), "1.2").to_variant()),
+          "Notify" => me.on_notify(&params).map(|id| (id,).to_variant()),
+          "CloseNotification" => {
+            if let Some((id,)) = params.get::<(u32,)>() {
+              me.close_by_id(id);
+            }
+            Some(().to_variant())
+          }
+          _ => None,
+        };
+        match reply {
+          Some(v) => invocation.return_value(Some(&v)),
+          None => invocation.return_dbus_error("org.freedesktop.DBus.Error.InvalidArgs", method),
+        }
+      })
+      .build();
+    if let Err(e) = registered {
+      glib::g_warning!("doxia-shell", "notifications object not registered: {e}");
+      return;
+    }
+
+    // Queued (no DO_NOT_QUEUE): while Quickshell holds the name we wait in
+    // line, and get it the moment its service is turned off.
+    let acquired = self.clone();
+    let lost = self.clone();
+    let id = gio::bus_own_name_on_connection(
+      conn,
+      IFACE,
+      gio::BusNameOwnerFlags::NONE,
+      move |_, _| acquired.owns_name.set(true),
+      move |_, _| lost.owns_name.set(false),
+    );
+    std::mem::forget(id);
+    // A running Quickshell keeps the name until it restarts: at the next
+    // login, or the restart at the end of every update. Never restart it from
+    // here: omarchy-restart-shell may lock the session again.
+    quickshell::release_notifications();
+  }
+
+  fn emit(&self, signal: &str, args: glib::Variant) {
+    if let Some(conn) = self.conn.borrow().as_ref() {
+      let _ = conn.emit_signal(None, PATH, IFACE, signal, Some(&args));
+    }
+  }
+
+  fn on_notify(self: &Rc<Self>, params: &glib::Variant) -> Option<u32> {
+    let (app, replaces, app_icon, summary, body, actions, hints, timeout) =
+      params.get::<(String, u32, String, String, String, Vec<String>, HashMap<String, glib::Variant>, i32)>()?;
+    let hint_str = |k: &str| hints.get(k).and_then(|v| v.str().map(String::from)).unwrap_or_default();
+    let urgency = hints.get("urgency").and_then(|v| v.get::<u8>()).map(|u| u.min(CRITICAL)).unwrap_or(NORMAL);
+    let transient = hints.get("transient").and_then(|v| v.get::<bool>()).unwrap_or(false);
+    let has_default_action = actions.chunks(2).any(|pair| pair[0] == "default");
+
+    // A replaces_id that names a live (not restored) popup keeps its identity.
+    let replacing = replaces > 0
+      && self.popups.borrow().iter().any(|p| p.entry.original_id == replaces && !p.restored);
+    let id = if replacing {
+      replaces
+    } else {
+      let id = self.next_id.get();
+      self.next_id.set(id.wrapping_add(1).max(1));
+      id
+    };
+    let timestamp = if replacing {
+      self.popups.borrow().iter().find(|p| p.entry.original_id == id && !p.restored).map(|p| p.entry.timestamp).unwrap()
+    } else {
+      now_ms()
+    };
+
+    let mut entry = Entry {
+      id,
+      original_id: id,
+      app,
+      app_icon,
+      summary,
+      body,
+      image: String::new(),
+      glyph: hint_str("omarchy-glyph"),
+      exec_argv: hint_str("omarchy-exec-argv"),
+      urgency,
+      expire_timeout: timeout.max(0) as f64,
+      timestamp,
+      deadline: None,
+    };
+    entry.image = self.image_from_hints(&hints, &entry);
+
+    if self.dnd.get() && !model::bypasses_dnd(&entry.app, urgency) {
+      // Never on screen, so history is the only trace it can leave.
+      if !transient && !model::is_ephemeral_app(&entry.app) {
+        self.store.write_history(&entry);
+      }
+      self.emit("NotificationClosed", (id, DISMISSED).to_variant());
+      return Some(id);
+    }
+
+    let lifetime = model::duration_for(urgency, entry.expire_timeout);
+    let persisted = self.store.write_popup(&entry);
+    if replacing {
+      let mut popups = self.popups.borrow_mut();
+      if let Some(p) = popups.iter_mut().find(|p| p.entry.original_id == id && !p.restored) {
+        if !p.entry.same_content(&persisted) {
+          // New text deserves a full look.
+          p.remaining = lifetime as i64;
+        }
+        p.lifetime = lifetime;
+        p.entry = persisted;
+        p.has_default_action = has_default_action;
+        let new_card = self.card_for(&p.entry);
+        self.column.insert_child_after(&new_card, Some(&p.card));
+        self.column.remove(&p.card);
+        p.card = new_card;
+      }
+    } else {
+      self.insert(0, persisted, false, true, has_default_action);
+    }
+    Some(id)
+  }
+
+  // image-data / image-path / icon_data hints: in-memory pixels are saved as
+  // a PNG under the entry's image name, which is also the persisted copy.
+  fn image_from_hints(&self, hints: &HashMap<String, glib::Variant>, entry: &Entry) -> String {
+    for key in ["image-path", "image_path"] {
+      if let Some(path) = hints.get(key).and_then(|v| v.str().map(String::from)).filter(|p| !p.is_empty()) {
+        return path;
+      }
+    }
+    for key in ["image-data", "image_data", "icon_data"] {
+      let Some(v) = hints.get(key) else { continue };
+      let Some((w, h, stride, alpha, _bits, channels, data)) = v.get::<(i32, i32, i32, bool, i32, i32, Vec<u8>)>() else {
+        continue;
+      };
+      if w <= 0 || h <= 0 || stride <= 0 || data.len() < (stride * (h - 1) + w * channels) as usize {
+        continue;
+      }
+      let format = if alpha { gdk::MemoryFormat::R8g8b8a8 } else { gdk::MemoryFormat::R8g8b8 };
+      let texture = gdk::MemoryTexture::new(w, h, format, &glib::Bytes::from_owned(data), stride as usize);
+      let path = self.store.images_dir().join(format!("{}-image", entry.stem()));
+      if texture.save_to_png(&path).is_ok() {
+        return format!("file://{}", path.display());
+      }
+    }
+    String::new()
+  }
+
+  // ---- popups ---------------------------------------------------------------
+
+  fn insert(self: &Rc<Self>, at: usize, entry: Entry, restored: bool, has_file: bool, has_default_action: bool) {
+    let lifetime = model::duration_for(entry.urgency, entry.expire_timeout);
+    let card = self.card_for(&entry);
+    {
+      let popups = self.popups.borrow();
+      match at.checked_sub(1).and_then(|i| popups.get(i)) {
+        Some(before) => self.column.insert_child_after(&card, Some(&before.card)),
+        None => self.column.prepend(&card),
+      }
+    }
+    let popup = Popup { entry, restored, has_file, has_default_action, lifetime, remaining: lifetime as i64, hovered: false, card };
+    let mut popups = self.popups.borrow_mut();
+    let at = at.min(popups.len());
+    popups.insert(at, popup);
+    drop(popups);
+    self.window.set_visible(true);
+  }
+
+  fn card_for(self: &Rc<Self>, entry: &Entry) -> gtk::Box {
+    let card = card::build(entry);
+    let stamp = (entry.timestamp, entry.original_id);
+    let weak = Rc::downgrade(self);
+    let click = gtk::GestureClick::new();
+    click.set_button(0);
+    click.connect_released(move |g, _, _, _| {
+      let Some(me) = weak.upgrade() else { return };
+      let Some(i) = me.index_of(stamp) else { return };
+      if g.current_button() == gdk::BUTTON_SECONDARY {
+        me.remove(i, DISMISSED);
+      } else {
+        me.invoke(i);
+      }
+    });
+    card.add_controller(click);
+    let motion = gtk::EventControllerMotion::new();
+    for entering in [true, false] {
+      let weak = Rc::downgrade(self);
+      let f = move || {
+        if let Some(me) = weak.upgrade() {
+          if let Some(i) = me.index_of(stamp) {
+            me.popups.borrow_mut()[i].hovered = entering;
+          }
+        }
+      };
+      if entering {
+        motion.connect_enter(move |_, _, _| f());
+      } else {
+        motion.connect_leave(move |_| f());
+      }
+    }
+    card.add_controller(motion);
+    card
+  }
+
+  fn index_of(&self, stamp: (i64, u32)) -> Option<usize> {
+    self.popups.borrow().iter().position(|p| (p.entry.timestamp, p.entry.original_id) == stamp)
+  }
+
+  fn tick(self: &Rc<Self>) {
+    let expired: Vec<usize> = {
+      let mut popups = self.popups.borrow_mut();
+      popups
+        .iter_mut()
+        .enumerate()
+        .filter(|(_, p)| p.lifetime > 0 && !p.hovered)
+        .filter_map(|(i, p)| {
+          p.remaining -= TICK_MS;
+          (p.remaining <= 0).then_some(i)
+        })
+        .collect()
+    };
+    for i in expired.into_iter().rev() {
+      self.remove(i, EXPIRED);
+    }
+  }
+
+  // Off the screen for any reason: the file becomes history, the sender hears
+  // why (unless the popup belongs to an earlier server).
+  fn remove(&self, i: usize, reason: u32) {
+    let popup = {
+      let mut popups = self.popups.borrow_mut();
+      if i >= popups.len() {
+        return;
+      }
+      popups.remove(i)
+    };
+    self.column.remove(&popup.card);
+    if popup.has_file {
+      self.store.archive(&popup.entry);
+    }
+    if !popup.restored {
+      self.emit("NotificationClosed", (popup.entry.original_id, reason).to_variant());
+    }
+    if self.popups.borrow().is_empty() {
+      self.window.set_visible(false);
+    }
+  }
+
+  fn close_by_id(&self, id: u32) {
+    let i = self.popups.borrow().iter().position(|p| p.entry.original_id == id && !p.restored);
+    if let Some(i) = i {
+      self.remove(i, CLOSED);
+    }
+  }
+
+  // Omarchy's own toasts carry their click as an argv; other senders get
+  // their "default" action, or their window focused.
+  fn invoke(&self, i: usize) {
+    let (entry, restored, has_default) = {
+      let popups = self.popups.borrow();
+      let Some(p) = popups.get(i) else { return };
+      (p.entry.clone(), p.restored, p.has_default_action)
+    };
+    if let Some(argv) = model::parse_exec_argv(&entry.exec_argv) {
+      spawn(&argv);
+    } else if !restored && has_default {
+      self.emit("ActionInvoked", (entry.original_id, "default").to_variant());
+    } else if !entry.app.is_empty() {
+      let focus = format!("{}/bin/omarchy-mango-focus-app", std::env::var("OMARCHY_PATH").unwrap_or_default());
+      spawn(&[focus, entry.app.clone()]);
+    }
+    self.remove(i, DISMISSED);
+  }
+
+  // Popups that were on screen when the previous shell stopped; the expired
+  // ones go to history as if they had expired on screen. Survivors start a
+  // full lifetime again, recorded as a deadline in case of another restart.
+  fn restore(self: &Rc<Self>) {
+    let now = now_ms();
+    for mut entry in self.store.popups() {
+      let duration = model::duration_for(entry.urgency, entry.expire_timeout);
+      if model::popup_expired(&entry, duration, now) {
+        self.store.archive(&entry);
+        continue;
+      }
+      if duration > 0 {
+        entry.deadline = Some(now + duration as i64);
+        self.store.write_popup(&entry);
+      }
+      let at = self.popups.borrow().len();
+      self.insert(at, entry, true, true, false);
+    }
+  }
+
+  // ---- IPC (omarchy-shell notifications <method>) ---------------------------
+
+  fn set_dnd(&self, on: bool) -> String {
+    self.dnd.set(on);
+    self.store.save_dnd(on);
+    self.dnd_state()
+  }
+
+  fn dnd_state(&self) -> String {
+    if self.dnd.get() { "on".into() } else { "off".into() }
+  }
+
+  fn dismiss_all(&self) {
+    while !self.popups.borrow().is_empty() {
+      self.remove(0, DISMISSED);
+    }
+  }
+
+  // The archived files, plus whatever is on screen now, as toasts again.
+  fn show_history(self: &Rc<Self>) {
+    let live: Vec<Entry> =
+      self.popups.borrow().iter().filter(|p| p.entry.original_id > 0).map(|p| self.store.persistable(&p.entry)).collect();
+    self.dismiss_all();
+    let rows = model::history_rows(&self.store.history(), &live, model::HISTORY_LIMIT);
+    if rows.is_empty() {
+      let placeholder = Entry {
+        app: "omarchy-action".into(),
+        summary: "No recent notifications".into(),
+        glyph: "\u{f009a}".into(),
+        urgency: LOW,
+        timestamp: now_ms(),
+        ..Default::default()
+      };
+      self.insert(0, placeholder, true, false, false);
+      return;
+    }
+    for row in rows {
+      let at = self.popups.borrow().len();
+      self.insert(at, row, true, false, false);
+    }
+  }
+
+  pub fn ipc(self: &Rc<Self>, method: &str, args: &[String]) -> Option<String> {
+    // Until the bus name is ours, Quickshell is the server: let it answer.
+    if !self.owns_name.get() {
+      return Some("Target not found.".into());
+    }
+    let arg = args.first().map(String::as_str).unwrap_or("");
+    Some(match method {
+      "ping" => "ok".into(),
+      "dndState" | "isDnd" => self.dnd_state(),
+      "toggleDnd" => self.set_dnd(!self.dnd.get()),
+      "setDnd" => self.set_dnd(matches!(arg.to_lowercase().as_str(), "true" | "1" | "on" | "yes")),
+      "showHistory" => {
+        self.show_history();
+        "ok".into()
+      }
+      "clear" => {
+        self.store.clear_history();
+        "ok".into()
+      }
+      "dismissAll" => {
+        self.dismiss_all();
+        "ok".into()
+      }
+      "dismissOne" => {
+        if self.popups.borrow().is_empty() {
+          return Some("none".into());
+        }
+        self.remove(0, DISMISSED);
+        "ok".into()
+      }
+      "invokeLast" => {
+        if self.popups.borrow().is_empty() {
+          return Some("none".into());
+        }
+        self.invoke(0);
+        "ok".into()
+      }
+      "dismiss" => {
+        if arg.is_empty() {
+          return Some("none".into());
+        }
+        let hits: Vec<usize> = self
+          .popups
+          .borrow()
+          .iter()
+          .enumerate()
+          .filter(|(_, p)| p.entry.summary.contains(arg))
+          .map(|(i, _)| i)
+          .collect();
+        for &i in hits.iter().rev() {
+          self.remove(i, DISMISSED);
+        }
+        if hits.is_empty() { "none".into() } else { "ok".into() }
+      }
+      _ => return None,
+    })
+  }
+}
+
+// Detached, argv as given (no shell).
+fn spawn(argv: &[String]) {
+  use std::os::unix::process::CommandExt;
+  let Some((program, args)) = argv.split_first() else { return };
+  let _ = std::process::Command::new(program)
+    .args(args)
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
+    .process_group(0)
+    .spawn()
+    .map(|mut c| std::thread::spawn(move || c.wait()));
+}

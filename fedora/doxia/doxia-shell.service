@@ -1,0 +1,20 @@
+# The DoxIA shell daemon (fedora/doxia/rs/shell): the OSD and the notification
+# server, so it comes back if it dies. Installed by fedora/doxia/install-user-units,
+# started by mango's autostart once the session environment is imported.
+[Unit]
+Description=DoxIA shell (OSD and notifications)
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+ConditionEnvironment=XDG_CURRENT_DESKTOP=mango:wlroots
+ConditionPathExists=/usr/local/bin/doxia-shell
+
+[Service]
+Type=dbus
+BusName=org.doxia.Shell
+ExecStart=/usr/local/bin/doxia-shell
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=graphical-session.target

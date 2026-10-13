@@ -121,3 +121,14 @@ jq '
   | .plugins = ((.plugins // []) | if any(.[]; .id == "doxia.iniciar") then . else . + [{id: "doxia.iniciar"}] end)
 ' "$shell_json" > "$shell_json.tmp"
 mv "$shell_json.tmp" "$shell_json"
+
+# doxia-shell (fedora/doxia/rs/shell) turns Quickshell's notification service
+# off in shell.json when it takes the notifications over. Without doxia-shell
+# installed, turn it back on, or nothing would show notifications.
+if ! command -v doxia-shell >/dev/null; then
+  jq 'if (.disabledPlugins // [] | index("omarchy.notifications")) == null then .
+      else .disabledPlugins |= map(select(. != "omarchy.notifications"))
+        | if .disabledPlugins == [] then del(.disabledPlugins) else . end end' \
+    "$shell_json" > "$shell_json.tmp"
+  mv "$shell_json.tmp" "$shell_json"
+fi

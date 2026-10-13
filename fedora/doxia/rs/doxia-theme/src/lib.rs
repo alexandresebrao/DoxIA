@@ -243,6 +243,12 @@ pub fn css(app_css: &str) -> String {
   let r = |px: u32| if radius > 0 { format!("{}px", (px as f64 * scale).round()) } else { "0".into() };
 
   let popup_text = shell.get("popups", "text").and_then(css_color).unwrap_or_else(|| p.fg.css());
+  // [notifications]: a translucent card (mango blurs behind it), its text, a
+  // dimmer body and the border.
+  let notif_text_rgb = shell.get("notifications", "text").and_then(|t| Rgb::hex(t)).unwrap_or(p.fg);
+  let notif_bg_rgb = shell.get("notifications", "background").and_then(|t| Rgb::hex(t)).unwrap_or(p.bg);
+  let notif_alpha = shell.num("notifications", "background-alpha").unwrap_or(1.0);
+  let notif_border = border_image(&shell, shell.get("notifications", "border").unwrap_or(""), &p.accent.css(), 0);
   let popup_border = border_image(&shell, shell.get("popups", "border").unwrap_or(""), &p.accent.css(), 0);
 
   let vars = [
@@ -294,6 +300,11 @@ pub fn css(app_css: &str) -> String {
     ("$POPUP_TEXT", popup_text),
     ("$POPUP_TRACK", Rgb::hex(&shell.get("popups", "text").unwrap_or("").replace('#', "")).unwrap_or(p.fg).alpha(0.45)),
     ("$POPUP_BORDER", popup_border),
+    ("$NOTIF_BG", notif_bg_rgb.alpha(notif_alpha)),
+    ("$NOTIF_TEXT", notif_text_rgb.css()),
+    ("$NOTIF_BODY", notif_text_rgb.darker(1.15).css()),
+    ("$NOTIF_DIM", notif_text_rgb.darker(1.4).css()),
+    ("$NOTIF_BORDER", notif_border),
     ("$R_CTRL", if radius > 0 { format!("{radius}px") } else { "0".into() }),
     ("$R_CARD", r(6)),
     ("$R_ICON", r(5)),
@@ -373,4 +384,41 @@ mod tests {
     );
     assert_eq!(border_image(&shell, "#1f7ae0", "#000000", 0), "linear-gradient(#1f7ae0, #1f7ae0)");
   }
+}
+
+// Where shell surfaces sit relative to the bar: its edge (shell.json
+// bar.position), how far a surface must stay from that edge (the bar's size,
+// from shell.toml [bar], plus the gap) and the plain gap elsewhere, which is
+// half of mango's outer gap (Style.qml's gapsOut).
+pub struct Placement {
+  pub bar_edge: String,
+  pub clearance: i32,
+  pub gap: i32,
+}
+
+pub fn placement() -> Placement {
+  let home = std::env::var("HOME").unwrap_or_default();
+  let bar_edge = std::fs::read_to_string(PathBuf::from(&home).join(".config/omarchy/shell.json"))
+    .ok()
+    .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+    .and_then(|v| v["bar"]["position"].as_str().map(String::from))
+    .unwrap_or_else(|| "top".into());
+  let shell = Toml::read(&theme_dir().join("shell.toml"));
+  let vertical = bar_edge == "left" || bar_edge == "right";
+  let base = shell.num("font", "base-size").filter(|n| *n >= 1.0).unwrap_or(12.0);
+  let scale = if shell.get("bar", "scale-with-font") == Some("false") { 1.0 } else { base / 12.0 };
+  let size = if vertical {
+    shell.num("bar", "size-vertical").unwrap_or(28.0)
+  } else {
+    shell.num("bar", "size-horizontal").unwrap_or(26.0)
+  };
+  let gap = Command::new("omarchy-mango-option")
+    .arg("gap_outer_horizontal")
+    .output()
+    .ok()
+    .and_then(|o| String::from_utf8(o.stdout).ok())
+    .and_then(|s| s.trim().parse::<f64>().ok())
+    .map(|g| (g / 2.0).round() as i32)
+    .unwrap_or(5);
+  Placement { bar_edge, clearance: (size * scale).round() as i32 + gap, gap }
 }

@@ -52,6 +52,19 @@ if [[ $1 == "shell" && ( $2 == "summon" || $2 == "toggle" ) ]] && (( $# == 3 ));
   set -- "$1" "$2" "$3" "{}"
 fi
 
+# doxia-shell (fedora/doxia/rs/shell) answers for the targets it has taken over
+# from Quickshell; "Target not found." or no doxia-shell on the bus means the
+# call is Quickshell's. DOXIA_SHELL=0 skips it (the tests' throwaway shells).
+if [[ ${DOXIA_SHELL:-1} != "0" ]]; then
+  doxia=$(busctl --user --timeout=2 --json=short call org.doxia.Shell /org/doxia/Shell/Ipc \
+    org.doxia.Shell Call ssas "$1" "$2" $(( $# - 2 )) "${@:3}" 2>/dev/null | jq -r '.data[0] // empty' 2>/dev/null)
+  if [[ -n $doxia && $doxia != "Target not found." ]]; then
+    [[ $doxia == "Function not found." ]] && fail "$doxia"
+    (( QUIET )) || echo "$doxia"
+    exit 0
+  fi
+fi
+
 # The -- keeps function names that shadow qs subcommands (e.g. show) as
 # positionals. qs reports connection failures with a nonzero exit, but IPC-level
 # failures (unknown target/function, bad arguments) go to stdout with exit 0.

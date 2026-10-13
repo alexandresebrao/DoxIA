@@ -186,6 +186,10 @@ impl Osd {
     }
   }
 
+  pub fn state(&self) -> &'static str {
+    if self.window.is_visible() { "open" } else { "closed" }
+  }
+
   pub fn hide(&self) {
     *self.serial.borrow_mut() += 1;
     self.window.set_visible(false);

@@ -29,3 +29,28 @@ progressbar.osd-bar progress {
   border: none;
   border-radius: 0;
 }
+
+/* Notifications, like components/NotificationCard.qml: [notifications] colors
+   from shell.toml, a 2px border, summary and body in Liberation Sans. */
+window.notif-window { background: transparent; }
+
+.notif-card {
+  border: 2px solid transparent;
+  border-radius: $R_CTRL;
+  background: linear-gradient($NOTIF_BG, $NOTIF_BG) padding-box, $NOTIF_BORDER border-box;
+  color: $NOTIF_TEXT;
+}
+window.doxia .notif-summary {
+  font-family: "Liberation Sans";
+  font-size: $FS_TITLE;
+  font-weight: bold;
+  color: $NOTIF_TEXT;
+}
+window.doxia .notif-body {
+  font-family: "Liberation Sans";
+  font-size: $FS_TITLE;
+  color: $NOTIF_BODY;
+}
+.notif-body link { color: $ACCENT; }
+.notif-glyph { font-size: $FS_DISPLAY_LARGE; color: $NOTIF_TEXT; }
+.notif-glyph-small { font-size: $FS_TITLE; color: $NOTIF_TEXT; }

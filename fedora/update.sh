@@ -328,6 +328,8 @@ bash "$HOME/.config/omarchy/hooks/theme-set.d/edge"
 echo "==> DoxIA apps in Rust + GTK 4 (sudo)"
 # Their own processes, so this script reloading the shell no longer closes them.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-rs" || echo "  Not installed; the shell stands in."
+# A running doxia-shell picks up the new binary (its popups survive the restart).
+systemctl --user try-restart doxia-shell.service 2>/dev/null || true
 
 echo "==> Runtime packages installs before this one missed (sudo)"
 # perl-JSON-PP: the clipboard history capture and omarchy-menu-select/-input.

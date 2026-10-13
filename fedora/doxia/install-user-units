@@ -2,7 +2,7 @@
 
 # Installs the Omarchy user units DoxIA uses in ~/.config/systemd/user and enables
 # them: the Bluetooth pairing agent, the crash notifier, the pending migrations
-# notifier and the internal monitor recovery. On Arch the omarchy package ships
+# notifier, the internal monitor recovery and the DoxIA shell daemon. On Arch the omarchy package ships
 # them in /usr/lib/systemd/user; here they point at the checkout's bin/ and
 # migrations/, like omarchy-sleep-lock in install-user.sh.
 # Enabled through the .wants symlinks, as the installer has no user manager to ask.
@@ -35,10 +35,15 @@ for unit in bt-agent omarchy-crash-watch omarchy-migrate-notify omarchy-recover-
   ln -sfn "../$unit.service" "$units/$target.wants/$unit.service"
 done
 
+# doxia-shell's unit is DoxIA's own (not a checkout path to rewrite).
+install -m644 "$omarchy_path/fedora/doxia/doxia-shell.service" "$units/doxia-shell.service"
+mkdir -p "$units/graphical-session.target.wants"
+ln -sfn ../doxia-shell.service "$units/graphical-session.target.wants/doxia-shell.service"
+
 # On Atualizar the session is up: start what the next login would.
 if [[ -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
   systemctl --user daemon-reload
   if systemctl --user is-active --quiet graphical-session.target; then
-    systemctl --user start bt-agent.service omarchy-crash-watch.service
+    systemctl --user start bt-agent.service omarchy-crash-watch.service doxia-shell.service
   fi
 fi

@@ -9,7 +9,7 @@ falls back to the shell piece while the app is not installed.
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
-| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD so far |
+| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD and the notifications so far |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -44,18 +44,35 @@ and runs itself otherwise (`DOXIA_PAINEL_PY=1` forces it). HTTP goes through
 ## doxia-shell
 
 The long-running half: a GTK application that owns `org.doxia.Shell` on the
-session bus, started by mango's autostart (`default/mango/autostart.conf`)
-when installed. Each surface is a GApplication action, so scripts call it
-with busctl and fall back to Quickshell when it is not running:
+session bus, run by the user unit `fedora/doxia/doxia-shell.service`
+(installed by `install-user-units`, started by mango's autostart, restarted
+if it dies). It answers the Quickshell IPC calls for the targets it has taken
+over, through `org.doxia.Shell.Call(target, method, args)` at
+`/org/doxia/Shell/Ipc`. `bin/omarchy-shell` asks it first and goes on to
+Quickshell on "Target not found." or when it is not running, so callers and
+key bindings stay as they are; `DOXIA_SHELL=0` skips it (the tests set it).
 
 ```bash
-busctl --user call org.doxia.Shell /org/doxia/Shell org.gtk.Actions \
-  Activate 'sava{sv}' osd 1 s '{"icon":"volume","value":"40"}' 0
+busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
+  Call ssas notifications toggleDnd 0
 ```
 
-- `osd`: the omarchy-osd payload (`bin/omarchy-osd`), drawn like
-  `shell/plugins/osd` on an overlay layer surface (namespace `omarchy-osd`, no
-  keyboard, clicks pass through). `osd-close` hides it.
+- `osd`: `show <json>` (the omarchy-osd payload), `close`, `state`, `ping`.
+  Drawn like `shell/plugins/osd` on an overlay layer surface (namespace
+  `omarchy-osd`, no keyboard, clicks pass through).
+- `notifications`: the `org.freedesktop.Notifications` server and its popups,
+  with the IPC of `shell/plugins/notifications` (`dndState`, `toggleDnd`,
+  `setDnd`, `showHistory`, `clear`, `dismissAll`, `dismissOne`, `invokeLast`,
+  `dismiss <summary>`, `ping`). Same lifetimes, do-not-disturb bypasses,
+  replaces_id updates and files under `~/.local/state/omarchy/notifications`
+  (popups survive a restart, the last ten are the history), so history carries
+  over between the two servers. The bus name has one owner: doxia-shell adds
+  `omarchy.notifications` to `disabledPlugins` in `shell.json` and waits in
+  line for the name, which it gets when Quickshell next restarts (the next
+  login, or the end of an update). It never restarts Quickshell itself:
+  `omarchy-restart-shell` can lock the session again. `apply-bar` takes the
+  entry back out where doxia-shell is not installed. The bar's DND indicator
+  reads `notifications.json`, which both servers keep.
 
 ## Font
 

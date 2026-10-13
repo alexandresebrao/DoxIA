@@ -9,6 +9,9 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 SHELL_TEST_DIR="$ROOT/test/shell.d"
 
 export ROOT
+# Throwaway test shells must not reach the session's doxia-shell through
+# omarchy-shell (an OSD on the real screen, a real notification dismissed).
+export DOXIA_SHELL=0
 
 pass() {
   printf 'ok - %s\n' "$1"
