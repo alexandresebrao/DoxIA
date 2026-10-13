@@ -23,34 +23,28 @@
 FULLSCREEN_MARKER="${XDG_RUNTIME_DIR:-/tmp}/omarchy-capture-region-fullscreen"
 WINDOW_MARKER="${XDG_RUNTIME_DIR:-/tmp}/omarchy-capture-region-window"
 
-# accounting for portrait/transformed displays
-JQ_MONITOR_GEO='
-  def format_geo:
-    .x as $x | .y as $y |
-    (.width / .scale | floor) as $w |
-    (.height / .scale | floor) as $h |
-    .transform as $t |
-    if $t == 1 or $t == 3 then
-      "\($x),\($y) \($h)x\($w)"
-    else
-      "\($x),\($y) \($w)x\($h)"
-    end;
-'
+# mango reports monitors and windows in layout coordinates, already scaled
+# and rotated, which is the space slurp works in.
+JQ_GEO='def format_geo: "\(.x),\(.y) \(.width)x\(.height)";'
 
-active_workspace() {
-  hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .activeWorkspace.id'
+focused_monitor() {
+  mmsg get all-monitors | jq -c 'first(.monitors[] | select(.active == true))'
 }
 
-# Hidden group members and windows stacked at identical geometry collapse to
-# one rectangle: slurp cannot tell them apart, and duplicates would stall the
-# Tab cycle on the first copy.
+# Windows stacked at identical geometry collapse to one rectangle: slurp cannot
+# tell them apart, and duplicates would stall the Tab cycle on the first copy.
 window_rects() {
-  hyprctl clients -j | jq -r --arg ws "$(active_workspace)" \
-    '[.[] | select(.workspace.id == ($ws | tonumber) and .hidden != true) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"] | unique[]'
+  mmsg get all-clients | jq -r --arg monitor "$(focused_monitor | jq -r '.name')" "${JQ_GEO}"'
+    [.clients[] | select(.monitor == $monitor and .is_visible and (.is_minimized | not)) | format_geo] | unique[]'
 }
 
 monitor_rects() {
-  hyprctl monitors -j | jq -r --arg ws "$(active_workspace)" "${JQ_MONITOR_GEO} .[] | select(.activeWorkspace.id == (\$ws | tonumber)) | format_geo"
+  focused_monitor | jq -r "${JQ_GEO} format_geo"
+}
+
+# The pointer position, truncated to whole layout pixels.
+cursor_pos() {
+  mmsg get cursorpos | jq -r '"\(.x | floor) \(.y | floor)"'
 }
 
 get_rectangles() {
@@ -59,7 +53,7 @@ get_rectangles() {
 }
 
 focused_monitor_geo() {
-  hyprctl monitors -j | jq -r "${JQ_MONITOR_GEO} .[] | select(.focused == true) | format_geo"
+  monitor_rects
 }
 
 # slurp highlights the smallest box containing the point and keeps the first
@@ -120,9 +114,8 @@ warp_point_in() {
 # well as window rects, so a cursor in a gap or over the bar highlights the
 # monitor rather than any window.
 geo_at_cursor() {
-  local pos=$(hyprctl cursorpos)
-  local x=${pos%,*}
-  local y=${pos#*, }
+  local x y
+  read -r x y < <(cursor_pos)
 
   if resolve_rect_at "$x" "$y" < <(window_rects) || resolve_rect_at "$x" "$y" < <(monitor_rects); then
     echo "$RESOLVED_RECT"
@@ -131,9 +124,10 @@ geo_at_cursor() {
   fi
 }
 
-# Keyboard control while slurp is open: binds scoped to slurp's layer
-# surface (default/hypr/bindings/utilities.lua) invoke these modes. The
-# --take-* modes flag the intent with a marker file and dismiss slurp.
+# Keyboard control while slurp is open: pick() switches mango to the
+# "selection" key mode (default/mango/bindings/utilities.conf), whose binds
+# invoke these modes. The --take-* modes flag the intent with a marker file
+# and dismiss slurp.
 if [[ ${1:-} == "--take-fullscreen" ]]; then
   pgrep -x slurp >/dev/null || exit 0
   touch "$FULLSCREEN_MARKER"
@@ -154,9 +148,7 @@ if [[ ${1:-} == "--select-window" ]]; then
   pgrep -x slurp >/dev/null || exit 0
 
   direction=${2:-}
-  pos=$(hyprctl cursorpos)
-  origin_x=${pos%,*}
-  origin_y=${pos#*, }
+  read -r origin_x origin_y < <(cursor_pos)
 
   candidates=$(window_rects)
 
@@ -266,7 +258,9 @@ if [[ ${1:-} == "--select-window" ]]; then
 
   if [[ -n $target && -n ${warp_points[$target]} ]]; then
     read -r target_x target_y <<<"${warp_points[$target]}"
-    hyprctl eval "hl.dispatch(hl.dsp.cursor.move({ x = $target_x, y = $target_y }))" >/dev/null
+    # mango has no cursor warp, so move a virtual pointer by the difference.
+    read -r origin_x origin_y < <(cursor_pos)
+    wlrctl pointer move $((target_x - origin_x)) $((target_y - origin_y)) >/dev/null 2>&1
   fi
   exit 0
 fi
@@ -289,7 +283,9 @@ done
 pick() {
   local selection
   rm -f "$FULLSCREEN_MARKER" "$WINDOW_MARKER"
+  mmsg dispatch setkeymode,selection >/dev/null 2>&1
   selection=$(slurp "$@" 2>/dev/null)
+  mmsg dispatch setkeymode,default >/dev/null 2>&1
 
   if [[ -z $selection && -e $FULLSCREEN_MARKER ]]; then
     rm -f "$FULLSCREEN_MARKER"
@@ -334,7 +330,7 @@ smart | *)
 
   # A bare click (area < 20px^2) snaps to whichever rectangle it landed in,
   # so users don't end up with accidental 2px captures. X and Y can be
-  # negative (Hyprland monitor positions in multi-display layouts).
+  # negative (monitor positions in multi-display layouts).
   if [[ $SELECTION =~ ^(-?[0-9]+),(-?[0-9]+)[[:space:]]([0-9]+)x([0-9]+)$ ]] && ((BASH_REMATCH[3] * BASH_REMATCH[4] < 20)); then
     click_x=${BASH_REMATCH[1]}
     click_y=${BASH_REMATCH[2]}
@@ -360,7 +356,7 @@ esac
 [[ -n $SELECTION ]] || exit 1
 
 if [[ $MATCH_MONITOR == true ]]; then
-  monitor=$(hyprctl monitors -j | jq -r --arg geo "$SELECTION" "${JQ_MONITOR_GEO} .[] | select(format_geo == \$geo) | .name" | head -1)
+  monitor=$(mmsg get all-monitors | jq -r --arg geo "$SELECTION" "${JQ_GEO} .monitors[] | select(format_geo == \$geo) | .name" | head -1)
   if [[ -n $monitor ]]; then
     echo "monitor:$monitor"
     exit 0

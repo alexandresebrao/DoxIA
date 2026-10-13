@@ -15,45 +15,27 @@ usage() {
   exit 1
 }
 
-hypr_dispatch() {
-  local lua="$1"
-  shift
-
-  hyprctl dispatch "$lua" >/dev/null 2>&1 || hyprctl dispatch "$@" >/dev/null
-}
-
 action=${1:-}
 case $action in
 smaller | larger | reset | small | medium | large) ;;
 *) usage ;;
 esac
 
-if ! client=$(hyprctl clients -j 2>/dev/null | jq -cer 'first(.[] | select(.title == "WebcamOverlay")) // empty' 2>/dev/null); then
+if ! client=$(mmsg get all-clients 2>/dev/null | jq -cer 'first(.clients[] | select(.title == "WebcamOverlay")) // empty' 2>/dev/null); then
   exit 0
 fi
 
-read -r address current_width current_height monitor_id < <(
-  jq -r '[.address, .size[0], .size[1], .monitor] | @tsv' <<<"$client"
+read -r client_id current_width current_height monitor_name < <(
+  jq -r '[.id, .width, .height, .monitor] | @tsv' <<<"$client"
 )
 
-[[ -n $address && $current_width =~ ^[0-9]+$ && $current_height =~ ^[0-9]+$ && $monitor_id =~ ^[0-9]+$ ]] || exit 0
+[[ $client_id =~ ^[0-9]+$ && $current_width =~ ^[0-9]+$ && $current_height =~ ^[0-9]+$ && -n $monitor_name ]] || exit 0
 ((current_width > 0 && current_height > 0)) || exit 0
 
-if ! monitor=$(hyprctl monitors -j 2>/dev/null | jq -cer --argjson id "$monitor_id" 'first(.[] | select(.id == $id)) // empty' 2>/dev/null); then
-  exit 0
-fi
-
+# mango reports the monitor's layout box: already scaled and rotated.
 read -r monitor_x monitor_y monitor_width monitor_height < <(
-  jq -r '
-    . as $monitor |
-    (($monitor.transform // 0) % 2 == 1) as $rotated |
-    [
-      .x,
-      .y,
-      (((if $rotated then .height else .width end) / .scale) | floor),
-      (((if $rotated then .width else .height end) / .scale) | floor)
-    ] | @tsv
-  ' <<<"$monitor"
+  mmsg get all-monitors 2>/dev/null |
+    jq -r --arg name "$monitor_name" 'first(.monitors[] | select(.name == $name)) | [.x, .y, .width, .height] | @tsv'
 )
 
 [[ $monitor_x =~ ^-?[0-9]+$ && $monitor_y =~ ^-?[0-9]+$ && $monitor_width =~ ^[0-9]+$ && $monitor_height =~ ^[0-9]+$ ]] || exit 0
@@ -140,10 +122,9 @@ target_y=$((anchor_y + anchor_height - target_height - MARGIN))
 ((target_x < anchor_x + MARGIN)) && target_x=$((anchor_x + MARGIN))
 ((target_y < anchor_y + MARGIN)) && target_y=$((anchor_y + MARGIN))
 
-window="address:$address"
-hypr_dispatch \
-  "hl.dsp.window.resize({ window = \"$window\", x = $target_width, y = $target_height })" \
-  resizewindowpixel "exact $target_width $target_height,$window"
-hypr_dispatch \
-  "hl.dsp.window.move({ window = \"$window\", x = $target_x, y = $target_y })" \
-  movewindowpixel "exact $target_x $target_y,$window"
+# Unsigned numbers are absolute layout coordinates for movewin/resizewin; a
+# leading minus would make them relative, so stay on the positive side.
+((target_x < 0)) && target_x=0
+((target_y < 0)) && target_y=0
+mmsg dispatch "resizewin,$target_width,$target_height" "client,$client_id" >/dev/null
+mmsg dispatch "movewin,$target_x,$target_y" "client,$client_id" >/dev/null

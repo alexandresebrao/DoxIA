@@ -96,7 +96,7 @@ start_webcam_overlay() {
   # second was partly guessing at, so the remainder is trimmed to hold the
   # pre-capture delay where it was: starting later costs the first words spoken.
   local waited=0
-  while ((waited < 40)) && ! hyprctl clients -j | jq -e 'any(.[]; .title == "WebcamOverlay")' >/dev/null 2>&1; do
+  while ((waited < 40)) && ! mmsg get all-clients 2>/dev/null | jq -e 'any(.clients[]; .title == "WebcamOverlay")' >/dev/null 2>&1; do
     sleep 0.05
     ((waited++))
   done
@@ -114,7 +114,7 @@ cleanup_webcam() {
 
 default_resolution() {
   local width height
-  read -r width height < <(hyprctl monitors -j | jq -r '.[] | select(.focused == true) | "\(.width) \(.height)"')
+  read -r width height < <(wlr-randr --json | jq -r --arg name "$(omarchy-mango-monitor-focused)" '.[] | select(.name == $name) | .modes[] | select(.current) | "\(.width) \(.height)"')
   if ((width > 3840 || height > 2160)); then
     echo "3840x2160"
   else
@@ -152,7 +152,7 @@ start_screenrecording() {
   # slurp + the kms backend, which avoids the EGL DMA-BUF modifier import
   # failures the portal path can hit on some configurations.
   if [[ $FULLSCREEN == "true" ]]; then
-    target="monitor:$(omarchy-hyprland-monitor-focused)"
+    target="monitor:$(omarchy-mango-monitor-focused)"
     capture_args=(-w "${target#monitor:}" -s "${RESOLUTION:-$(default_resolution)}")
   elif [[ ${OMARCHY_SCREENRECORD_USE_PORTAL:-false} == "true" ]]; then
     target="portal"
