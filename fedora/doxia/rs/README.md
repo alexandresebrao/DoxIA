@@ -9,6 +9,7 @@ falls back to the shell piece while the app is not installed.
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
+| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD so far |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -39,6 +40,29 @@ as the Python app (see the `/painel` skill), in the shell's look.
 launcher, SUPER+ALT+P): it execs `/usr/local/bin/doxia-painel` when installed
 and runs itself otherwise (`DOXIA_PAINEL_PY=1` forces it). HTTP goes through
 `ureq` (rustls).
+
+## doxia-shell
+
+The long-running half: a GTK application that owns `org.doxia.Shell` on the
+session bus, started by mango's autostart (`default/mango/autostart.conf`)
+when installed. Each surface is a GApplication action, so scripts call it
+with busctl and fall back to Quickshell when it is not running:
+
+```bash
+busctl --user call org.doxia.Shell /org/doxia/Shell org.gtk.Actions \
+  Activate 'sava{sv}' osd 1 s '{"icon":"volume","value":"40"}' 0
+```
+
+- `osd`: the omarchy-osd payload (`bin/omarchy-osd`), drawn like
+  `shell/plugins/osd` on an overlay layer surface (namespace `omarchy-osd`, no
+  keyboard, clicks pass through). `osd-close` hides it.
+
+## Font
+
+`base.css` names "DoxIA Shell" (the shell font with Lucide icons) on every
+widget, with no `monospace` in the list: omarchy-font-set's fontconfig rule
+puts the terminal font first in any list that names `monospace`, and its
+icons are the plain Nerd Font ones.
 
 ## VMware note
 

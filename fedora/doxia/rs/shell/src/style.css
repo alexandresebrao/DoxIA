@@ -1,0 +1,31 @@
+/* doxia-shell surfaces, on top of doxia-theme's base.css. The OSD follows
+   shell/plugins/osd/Osd.qml: popup colors, a 2px border, 16px padding. */
+
+window.osd-window { background: transparent; }
+
+.osd-card {
+  border: 2px solid transparent;
+  border-radius: $R_CTRL;
+  background: linear-gradient($POPUP_FILL, $POPUP_FILL) padding-box, $POPUP_BORDER border-box;
+  padding: 16px;
+  color: $POPUP_TEXT;
+}
+.osd-icon { font-size: $FS_DISPLAY_LARGE; color: $POPUP_TEXT; }
+.osd-text { font-size: $FS_TITLE; font-weight: bold; color: $POPUP_TEXT; }
+
+progressbar.osd-bar trough {
+  padding: 0;
+  min-width: 142px;
+  min-height: 6px;
+  background: $POPUP_TRACK;
+  border: none;
+  border-radius: 0;
+}
+progressbar.osd-bar progress {
+  min-width: 0;
+  margin: 0;
+  min-height: 6px;
+  background: $ACCENT;
+  border: none;
+  border-radius: 0;
+}

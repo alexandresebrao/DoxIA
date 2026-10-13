@@ -1,0 +1,13 @@
+[package]
+name = "doxia-shell"
+description = "The DoxIA shell daemon: layer-shell surfaces (OSD first) replacing Quickshell piece by piece"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gtk.workspace = true
+serde_json.workspace = true
+doxia-theme.workspace = true
+gtk4-layer-shell = "0.8"
