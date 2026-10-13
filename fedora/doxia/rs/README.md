@@ -9,7 +9,7 @@ falls back to the shell piece while the app is not installed.
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
-| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD and the notifications so far |
+| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications and the polkit agent so far |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -73,6 +73,23 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   `omarchy-restart-shell` can lock the session again. `apply-bar` takes the
   entry back out where doxia-shell is not installed. The bar's DND indicator
   reads `notifications.json`, which both servers keep.
+
+- polkit: the session's authentication agent, replacing
+  `shell/plugins/polkit` (same card over a scrim, label and fingerprint mode).
+  It registers with polkitd for the user's display session (logind), and again
+  whenever polkitd restarts. Passwords go to polkit's setuid helper
+  (`/usr/lib/polkit-1/polkit-agent-helper-1`) over its line protocol, as
+  libpolkit-agent does when the helper socket is off (Fedora). Quickshell's
+  agent goes the same way as its notifications (`disabledPlugins`; doxia-shell
+  retries until polkitd takes the registration).
+
+  Known limit, Quickshell's agent included: apps run by the user manager (all
+  of them under uwsm) belong to no logind session. polkit 127 maps such a
+  process to the display session when the subject is a pid, but not when it
+  carries a pidfd, which pkexec sends, so pkexec from a GUI app finds no
+  agent ("Error creating textual authentication agent"). Also, a
+  CheckAuthorization with a unix-session subject aborts polkitd 127
+  (assertion in push_subject).
 
 ## Font
 

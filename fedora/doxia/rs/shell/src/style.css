@@ -54,3 +54,42 @@ window.doxia .notif-body {
 .notif-body link { color: $ACCENT; }
 .notif-glyph { font-size: $FS_DISPLAY_LARGE; color: $NOTIF_TEXT; }
 .notif-glyph-small { font-size: $FS_TITLE; color: $NOTIF_TEXT; }
+
+/* Polkit, like shell/plugins/polkit/PolkitAgent.qml: [polkit] colors, a
+   scrim over the screen, the card with a 2px border, the label above it. */
+window.polkit-window { background: $PK_SCRIM; }
+
+.polkit-card {
+  border: 2px solid transparent;
+  border-radius: $R_CTRL;
+  background: linear-gradient($PK_BG, $PK_BG) padding-box, $PK_BORDER border-box;
+  padding: 18px;
+  min-height: 42px;
+}
+.polkit-card.error { background: linear-gradient($PK_BG, $PK_BG) padding-box, $PK_BORDER_ERROR border-box; }
+.polkit-card.fingerprint { padding: 18px 22px; }
+.polkit-glyph { font-size: $FS_ICON_LARGE; color: $PK_ACCENT; }
+.polkit-card.fingerprint .polkit-glyph { font-size: 29px; }
+.polkit-glyph.error { color: $PK_TEXT_ERROR; }
+
+passwordentry.polkit-entry {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  min-height: 42px;
+  padding: 0;
+  color: $PK_TEXT;
+  font-size: $FS_ICON_LARGE;
+  caret-color: $PK_TEXT;
+}
+passwordentry.polkit-entry text placeholder { color: alpha($PK_TEXT, 0.36); }
+passwordentry.polkit-entry.error text placeholder { color: $PK_TEXT_ERROR; }
+passwordentry.polkit-entry image { color: $PK_TEXT; }
+
+.polkit-label {
+  background: $PK_BG;
+  border-radius: $R_CTRL;
+  padding: 6px 12px;
+  color: $PK_TEXT;
+  font-size: $FS_SMALL;
+}

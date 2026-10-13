@@ -249,6 +249,13 @@ pub fn css(app_css: &str) -> String {
   let notif_bg_rgb = shell.get("notifications", "background").and_then(|t| Rgb::hex(t)).unwrap_or(p.bg);
   let notif_alpha = shell.num("notifications", "background-alpha").unwrap_or(1.0);
   let notif_border = border_image(&shell, shell.get("notifications", "border").unwrap_or(""), &p.accent.css(), 0);
+  // [polkit]: Color.qml's polkit group (scrim, card, borders, error colors).
+  let section_rgb = |section: &str, key: &str, fallback: Rgb| shell.get(section, key).and_then(|t| Rgb::hex(t)).unwrap_or(fallback);
+  let pk_alpha = shell.num("polkit", "background-alpha").unwrap_or(1.0);
+  let pk_border_alpha = shell.num("polkit", "border-alpha").unwrap_or(1.0);
+  let pk_scrim = section_rgb("polkit", "scrim", p.bg).alpha(shell.num("polkit", "scrim-alpha").unwrap_or(0.5));
+  let pk_border = border_image(&shell, shell.get("polkit", "border").unwrap_or(""), &p.accent.alpha(pk_border_alpha), 0);
+  let pk_border_error = border_image(&shell, shell.get("polkit", "border-error").unwrap_or(""), &p.urgent.alpha(pk_border_alpha), 0);
   let popup_border = border_image(&shell, shell.get("popups", "border").unwrap_or(""), &p.accent.css(), 0);
 
   let vars = [
@@ -296,6 +303,7 @@ pub fn css(app_css: &str) -> String {
     ("$FS_TITLE", format!("{}px", font("title", 1.167))),
     ("$FS_HEADING", format!("{}px", font("heading", 1.333))),
     ("$FS_DISPLAY_LARGE", format!("{}px", font("display-large", 2.333))),
+    ("$FS_ICON_LARGE", format!("{}px", font("icon-large", 1.5))),
     ("$POPUP_FILL", p.bg.alpha(0.97)),
     ("$POPUP_TEXT", popup_text),
     ("$POPUP_TRACK", Rgb::hex(&shell.get("popups", "text").unwrap_or("").replace('#', "")).unwrap_or(p.fg).alpha(0.45)),
@@ -305,6 +313,13 @@ pub fn css(app_css: &str) -> String {
     ("$NOTIF_BODY", notif_text_rgb.darker(1.15).css()),
     ("$NOTIF_DIM", notif_text_rgb.darker(1.4).css()),
     ("$NOTIF_BORDER", notif_border),
+    ("$PK_BG", section_rgb("polkit", "background", p.bg).alpha(pk_alpha)),
+    ("$PK_TEXT", section_rgb("polkit", "text", p.fg).css()),
+    ("$PK_TEXT_ERROR", section_rgb("polkit", "text-error", p.urgent).css()),
+    ("$PK_ACCENT", section_rgb("polkit", "accent", p.accent).css()),
+    ("$PK_SCRIM", pk_scrim),
+    ("$PK_BORDER_ERROR", pk_border_error),
+    ("$PK_BORDER", pk_border),
     ("$R_CTRL", if radius > 0 { format!("{radius}px") } else { "0".into() }),
     ("$R_CARD", r(6)),
     ("$R_ICON", r(5)),

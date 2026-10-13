@@ -5,14 +5,13 @@
 // screen are the history. Same IPC (`omarchy-shell notifications <method>`).
 //
 // The bus name has one owner. doxia-shell queues for it and turns Quickshell's
-// service off in shell.json (quickshell::release_notifications); the name
+// service off in shell.json (crate::quickshell::disable); the name
 // comes here once Quickshell restarts without it. Until then the IPC target
 // answers "Target not found." and omarchy-shell keeps talking to Quickshell.
 
 mod card;
 pub mod markup;
 pub mod model;
-mod quickshell;
 mod store;
 
 use gtk::prelude::*;
@@ -187,7 +186,7 @@ impl Notifications {
     // A running Quickshell keeps the name until it restarts: at the next
     // login, or the restart at the end of every update. Never restart it from
     // here: omarchy-restart-shell may lock the session again.
-    quickshell::release_notifications();
+    crate::quickshell::disable("omarchy.notifications");
   }
 
   fn emit(&self, signal: &str, args: glib::Variant) {

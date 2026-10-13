@@ -1,8 +1,8 @@
 // doxia-shell: the long-running half of the DoxIA shell, taking over from
-// Quickshell one surface at a time: the OSD and the notifications so far. It
-// owns org.doxia.Shell on the session bus and answers the same IPC calls
-// Quickshell does for those targets (ipc.rs), which bin/omarchy-shell tries
-// first:
+// Quickshell one surface at a time: the OSD, the notifications and the polkit
+// agent so far. It owns org.doxia.Shell on the session bus and answers the
+// same IPC calls Quickshell does for those targets (ipc.rs), which
+// bin/omarchy-shell tries first:
 //
 //   busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 //     Call ssas osd show 1 '{"icon":"volume","value":"40"}'
@@ -12,6 +12,8 @@
 mod ipc;
 mod notify;
 mod osd;
+mod polkit;
+mod quickshell;
 
 use gtk::prelude::*;
 use gtk::{gio, glib};
@@ -57,6 +59,9 @@ fn main() -> glib::ExitCode {
     let notifications = notify::Notifications::new(app);
     let n = notifications.clone();
     ipc.add("notifications", Box::new(move |method, args| n.ipc(method, args)));
+
+    let polkit = polkit::Polkit::new(app);
+    polkit.start();
 
     if let Some(conn) = app.dbus_connection() {
       ipc.register(&conn);
