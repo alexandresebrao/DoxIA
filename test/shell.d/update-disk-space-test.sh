@@ -19,9 +19,13 @@ snapshot_marker="$test_tmp/snapshot"
 gum_marker="$test_tmp/gum"
 mkdir -p "$stub_bin" "$test_home" "$runtime_dir"
 
+# --now keeps to the steps this test stubs: --boot stages the packages for dnf's
+# offline update and reads its state from the live system.
 run_update() {
   HOME="$test_home" \
+  XDG_CONFIG_HOME="$test_home/.config" \
   XDG_RUNTIME_DIR="$runtime_dir" \
+  OMARCHY_PATH="$test_tmp/omarchy" \
   PATH="$stub_bin:$ROOT/bin:$PATH" \
   LC_ALL=C \
   OMARCHY_UPDATE_LOGGED=1 \
@@ -30,7 +34,7 @@ run_update() {
   SNAPSHOT_MARKER="$snapshot_marker" \
   GUM_MARKER="$gum_marker" \
   GUM_STATUS=${GUM_STATUS:-1} \
-    "$ROOT/bin/omarchy-update" "$@"
+    "$ROOT/bin/omarchy-update" --now "$@"
 }
 
 write_stub() {
@@ -78,7 +82,11 @@ for command in \
   omarchy-hook \
   omarchy-update-analyze-logs \
   omarchy-shell \
-  omarchy-update-restart; do
+  omarchy-update-restart \
+  omarchy-update-stay-awake \
+  omarchy-update-check \
+  omarchy-update-status \
+  sudo; do
   write_stub "$command" 'exit 0'
 done
 write_stub omarchy-update-available 'exit 1'
