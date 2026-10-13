@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# omarchy:summary=Overwrite all the user mango configs in ~/.config/mango with the Omarchy defaults.
+
+for file in "$OMARCHY_PATH"/config/mango/*.conf; do
+  omarchy-refresh-config "mango/${file##*/}"
+done
+
+omarchy-mango-bindings
+omarchy-mango-monitor-apply
+mmsg dispatch reload_config >/dev/null 2>&1 || true

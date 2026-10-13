@@ -10,9 +10,9 @@ if [[ -z $config_file ]]; then
   Usage: $0 [config_file]
 
   Must provide a file path relative to .config to be refreshed.
-  To copy $OMARCHY_PATH/config/hypr/hyprland.lua to ~/.config/hypr/hyprland.lua:
+  To copy $OMARCHY_PATH/config/mango/config.conf to ~/.config/mango/config.conf:
 
-    $0 hypr/hyprland.lua
+    $0 mango/config.conf
 USAGE
   exit 1
 fi
