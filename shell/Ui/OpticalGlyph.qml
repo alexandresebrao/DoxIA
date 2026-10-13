@@ -12,7 +12,6 @@ Item {
 
   readonly property int renderedFontSize: Math.max(1, Math.round(fontSize))
   readonly property real tightWidth: Math.max(1, glyphMetrics.tightBoundingRect.width)
-  readonly property real horizontalCorrection: glyph.implicitWidth / 2 - (glyphMetrics.tightBoundingRect.x + tightWidth / 2)
   readonly property real paintedCenterX: glyph.x + glyphMetrics.tightBoundingRect.x + tightWidth / 2
   readonly property real baselineY: glyph.y + glyph.baselineOffset
 
@@ -27,9 +26,11 @@ Item {
     id: glyph
     textFormat: Text.PlainText
     // Keep the shared line box and baseline intact. Correcting only the
-    // horizontal painted bounds avoids per-glyph vertical drift.
-    anchors.centerIn: parent
-    anchors.horizontalCenterOffset: root.horizontalCorrection
+    // horizontal painted bounds avoids per-glyph vertical drift. Snap the
+    // painted center rather than the line box: centering the box and then
+    // rounding can leave the ink more than half a pixel off.
+    x: Math.round(root.width / 2 - glyphMetrics.tightBoundingRect.x - root.tightWidth / 2)
+    anchors.verticalCenter: parent.verticalCenter
     text: root.text
     color: root.color
     font.family: root.fontFamily
