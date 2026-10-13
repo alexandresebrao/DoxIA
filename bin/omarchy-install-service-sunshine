@@ -13,8 +13,8 @@ SUNSHINE_ADMIN_APP="Sunshine Admin"
 SUNSHINE_ADMIN_URL="https://localhost:47990"
 SUNSHINE_ADMIN_EXEC="omarchy-launch-webapp $SUNSHINE_ADMIN_URL --ignore-certificate-errors"
 SUNSHINE_ICON_SOURCE="/usr/share/sunshine/web/images/logo-sunshine-45.png"
-HYPR_AUTOSTART_FILE="$HOME/.config/hypr/autostart.lua"
-HYPR_AUTOSTART_ENTRY='o.launch_on_start("sunshine")'
+MANGO_AUTOSTART_FILE="$HOME/.config/mango/autostart.conf"
+MANGO_AUTOSTART_ENTRY='exec_once=uwsm-app -- sunshine'
 
 open_ufw_port_for_private_lans() {
   local proto="$1"
@@ -60,12 +60,12 @@ install_admin_webapp() {
   omarchy-webapp-install "$SUNSHINE_ADMIN_APP" "$SUNSHINE_ADMIN_URL" "$SUNSHINE_ICON_SOURCE" "$SUNSHINE_ADMIN_EXEC"
 }
 
-enable_hyprland_autostart() {
-  mkdir -p "$(dirname "$HYPR_AUTOSTART_FILE")"
-  touch "$HYPR_AUTOSTART_FILE"
+enable_mango_autostart() {
+  mkdir -p "$(dirname "$MANGO_AUTOSTART_FILE")"
+  touch "$MANGO_AUTOSTART_FILE"
 
-  if ! grep -Fxq "$HYPR_AUTOSTART_ENTRY" "$HYPR_AUTOSTART_FILE"; then
-    printf '\n%s\n' "$HYPR_AUTOSTART_ENTRY" >>"$HYPR_AUTOSTART_FILE"
+  if ! grep -Fxq "$MANGO_AUTOSTART_ENTRY" "$MANGO_AUTOSTART_FILE"; then
+    printf '\n%s\n' "$MANGO_AUTOSTART_ENTRY" >>"$MANGO_AUTOSTART_FILE"
   fi
 }
 
@@ -81,7 +81,7 @@ install_admin_webapp
 $SUNSHINE_ADMIN_EXEC >/dev/null 2>&1 &
 
 echo "Enabling Sunshine autostart..."
-enable_hyprland_autostart
+enable_mango_autostart
 
 echo ""
 echo "Sunshine has been installed and its Moonlight streaming ports are open for private LANs and Tailscale."
