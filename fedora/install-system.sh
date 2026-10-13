@@ -216,9 +216,13 @@ install -m644 "$omarchy_path"/default/sddm/mango.conf "$omarchy_path"/default/sd
   /usr/share/sddm/
 # In /usr/libexec so SELinux labels it bin_t, like the start-hyprland it replaces.
 install -Dm755 "$omarchy_path/default/sddm/doxia-greeter" /usr/libexec/doxia-sddm-greeter
+install -Dm755 "$omarchy_path/default/sddm/doxia-greeter-env" /usr/libexec/doxia-sddm-greeter-env
+install -Dm644 "$omarchy_path/default/sddm/sddm.service.d/10-doxia.conf" /etc/systemd/system/sddm.service.d/10-doxia.conf
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
+/usr/libexec/doxia-sddm-greeter-env
 rm -f /usr/share/sddm/hyprland.lua
-restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter 2>/dev/null || true
+restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter \
+  /usr/libexec/doxia-sddm-greeter-env /etc/systemd/system/sddm.service.d 2>/dev/null || true
 # The theme preselects SDDM's last user and session, which a fresh SDDM doesn't
 # have yet (the Arch ISO seeds it): start on the DoxIA session.
 if [[ ! -s /var/lib/sddm/state.conf ]]; then

@@ -112,6 +112,8 @@ default/**                     ──►  omarchy-settings    /usr/share/omarchy
   ├─ sddm/omarchy/                                      /usr/share/sddm/themes/omarchy/
   ├─ sddm/mango.conf, mango-hyperv.conf                /usr/share/sddm/
   ├─ sddm/doxia-greeter                                 /usr/libexec/doxia-sddm-greeter
+  ├─ sddm/doxia-greeter-env                             /usr/libexec/doxia-sddm-greeter-env
+  ├─ sddm/sddm.service.d/10-doxia.conf                 /etc/systemd/system/sddm.service.d/
   ├─ wayland-sessions/omarchy.desktop                   /usr/local/share/wayland-sessions/
   ├─ plymouth/                                          /usr/share/plymouth/themes/omarchy/
   └─ security/faillock, nsswitch, cups-browsed,

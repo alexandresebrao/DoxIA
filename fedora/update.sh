@@ -366,9 +366,14 @@ install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omar
 install -m644 "$omarchy_path"/default/sddm/mango.conf "$omarchy_path"/default/sddm/mango-hyperv.conf \
   /usr/share/sddm/
 install -Dm755 "$omarchy_path/default/sddm/doxia-greeter" /usr/libexec/doxia-sddm-greeter
+install -Dm755 "$omarchy_path/default/sddm/doxia-greeter-env" /usr/libexec/doxia-sddm-greeter-env
+install -Dm644 "$omarchy_path/default/sddm/sddm.service.d/10-doxia.conf" /etc/systemd/system/sddm.service.d/10-doxia.conf
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
+/usr/libexec/doxia-sddm-greeter-env
+systemctl daemon-reload
 rm -f /usr/share/sddm/hyprland.lua
-restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter 2>/dev/null || true
+restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter \
+  /usr/libexec/doxia-sddm-greeter-env /etc/systemd/system/sddm.service.d 2>/dev/null || true
 bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
 # Chrome takes the theme from its profile now (fedora/doxia/chrome): a policy color
 # would keep its frame light, so the policy directory installs used to get goes.
