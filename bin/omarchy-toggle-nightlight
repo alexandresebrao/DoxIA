@@ -11,8 +11,7 @@ IDENTITY_TEMP=6000
 current_temp() {
   local output
 
-  output=$(hyprctl hyprsunset temperature 2>/dev/null) || return
-  grep -oE '[0-9]+' <<<"$output" | head -n1
+  omarchy-nightlight-temperature
 }
 
 status_json() {
@@ -34,11 +33,6 @@ if [[ ${1:-} == "--status" ]]; then
   exit 0
 fi
 
-# Ensure hyprsunset is running
-if ! pgrep -x hyprsunset >/dev/null; then
-  setsid uwsm-app -- hyprsunset &
-fi
-
 # Query the current temperature
 CURRENT_TEMP=$(current_temp)
 
@@ -48,12 +42,6 @@ else
   TARGET_TEMP=$OFF_TEMP
 fi
 
-# A freshly-started hyprsunset applies its default temperature at the end of
-# its boot, overriding anything set before then — so resend until it sticks
-for _ in {1..10}; do
-  hyprctl hyprsunset temperature $TARGET_TEMP >/dev/null 2>&1
-  sleep 0.2
-  [[ $(current_temp) == "$TARGET_TEMP" ]] && break
-done
+omarchy-nightlight-temperature $TARGET_TEMP
 
 omarchy-shell -q nightlight refresh

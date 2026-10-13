@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# omarchy:summary=Show or set the screen color temperature
+# omarchy:args=[KELVIN]
+# omarchy:examples=omarchy nightlight temperature | omarchy nightlight temperature 4000
+# omarchy:hidden=true
+
+# gammastep -O holds a fixed temperature through wlr-gamma-control for as long
+# as it runs, and the screen returns to normal when it exits. So the current
+# temperature is whatever the running instance was started with, and 6500 K
+# (no change) when none is.
+
+NEUTRAL_TEMP=6500
+STATE="${XDG_RUNTIME_DIR:-/tmp}/omarchy-nightlight"
+
+running() {
+  [[ -f $STATE ]] && read -r pid temp <"$STATE" && kill -0 "$pid" 2>/dev/null
+}
+
+if [[ -z ${1:-} ]]; then
+  if running; then
+    read -r _ temp <"$STATE"
+    echo "$temp"
+  else
+    echo "$NEUTRAL_TEMP"
+  fi
+  exit 0
+fi
+
+target=$1
+[[ $target =~ ^[0-9]+$ ]] || { echo "Usage: omarchy-nightlight-temperature [KELVIN]" >&2; exit 1; }
+
+if running; then
+  read -r pid _ <"$STATE"
+  kill "$pid" 2>/dev/null
+  # Let the old instance restore the ramps before the new one takes them.
+  for _ in {1..20}; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.05
+  done
+fi
+rm -f "$STATE"
+
+(( target >= NEUTRAL_TEMP )) && exit 0
+
+setsid gammastep -m wayland -O "$target" -P >/dev/null 2>&1 &
+echo "$! $target" >"$STATE"

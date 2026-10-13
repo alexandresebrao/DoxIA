@@ -8,7 +8,7 @@ run_node_test <<'JS'
 const nightlight = requireFromRoot('shell/plugins/services/nightlight/NightlightModel.js')
 
 assertEqual(nightlight.temperatureFromOutput('4000\n'), 4000, 'nightlight parses probe temperature')
-assertEqual(nightlight.temperatureFromOutput("Couldn't connect to hyprsunset"), null, 'nightlight treats unreachable hyprsunset as unknown')
+assertEqual(nightlight.temperatureFromOutput(''), null, 'nightlight treats an empty probe as unknown')
 assertEqual(nightlight.isNightlight(4000), true, 'nightlight reports warm temperatures as enabled')
 assertEqual(nightlight.isNightlight(5999), true, 'nightlight reports warmer-than-identity values as enabled')
 assertEqual(nightlight.isNightlight(6000), false, 'nightlight reports identity temperature as disabled')
@@ -19,22 +19,17 @@ TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
 mkdir -p "$TMPDIR/bin"
-STATE="$TMPDIR/hyprsunset-temp"
+STATE="$TMPDIR/nightlight-temp"
 SHELL_LOG="$TMPDIR/omarchy-shell-log"
 
-cat >"$TMPDIR/bin/hyprctl" <<'SH'
+cat >"$TMPDIR/bin/omarchy-nightlight-temperature" <<'SH'
 #!/bin/bash
 
-if [[ ${1:-} == "hyprsunset" && ${2:-} == "temperature" ]]; then
-  if [[ -n ${3:-} ]]; then
-    printf '%s\n' "$3" >"$HYPRSUNSET_STATE"
-  else
-    cat "$HYPRSUNSET_STATE" 2>/dev/null || exit 1
-  fi
-  exit 0
+if [[ -n ${1:-} ]]; then
+  printf '%s\n' "$1" >"$NIGHTLIGHT_STATE"
+else
+  cat "$NIGHTLIGHT_STATE" 2>/dev/null || exit 1
 fi
-
-exit 1
 SH
 
 cat >"$TMPDIR/bin/pgrep" <<'SH'
@@ -47,11 +42,11 @@ cat >"$TMPDIR/bin/omarchy-shell" <<'SH'
 printf '%s\n' "$*" >>"$OMARCHY_SHELL_LOG"
 SH
 
-chmod +x "$TMPDIR/bin/hyprctl" "$TMPDIR/bin/pgrep" "$TMPDIR/bin/omarchy-shell"
+chmod +x "$TMPDIR/bin/omarchy-nightlight-temperature" "$TMPDIR/bin/pgrep" "$TMPDIR/bin/omarchy-shell"
 
 nightlight_cli() {
   PATH="$TMPDIR/bin:$PATH" \
-  HYPRSUNSET_STATE="$STATE" \
+  NIGHTLIGHT_STATE="$STATE" \
   OMARCHY_SHELL_LOG="$SHELL_LOG" \
     "$ROOT/bin/omarchy-toggle-nightlight" "$@"
 }
@@ -90,3 +85,28 @@ if rg -q 'omarchy.indicators' "$ROOT/bin/omarchy-toggle-nightlight"; then
   fail "nightlight toggle leaves indicator refresh to the nightlight service"
 fi
 pass "nightlight toggle leaves indicator refresh to the nightlight service"
+
+# The real helper: gammastep holds the temperature while it runs.
+mkdir -p "$TMPDIR/gamma-bin" "$TMPDIR/runtime"
+cat >"$TMPDIR/gamma-bin/gammastep" <<'SH'
+#!/bin/bash
+exec sleep 30
+SH
+chmod +x "$TMPDIR/gamma-bin/gammastep"
+
+temperature() {
+  PATH="$TMPDIR/gamma-bin:$PATH" XDG_RUNTIME_DIR="$TMPDIR/runtime" "$ROOT/bin/omarchy-nightlight-temperature" "$@"
+}
+
+[[ $(temperature) == 6500 ]] || fail "nightlight helper reports daylight with no gammastep running"
+pass "nightlight helper reports daylight with no gammastep running"
+
+temperature 4000
+[[ $(temperature) == 4000 ]] || fail "nightlight helper reports the temperature gammastep holds"
+pass "nightlight helper reports the temperature gammastep holds"
+
+read -r gamma_pid _ <"$TMPDIR/runtime/omarchy-nightlight"
+temperature 6500
+kill -0 "$gamma_pid" 2>/dev/null && fail "nightlight helper stops gammastep for daylight"
+[[ $(temperature) == 6500 ]] || fail "nightlight helper stops gammastep for daylight"
+pass "nightlight helper stops gammastep for daylight"
