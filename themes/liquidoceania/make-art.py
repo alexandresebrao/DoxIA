@@ -152,7 +152,7 @@ if __name__ == "__main__":
     for old in bg.glob("*.png"):
         old.unlink()
     wall = wallpaper()
-    wall.save(bg / "1-liquidoceania.png", optimize=True)
+    wall.save(bg / "2-liquidoceania.png", optimize=True)
 
     logo = recolor_logo(Image.open(HERE / "infinito.png").convert("RGBA"))
     emblem = logo.copy()
