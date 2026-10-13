@@ -82,11 +82,13 @@ grep -F 'Could not start omarchy-fcitx5.service' "$fcitx_migration" >/dev/null |
 grep -F 'pkill -x fcitx5' "$ROOT/bin/omarchy-restart-xcompose" >/dev/null ||
   fail "restart-xcompose cannot reload a fcitx5 running outside the unit, so it silently keeps serving the old table"
 
-grep -F 'omarchy-fcitx5.service' "$first_run_units" >/dev/null ||
-  fail "first-run does not enable the input method, so ~/.XCompose sequences never resolve"
-grep -F 'fcitx5' "$ROOT/default/hypr/autostart.lua" >/dev/null &&
-  fail "fcitx5 is autostarted from Hyprland; an unsupervised launch dies silently and takes every compose sequence with it"
-pass "fcitx5 runs supervised, so a lost input method comes back instead of killing XCompose until logout"
+# DoxIA runs no input method: GTK, Qt and Chromium read ~/.XCompose themselves,
+# and fcitx5 between the keyboard and every app risks the ABNT2 dead keys.
+grep -F 'omarchy-fcitx5.service' "$first_run_units" >/dev/null &&
+  fail "first-run leaves the fcitx5 input method off"
+grep -rF 'fcitx5' "$ROOT"/default/mango/*.conf >/dev/null &&
+  fail "mango does not autostart fcitx5"
+pass "DoxIA leaves the fcitx5 input method off"
 
 oomd_slice="$ROOT/default/systemd/user/app.slice.d/10-oomd.conf"
 grep -Fx 'ManagedOOMMemoryPressure=kill' "$oomd_slice" >/dev/null ||
