@@ -23,12 +23,14 @@ plymouth_theme_assets=(
 )
 plymouth_default_assets=("${plymouth_theme_assets[@]}" logos/oma.png)
 sddm_theme_assets=(Main.qml bullet.png entry-failed.png entry.png lock-failed.png lock.png logo.png)
-sddm_default_assets=("${sddm_theme_assets[@]}" metadata.desktop theme.conf)
+sddm_default_assets=("${sddm_theme_assets[@]}" metadata.desktop theme.conf brand.png gear.png infinity.png power.png)
 
 # Keep the refresh allowlist synchronized with every packaged Plymouth asset.
 # An added default file must make this test fail until its publication contract
 # is explicitly reviewed and included above.
-packaged_plymouth_assets=$(find "$ROOT/default/plymouth" -type f -printf '%P\n' | LC_ALL=C sort)
+# default/plymouth/doxia is DoxIA's own boot theme, which fedora/update.sh
+# installs; omarchy-plymouth-set never publishes it.
+packaged_plymouth_assets=$(find "$ROOT/default/plymouth" -path "$ROOT/default/plymouth/doxia" -prune -o -type f -printf '%P\n' | LC_ALL=C sort)
 allowlisted_plymouth_assets=$(printf '%s\n' "${plymouth_default_assets[@]}" | LC_ALL=C sort)
 [[ $packaged_plymouth_assets == "$allowlisted_plymouth_assets" ]] ||
   fail "Plymouth refresh allowlist differs from the packaged asset set" "$packaged_plymouth_assets"
@@ -224,7 +226,7 @@ case "$1" in
   PATH="$TEST_ROOT_TOOLS:/usr/bin:/bin" \
     /bin/bash -c "$code" "$shell_name" "$@"
   ;;
-plymouth-set-default-theme | limine-mkinitcpio | mkinitcpio)
+plymouth-set-default-theme | limine-mkinitcpio | mkinitcpio | dracut)
   printf 'command %s\n' "$*" >>"$TEST_SUDO_LOG"
   exit 0
   ;;
@@ -453,7 +455,7 @@ for requested_umask in 022 027 077; do
 
   cmp -s "$test_tmp/logo.png" "$theme/logo.png" || fail "Plymouth receives the selected logo under umask $requested_umask"
   cmp -s "$test_tmp/logo.png" "$sddm/logo.png" || fail "SDDM receives the selected logo under umask $requested_umask"
-  grep -Fq '#1d2021' "$sddm/Main.qml" || fail "SDDM Main.qml receives the selected background under umask $requested_umask"
+  cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$sddm/Main.qml" || fail "SDDM Main.qml keeps DoxIA's own palette under umask $requested_umask"
   grep -Fq 'Window.SetBackgroundTopColor(0.114, 0.125, 0.129);' "$theme/omarchy.script" || fail "Plymouth script receives the selected background under umask $requested_umask"
 
   cmp -s "$ROOT/default/plymouth/logos/oma.png" "$theme/logos/oma.png" || fail "theme set leaves the packaged nested logo unchanged"
@@ -462,7 +464,7 @@ for requested_umask in 022 027 077; do
   [[ ! -s $leak_log ]] || fail "no privileged command receives a user-writable staged pathname" "$(cat "$leak_log")"
   [[ $(stat -c %a "$theme") == 755 && $(stat -c %a "$sddm") == 755 && $(stat -c %a "$theme/logos") == 755 ]] || fail "publication preserves destination directory modes under umask $requested_umask"
   grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "theme set activates the published Plymouth theme"
-  grep -Fq 'command mkinitcpio -P' "$sudo_log" || fail "theme set rebuilds the initramfs"
+  grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "theme set rebuilds the initramfs"
   assert_no_temporary_files "$fake_root"
 done
 
@@ -486,18 +488,20 @@ assert_no_temporary_files "$fake_root"
 
 pass "theme set repairs migrated destinations without following existing symlinks"
 
-# White uses #ffffff behind #000000 text. A direct two-expression sed first
-# writes the white background and then consumes it as if it were the template's
-# text placeholder, producing a black-on-black greeter.
+# DoxIA's login screen keeps its own palette: its Main.qml carries neither of
+# the colors omarchy-plymouth-set recolors, so even a white theme (#ffffff
+# behind #000000, the case that once produced a black-on-black greeter) must
+# publish it unchanged.
 setup_run
 output=$(run_set_colors 022 '#ffffff' '#000000' env 2>&1)
 status=$?
 (( status == 0 )) || fail "White theme publishes through the safe asset pipeline" "$output"
-grep -Fq 'color: "#ffffff"' "$sddm/Main.qml" || fail "White theme preserves its SDDM background color"
+cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$sddm/Main.qml" ||
+  fail "a theme leaves DoxIA's SDDM palette alone" "$(diff "$ROOT/default/sddm/omarchy/Main.qml" "$sddm/Main.qml" | head -5)"
 if grep -Fq '__OMARCHY_SDDM_' "$sddm/Main.qml"; then
   fail "SDDM color substitution left an intermediate token behind"
 fi
-pass "White theme keeps a white SDDM background instead of becoming black-on-black"
+pass "a white theme leaves DoxIA's SDDM palette alone"
 
 # Swap the selected logo to an unreadable file in the DEBUG hook immediately
 # before Bash opens its descriptor. The caller-side open must fail, so sudo
@@ -859,7 +863,7 @@ assert_packaged_assets "Plymouth refresh" "$ROOT/default/plymouth" "$theme" "${p
 ! grep -Fq 'transaction /usr/share/sddm/' "$sudo_log" || fail "Plymouth refresh does not publish SDDM assets"
 [[ ! -s $leak_log ]] || fail "refresh never gives root a user-writable source pathname" "$(cat "$leak_log")"
 grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "Plymouth refresh activates the restored theme"
-grep -Fq 'command mkinitcpio -P' "$sudo_log" || fail "Plymouth refresh rebuilds the initramfs"
+grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "Plymouth refresh rebuilds the initramfs"
 
 pass "refresh safely publishes its complete fixed asset set, including logos/oma.png"
 
@@ -877,7 +881,7 @@ assert_packaged_assets "SDDM refresh" "$ROOT/default/sddm/omarchy" "$sddm" "${sd
 [[ $(cat "$legacy_victim") == 'LEGACY VICTIM' && $(stat -c %a "$legacy_victim") == 600 ]] || fail "SDDM refresh never changes the legacy logo victim"
 [[ ! -e $sddm/logo.svg && ! -L $sddm/logo.svg ]] || fail "SDDM refresh removes the legacy logo.svg"
 ! grep -Fq 'command plymouth-set-default-theme' "$sudo_log" || fail "SDDM refresh does not activate Plymouth"
-! grep -Fq 'command mkinitcpio' "$sudo_log" || fail "SDDM refresh does not rebuild the initramfs"
+! grep -Eq 'command (mkinitcpio|dracut)' "$sudo_log" || fail "SDDM refresh does not rebuild the initramfs"
 [[ ! -s $leak_log ]] || fail "SDDM refresh never gives root a user-writable source pathname" "$(cat "$leak_log")"
 
 pass "SDDM refresh safely restores its complete packaged asset set without rebuilding Plymouth"
@@ -892,7 +896,7 @@ status=$?
 assert_packaged_assets "fresh reset Plymouth" "$ROOT/default/plymouth" "$theme" "${plymouth_default_assets[@]}"
 assert_packaged_assets "fresh reset SDDM" "$ROOT/default/sddm/omarchy" "$sddm" "${sddm_default_assets[@]}"
 grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "fresh reset activates the packaged Plymouth theme"
-grep -Fq 'command mkinitcpio -P' "$sudo_log" || fail "fresh reset rebuilds the initramfs"
+grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "fresh reset rebuilds the initramfs"
 assert_no_temporary_files "$fake_root"
 
 pass "reset is safe and idempotent on a fresh package installation"
@@ -912,7 +916,7 @@ assert_packaged_assets "migrated reset SDDM" "$ROOT/default/sddm/omarchy" "$sddm
 [[ $(cat "$legacy_victim") == 'LEGACY VICTIM' && $(stat -c %a "$legacy_victim") == 600 ]] || fail "reset never changes the legacy logo victim"
 [[ ! -e $sddm/logo.svg && ! -L $sddm/logo.svg ]] || fail "reset removes the legacy logo.svg"
 grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "reset activates the restored Plymouth theme"
-grep -Fq 'command mkinitcpio -P' "$sudo_log" || fail "reset rebuilds the initramfs"
+grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "reset rebuilds the initramfs"
 [[ ! -s $leak_log ]] || fail "reset never gives root a user-writable source pathname" "$(cat "$leak_log")"
 
 pass "reset safely repairs a migrated Plymouth and SDDM installation"

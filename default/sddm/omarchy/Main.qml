@@ -6,8 +6,9 @@ import SddmComponents 2.0
 // with the session chip under it), the power actions in the bottom right corner and
 // the ∞ as a faint watermark bleeding off the bottom edge.
 //
-// omarchy-plymouth-set recolors #1a1b26 and #ffffff in this file to the theme's
-// colors, so neither appears here: this screen keeps its own palette.
+// omarchy-plymouth-set recolors the upstream greeter's background and text hex
+// codes (see bin/omarchy-plymouth-set) to the theme's colors. Neither appears in
+// this file, not even in a comment, so this screen keeps its own palette.
 Rectangle {
   id: root
   width: 1280
