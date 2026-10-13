@@ -54,6 +54,8 @@ packages=(
   # Red folders of the DoxIA theme (themes/doxia/make-icons.sh) and applying
   # them without a session (install-user.sh)
   papirus-icon-theme-dark perl-interpreter dbus-daemon
+  # JSON::PP for the clipboard history capture and omarchy-menu-select/-input
+  perl-JSON-PP
 
   # Wayland/desktop utilities used by omarchy-* commands
   brightnessctl pamixer playerctl wireplumber wl-clipboard wtype grim slurp cliphist
