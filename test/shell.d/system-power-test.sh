@@ -17,7 +17,8 @@ printf 'systemd-run %s\n' "$*" >>"$CALL_LOG"
 exit 0
 SH
 
-for command in omarchy-state omarchy-hyprland-window-close-all sleep; do
+# Stub every compositor's close-all: a real one closes the terminal running the tests.
+for command in omarchy-state omarchy-hyprland-window-close-all omarchy-mango-window-close-all sleep; do
   cat >"$mock_bin/$command" <<'SH'
 #!/bin/bash
 
@@ -41,7 +42,7 @@ assert_power_calls() {
   cat >"$expected_log" <<EOF
 systemd-run --user --collect --quiet --on-active=2s --timer-property=AccuracySec=100ms systemctl $systemctl_action --no-wall
 omarchy-state clear re*-required
-omarchy-hyprland-window-close-all 
+omarchy-mango-window-close-all 
 sleep 1
 EOF
 
