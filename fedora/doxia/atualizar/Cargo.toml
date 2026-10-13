@@ -1,0 +1,16 @@
+[package]
+name = "doxia-atualizar"
+version = "0.1.0"
+edition = "2024"
+description = "Atualizar DoxIA: the update window, outside the shell"
+license = "MIT"
+publish = false
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
