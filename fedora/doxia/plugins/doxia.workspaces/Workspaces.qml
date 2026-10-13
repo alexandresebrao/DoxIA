@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -47,21 +46,30 @@ BarWidget {
     function onAccentChanged() { paletteFile.reload() }
   }
 
-  function workspaceById(id) {
-    var values = Hyprland.workspaces.values
-    for (var i = 0; i < values.length; i++) if (values[i].id === id) return values[i]
+  // As tags do mango são por monitor: cada barra mostra as do seu.
+  readonly property var window: root.QsWindow.window
+  readonly property string monitorName: window && window.screen ? String(window.screen.name || "") : ""
+  readonly property var tags: Compositor.tagsFor(monitorName.length > 0 ? monitorName : Compositor.focusedMonitor)
+
+  function tagByIndex(index) {
+    for (var i = 0; i < tags.length; i++) if (tags[i].index === index) return tags[i]
     return null
   }
 
+  // 1..6 sempre, mais qualquer tag com janela ou à vista.
   function workspaceIds() {
     var ids = [1, 2, 3, 4, 5, 6]
-    var values = Hyprland.workspaces.values
-    for (var i = 0; i < values.length; i++) {
-      var id = values[i].id
-      if (id > 0 && id <= 10 && ids.indexOf(id) === -1) ids.push(id)
+    for (var i = 0; i < tags.length; i++) {
+      var tag = tags[i]
+      if (tag.index > 0 && tag.index <= 10 && (tag.client_count > 0 || tag.is_active) && ids.indexOf(tag.index) === -1) ids.push(tag.index)
     }
     ids.sort(function(a, b) { return a - b })
     return ids
+  }
+
+  function activeTag() {
+    for (var i = 0; i < tags.length; i++) if (tags[i].is_active) return tags[i].index
+    return -1
   }
 
   // Ícones (Nerd Font) dos espaços fixos; os demais mostram o número.
@@ -79,8 +87,8 @@ BarWidget {
   }
 
   function focusWorkspace(id) {
-    if (!root.bar) return
-    root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
+    if (monitorName) Compositor.dispatch("focusmon", monitorName)
+    Compositor.dispatch("view", id)
   }
 
   readonly property real plateH: Math.round(barSize * 0.82)
@@ -90,7 +98,7 @@ BarWidget {
 
   readonly property int focusedIndex: {
     var ids = workspaceIds()
-    return Hyprland.focusedWorkspace ? ids.indexOf(Hyprland.focusedWorkspace.id) : -1
+    return ids.indexOf(activeTag())
   }
   readonly property Item focusedPlate: focusedIndex >= 0 ? plates.itemAt(focusedIndex) : null
 
@@ -124,9 +132,9 @@ BarWidget {
       Item {
         id: plate
         required property int modelData
-        readonly property var workspace: root.workspaceById(modelData)
-        readonly property bool occupied: workspace !== null && workspace.toplevels.values.length > 0
-        readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
+        readonly property var tag: root.tagByIndex(modelData)
+        readonly property bool occupied: tag !== null && tag.client_count > 0
+        readonly property bool focused: tag !== null && tag.is_active
         readonly property bool hovered: area.containsMouse
 
         width: Math.round(root.plateH * 1.05)
@@ -168,7 +176,8 @@ BarWidget {
 
   WheelHandler {
     onWheel: function(event) {
-      root.focusWorkspace(event.angleDelta.y > 0 ? "e-1" : "e+1")
+      if (root.monitorName) Compositor.dispatch("focusmon", root.monitorName)
+      Compositor.dispatch(event.angleDelta.y > 0 ? "viewtoleft_have_client" : "viewtoright_have_client")
     }
   }
 }

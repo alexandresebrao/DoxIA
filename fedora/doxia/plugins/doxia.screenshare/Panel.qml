@@ -4,10 +4,10 @@ import Quickshell.Services.Pipewire
 import qs.Commons
 import qs.Ui
 
-// Bolinha vermelha que pisca enquanto o portal do Hyprland transmite a tela
-// (nó "xdg-desktop-portal-hyprland", Video/Source, no PipeWire). Some quando não há compartilhamento.
+// Bolinha vermelha que pisca enquanto o portal wlr transmite a tela
+// (nó "xdg-desktop-portal-wlr", Video/Source, no PipeWire). Some quando não há compartilhamento.
 // O clique roda stop.sh, que aperta o "Parar de compartilhar" da barra
-// flutuante do Chrome (escondida pela regra em ~/.config/hypr/hyprland.lua).
+// flutuante do Chrome (escondida pela regra em default/mango/windows.conf).
 BarWidget {
   id: root
   moduleName: "doxia.screenshare"
@@ -16,7 +16,7 @@ BarWidget {
   readonly property int streamCount: {
     var n = 0
     for (var i = 0; i < nodes.length; i++)
-      if (nodes[i] && String(nodes[i].name || "") === "xdg-desktop-portal-hyprland") n++
+      if (nodes[i] && String(nodes[i].name || "") === "xdg-desktop-portal-wlr") n++
     return n
   }
   readonly property bool sharing: streamCount > 0
@@ -27,22 +27,16 @@ BarWidget {
   implicitHeight: sharing ? button.implicitHeight : 0
 
   // A barra flutuante do Chrome às vezes ganha o título depois de abrir e
-  // escapa da regra do Hyprland; aqui ela é recolhida de novo.
+  // escapa da regra do mango (que só vale na abertura); aqui ela é recolhida
+  // de novo para a tag especial.
   function hideChromeBar() {
     Quickshell.execDetached(["sh", "-c",
-      "hyprctl -j clients | jq -r '.[] | select(.title | test(\"(está compartilhando|is sharing) \")) "
-      + "| select(.workspace.name != \"special:screenshare\") | .address' | while read a; do "
-      + "hyprctl dispatch \"hl.dsp.window.move({ workspace = 'special:screenshare', follow = false, window = 'address:$a' })\"; done"])
+      "mmsg get all-clients | jq -r '.clients[] | select(.title | test(\"(está compartilhando|is sharing) \")) "
+      + "| select(.is_visible) | .id' | while read id; do "
+      + "mmsg dispatch tag_special_silent \"client,$id\"; done"])
   }
 
-  // Durante o compartilhamento o cursor passa a ser desenhado por software:
-  // o cursor por hardware (plano da GPU) fica fora dos frames do portal e
-  // não aparece pra quem assiste. Ao parar, volta ao automático (2).
-  onSharingChanged: {
-    Quickshell.execDetached(["hyprctl", "eval",
-      "hl.config({ cursor = { no_hardware_cursors = " + (sharing ? 1 : 2) + " } })"])
-    if (sharing) hideTimer.restart()
-  }
+  onSharingChanged: if (sharing) hideTimer.restart()
 
   Timer {
     id: hideTimer
