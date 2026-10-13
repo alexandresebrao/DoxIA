@@ -1,7 +1,10 @@
-// The shell's look for a GTK window: the palette from the current theme's
-// colors.toml, the control tokens ([controls]) and font size ([font]) from its
-// shell.toml, and the corner rounding mango uses (the shell reads the same
-// three, see shell/Commons/Color.qml and Style.qml).
+// doxia-theme: the shell's look for the DoxIA GTK apps. Each app adds the
+// class "doxia" to its windows and hands its own stylesheet to Styler.
+//
+// The look comes from the current theme's palette (colors.toml), its control
+// tokens ([controls]) and font size ([font]) in shell.toml, and the corner
+// rounding mango uses: the same three the shell reads (shell/Commons/Color.qml
+// and Style.qml).
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -138,7 +141,9 @@ fn rounding() -> u32 {
     .unwrap_or(0)
 }
 
-pub fn css() -> String {
+// The base controls, then the app's own stylesheet, then the color
+// utilities, all with the theme's values filled in.
+pub fn css(app_css: &str) -> String {
   let dir = theme_dir();
   let colors = dir.join("colors.toml");
   let shell_path = dir.join("shell.toml");
@@ -246,9 +251,39 @@ pub fn css() -> String {
   // Longest names first, so $PRIMARY never eats the start of $PRIMARY_HOVER.
   let mut vars = vars.to_vec();
   vars.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
-  let mut out = include_str!("style.css").to_string();
+  let mut out = [include_str!("base.css"), app_css, include_str!("colors.css")].join("\n");
   for (k, v) in vars {
     out = out.replace(k, &v);
   }
   out
+}
+
+// Keeps one app's CSS in place and current: reload() rebuilds it when the
+// theme files changed (a theme switch), and says whether it did.
+pub struct Styler {
+  provider: gtk::CssProvider,
+  app_css: &'static str,
+  seen: std::cell::RefCell<Vec<Option<SystemTime>>>,
+}
+
+impl Styler {
+  pub fn install(app_css: &'static str) -> Styler {
+    let provider = gtk::CssProvider::new();
+    if let Some(display) = gtk::gdk::Display::default() {
+      gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_USER);
+    }
+    let styler = Styler { provider, app_css, seen: Default::default() };
+    styler.reload(true);
+    styler
+  }
+
+  pub fn reload(&self, force: bool) -> bool {
+    let fp = fingerprint();
+    if !force && *self.seen.borrow() == fp {
+      return false;
+    }
+    *self.seen.borrow_mut() = fp;
+    self.provider.load_from_string(&css(self.app_css));
+    true
+  }
 }

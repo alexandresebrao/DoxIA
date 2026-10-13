@@ -1,0 +1,127 @@
+/* DoxIA apps: the shell's controls in GTK. $NAMES are filled in from the
+   current theme (lib.rs); each app's stylesheet follows, then colors.css. */
+
+window.doxia {
+  background: $BG;
+  color: $FG;
+  font-family: monospace;
+  font-size: $FS_BODY;
+}
+
+window.doxia * {
+  outline: none;
+  box-shadow: none;
+  text-shadow: none;
+  -gtk-icon-shadow: none;
+}
+
+.rule { min-height: 1px; background: $FAINT; }
+.glyph-heading { font-size: $FS_HEADING; }
+.glyph-title { font-size: $FS_TITLE; }
+.glyph-body { font-size: $FS_BODY; }
+
+/* Buttons (shell/Ui/Button.qml, bordered) */
+button.ctl {
+  background: transparent;
+  color: $FG;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  padding: $SP6 $SP10;
+  min-height: 0;
+  min-width: 0;
+  font-size: $FS_BODY;
+  font-weight: normal;
+  transition: background 100ms;
+}
+button.ctl.plain { border-color: transparent; }
+button.ctl.small { font-size: $FS_SMALL; }
+button.ctl.selected { background: $SELECTED_FILL; color: $SELECTED_TEXT; font-weight: bold; }
+button.ctl:hover { background: $HOVER_FILL; border-color: $HOVER_BORDER; }
+button.ctl:active { background: $PRESSED_FILL; }
+button.ctl:focus-visible { background: $FOCUS_FILL; border-color: $FOCUS_BORDER; }
+
+/* The one filled action (shell/plugins/update/PrimaryButton.qml) */
+button.primary {
+  background: $PRIMARY;
+  color: #ffffff;
+  font-weight: bold;
+  font-size: $FS_BODY;
+  border: 2px solid transparent;
+  border-radius: $R_BTN;
+  padding: $SP6 $SP12;
+  min-height: 0;
+  transition: background 120ms;
+}
+button.primary:hover { background: $PRIMARY_HOVER; }
+button.primary:active { background: $PRIMARY_PRESS; }
+button.primary:focus-visible { border-color: #ffffff; }
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+.pulse { animation: pulse 1400ms ease-in-out infinite; }
+
+.caption { font-size: $FS_CAPTION; color: $DIM; }
+.caption.section { font-weight: bold; letter-spacing: 1.2px; }
+
+
+switch {
+  background: $FAINT;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  min-width: 34px;
+  min-height: 18px;
+  padding: 0;
+}
+switch:checked { background: $ACCENT; border-color: $ACCENT; }
+switch slider {
+  min-width: 14px; min-height: 14px;
+  margin: 2px;
+  border-radius: $R_CTRL;
+  background: $FG;
+  border: none;
+}
+switch:checked slider { background: #ffffff; }
+
+/* Text field (shell/Ui/TextField.qml) */
+entry.field, passwordentry.field {
+  background: $NORMAL_FILL;
+  color: $FG;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  padding: $SP7 $SP10;
+  min-height: 0;
+  font-size: $FS_BODY;
+  caret-color: $FG;
+}
+entry.field:hover, passwordentry.field:hover { background: $HOVER_FILL; border-color: $HOVER_BORDER; }
+entry.field:focus-within, passwordentry.field:focus-within { background: $FOCUS_FILL; border-color: $FOCUS_BORDER; }
+passwordentry.field text selection { background: $SELECTION; color: $FG; }
+passwordentry.field image { color: $DIM; }
+
+/* Dropdown */
+dropdown.choice > button {
+  background: $NORMAL_FILL;
+  color: $FG;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  padding: $SP6 $SP10;
+  min-height: 0;
+  font-size: $FS_BODY;
+}
+dropdown.choice > button:hover { background: $HOVER_FILL; border-color: $HOVER_BORDER; }
+dropdown.choice popover > contents {
+  background: $BG;
+  color: $FG;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  padding: $SP2;
+}
+dropdown.choice popover listview row { padding: $SP6 $SP10; border-radius: $R_CTRL; color: $FG; }
+dropdown.choice popover listview row:hover { background: $HOVER_FILL; }
+dropdown.choice popover listview row:selected { background: $SELECTED_FILL; }
+
+scrollbar { background: transparent; border: none; }
+scrollbar slider { background: $DIM; min-width: 4px; border-radius: 99px; }

@@ -4,13 +4,13 @@
 // own process, it stays open while the update restarts or reloads the shell.
 
 use crate::model::{self, Value};
-use crate::theme;
+use doxia_theme::Styler;
 use gtk::prelude::*;
 use gtk::{gdk, gio, glib};
 use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::rc::Rc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 const G_COG: &str = "\u{f013}";
 const G_CHECK: &str = "\u{f00c}";
@@ -50,7 +50,6 @@ struct State {
   log_tail: Vec<String>,
   starting_until: Option<Instant>,
   rendered: String,
-  theme: Vec<Option<SystemTime>>,
 }
 
 pub struct Window {
@@ -64,7 +63,7 @@ pub struct Window {
   footer: gtk::Box,
   footer_rule: gtk::Box,
   password: gtk::PasswordEntry,
-  css: gtk::CssProvider,
+  styler: Styler,
   paths: Paths,
   state: RefCell<State>,
 }
@@ -145,14 +144,8 @@ impl Window {
       .default_height(620)
       .build();
     window.set_size_request(480, 520);
-    window.add_css_class("atualizar");
-
-    let css = gtk::CssProvider::new();
-    gtk::style_context_add_provider_for_display(
-      &gdk::Display::default().expect("no display"),
-      &css,
-      gtk::STYLE_PROVIDER_PRIORITY_USER,
-    );
+    window.add_css_class("doxia");
+    let styler = Styler::install(include_str!("style.css"));
 
     // Header: icon, title, tabs
     let header = hbox(12);
@@ -232,7 +225,7 @@ impl Window {
       footer,
       footer_rule,
       password,
-      css,
+      styler,
       paths,
       state: RefCell::new(State {
         status: None,
@@ -245,7 +238,6 @@ impl Window {
         log_tail: Vec::new(),
         starting_until: None,
         rendered: String::new(),
-        theme: Vec::new(),
       }),
     });
 
@@ -318,12 +310,8 @@ impl Window {
   // ---- data ---------------------------------------------------------------
 
   fn reload_theme(&self, force: bool) {
-    let fp = theme::fingerprint();
-    let mut s = self.state.borrow_mut();
-    if force || fp != s.theme {
-      s.theme = fp;
-      s.rendered.clear();
-      self.css.load_from_string(&theme::css());
+    if self.styler.reload(force) {
+      self.state.borrow_mut().rendered.clear();
     }
   }
 
@@ -1171,7 +1159,7 @@ fn command_box(lines: &[String], commands: bool) -> gtk::Box {
     l.set_wrap_mode(gtk::pango::WrapMode::Char);
     let escaped = glib::markup_escape_text(line);
     if commands {
-      l.set_markup(&format!("<span foreground=\"{}\">#</span> {escaped}", theme::accent()));
+      l.set_markup(&format!("<span foreground=\"{}\">#</span> {escaped}", doxia_theme::accent()));
     } else {
       l.set_markup(&escaped);
     }

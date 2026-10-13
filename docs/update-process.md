@@ -215,8 +215,8 @@ The bar widget `omarchy.system-update` runs the check on shell startup and every
 the window; it also runs the background Flatpak update (`autoFlatpak`) and sends
 the notification when an update finishes.
 
-The window is `doxia-atualizar`, a GTK 4 app in Rust (`fedora/doxia/atualizar`,
-installed from a release by `fedora/doxia/install-atualizar`), opened by
+The window is `doxia-atualizar`, a GTK 4 app in Rust (`fedora/doxia/rs/atualizar`,
+installed from a release by `fedora/doxia/install-rs`), opened by
 `omarchy-launch-update` (Menu > Atualizar > DoxIA, and the bar popup). It runs
 outside the shell because the "Configuração do DoxIA" step (`fedora/update.sh`)
 reloads the shell, which closed the window when it was the `omarchy.update`

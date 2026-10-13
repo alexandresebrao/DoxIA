@@ -1,0 +1,10 @@
+[package]
+name = "doxia-theme"
+description = "The DoxIA shell look for GTK apps, from the current theme"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gtk.workspace = true

@@ -1,0 +1,21 @@
+# The DoxIA apps in Rust + GTK 4, replacing the Quickshell shell piece by piece.
+# See README.md for building and shipping them.
+[workspace]
+resolver = "3"
+members = ["doxia-theme", "atualizar"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }
+serde_json = "1"
+doxia-theme = { path = "doxia-theme" }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1

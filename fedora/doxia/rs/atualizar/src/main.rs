@@ -4,7 +4,6 @@
 // raises the window that is already open.
 
 mod model;
-mod theme;
 mod window;
 
 use gtk::prelude::*;

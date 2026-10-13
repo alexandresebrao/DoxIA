@@ -325,9 +325,9 @@ fi
 bash "$HOME/.config/omarchy/hooks/theme-set.d/firefox"
 bash "$HOME/.config/omarchy/hooks/theme-set.d/edge"
 
-echo "==> Atualizar DoxIA window (sudo)"
-# Its own app, so this script reloading the shell no longer closes it.
-sudo bash "$OMARCHY_PATH/fedora/doxia/install-atualizar" || echo "  Not installed; the shell panel stands in."
+echo "==> DoxIA apps in Rust + GTK 4 (sudo)"
+# Their own processes, so this script reloading the shell no longer closes them.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-rs" || echo "  Not installed; the shell stands in."
 
 echo "==> Runtime packages installs before this one missed (sudo)"
 # perl-JSON-PP: the clipboard history capture and omarchy-menu-select/-input.

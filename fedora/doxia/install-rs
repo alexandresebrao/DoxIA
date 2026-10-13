@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# The DoxIA apps in Rust + GTK 4 (fedora/doxia/rs), as root, for
+# install-system.sh and update.sh. They replace the Quickshell shell piece by
+# piece and run as their own processes, so the update reloading or restarting
+# the shell leaves them open. The binaries come packed in a release asset of
+# this repository, checked against the sha256 below; fedora/doxia/rs/package
+# builds it (see fedora/doxia/rs/README.md).
+#
+# Without them (no network on install, say) each launcher falls back to the
+# shell piece the app replaced.
+
+set -euo pipefail
+
+version=0.1.0
+sha256=81cc5fdade43fcfca79e14ddd7964aadfdcd944d591a779226dc64eb1782b9ee
+name="doxia-rs-$version-$(uname -m)"
+url="https://github.com/alexandresebrao/DoxIA/releases/download/doxia-rs-$version/$name.tar.gz"
+stamp=/usr/local/share/doxia/rs.sha256
+
+[[ $(cat "$stamp" 2>/dev/null) == "$sha256" ]] && exit 0
+
+rpm -q gtk4 &>/dev/null || dnf install -y gtk4
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+if ! curl -sfL --retry 3 -o "$tmp/rs.tar.gz" "$url"; then
+  echo "Could not download the DoxIA apps: $url" >&2
+  exit 1
+fi
+if [[ $(sha256sum "$tmp/rs.tar.gz" | cut -d' ' -f1) != "$sha256" ]]; then
+  echo "DoxIA apps: checksum mismatch for $url" >&2
+  exit 1
+fi
+tar -xzf "$tmp/rs.tar.gz" -C "$tmp"
+for bin in "$tmp/$name"/*; do
+  install -m755 "$bin" "/usr/local/bin/$(basename "$bin")"
+  restorecon "/usr/local/bin/$(basename "$bin")" 2>/dev/null || true
+done
+install -Dm644 /dev/stdin "$stamp" <<< "$sha256"

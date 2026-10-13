@@ -1,0 +1,12 @@
+[package]
+name = "doxia-atualizar"
+description = "Atualizar DoxIA: the update window, outside the shell"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gtk.workspace = true
+serde_json.workspace = true
+doxia-theme.workspace = true

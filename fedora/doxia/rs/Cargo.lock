@@ -51,8 +51,16 @@ dependencies = [
 name = "doxia-atualizar"
 version = "0.1.0"
 dependencies = [
+ "doxia-theme",
  "gtk4",
  "serde_json",
+]
+
+[[package]]
+name = "doxia-theme"
+version = "0.1.0"
+dependencies = [
+ "gtk4",
 ]
 
 [[package]]

@@ -1,0 +1,6 @@
+/* Color utilities last, so they win over a widget's own text color. */
+.c-accent { color: $ACCENT; }
+.c-ok { color: $OK; }
+.c-warn { color: $WARN; }
+.c-urgent { color: $URGENT; }
+.c-dim { color: $DIM; }

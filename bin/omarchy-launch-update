@@ -3,8 +3,8 @@
 # omarchy:summary=Open the Atualizar DoxIA window
 # omarchy:args=[--prefs]
 
-# The window is its own app (fedora/doxia/atualizar, installed by
-# fedora/doxia/install-atualizar), so the update can reload and restart the
+# The window is its own app (fedora/doxia/rs/atualizar, installed by
+# fedora/doxia/install-rs), so the update can reload and restart the
 # shell under it. A second launch raises the open window. Without the app,
 # the omarchy.update shell panel; without a running shell, the update in a
 # terminal.

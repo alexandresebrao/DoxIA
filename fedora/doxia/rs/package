@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Builds every DoxIA app in this workspace and packs the binaries for a GitHub
+# release: dist/doxia-rs-<version>-<arch>.tar.gz, which install-rs unpacks
+# into /usr/local/bin. Prints the sha256 to pin in fedora/doxia/install-rs.
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "$0")")"
+version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+name="doxia-rs-$version-$(uname -m)"
+
+cargo test --release --quiet
+cargo build --release --quiet
+
+bins=$(cargo metadata --no-deps --format-version 1 |
+  jq -r '.packages[].targets[] | select(.kind | index("bin")) | .name')
+
+rm -rf "dist/$name"
+mkdir -p "dist/$name"
+for bin in $bins; do
+  install -m755 "target/release/$bin" "dist/$name/$bin"
+done
+# Same bytes for the same binaries: no timestamps or owners in the archive.
+tar --sort=name --mtime=@0 --owner=0 --group=0 --numeric-owner -C dist -cf - "$name" |
+  gzip -n9 > "dist/$name.tar.gz"
+
+echo "dist/$name.tar.gz"
+sha256sum "dist/$name.tar.gz" | cut -d' ' -f1
