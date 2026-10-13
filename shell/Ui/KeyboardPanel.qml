@@ -439,6 +439,7 @@ PanelWindow {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: root.tabGroup ? root.tabGroup.glyphOf(tab.modelData) : ""
+              textFormat: Text.PlainText
               color: Color.popups.text
               font.family: root.tabGroup ? root.tabGroup.fontOf(tab.modelData) : Style.font.family
               font.pixelSize: Style.font.icon
@@ -446,6 +447,7 @@ PanelWindow {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: root.tabGroup ? root.tabGroup.titleOf(tab.modelData) : ""
+              textFormat: Text.PlainText
               color: Color.popups.text
               opacity: tab.current ? 1 : 0.7
               font.family: Style.font.family
