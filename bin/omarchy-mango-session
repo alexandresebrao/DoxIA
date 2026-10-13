@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# omarchy:summary=Start the mango compositor for the Omarchy session
+# omarchy:hidden=true
+
+# uwsm runs this as the session compositor (see default/wayland-sessions).
+
+STATE_DIR="$HOME/.local/state/omarchy/mango"
+
+# mango's source= only expands ~, so the defaults are reached through a link
+# that follows $OMARCHY_PATH.
+mkdir -p "$STATE_DIR"
+ln -sfn "$OMARCHY_PATH/default/mango" "$STATE_DIR/default"
+omarchy-mango-bindings
+
+# No render node (Hyper-V's hyperv_drm, plain KMS framebuffers): render with
+# llvmpipe on the primary node instead of refusing to start.
+if ! compgen -G "/dev/dri/renderD*" >/dev/null; then
+  export WLR_RENDERER_ALLOW_SOFTWARE=1
+fi
+
+# hyperv_drm has no cursor plane, so the hardware cursor is invisible.
+if [[ $(systemd-detect-virt 2>/dev/null) == "microsoft" ]]; then
+  export WLR_NO_HARDWARE_CURSORS=1
+  # Partial redraws leave stale squares flickering on hyperv_drm's dumb
+  # buffers, so repaint the whole output every frame.
+  export WLR_SCENE_DEBUG_DAMAGE=rerender
+  export WLR_SCENE_DISABLE_DIRECT_SCANOUT=1
+fi
+
+exec mango "$@"
