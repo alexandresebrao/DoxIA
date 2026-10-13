@@ -1,0 +1,33 @@
+--- a/render/fx_renderer/fx_framebuffer.c	2026-10-13 17:39:41.876329164 -0300
++++ b/render/fx_renderer/fx_framebuffer.c	2026-10-13 18:34:25.577928941 -0300
+@@ -1,3 +1,4 @@
++#include <drm_fourcc.h>
+ #include <stdlib.h>
+ #include <wlr/interfaces/wlr_buffer.h>
+ #include <wlr/render/allocator.h>
+@@ -94,6 +95,15 @@
+ 	const struct fx_pixel_format *pix_format =
+ 		get_fx_format_from_gl(GL_RGBA, GL_UNSIGNED_BYTE, has_alpha);
+ 	const struct wlr_drm_format *format = wlr_drm_format_set_get(texture_formats, pix_format->drm_format);
++	// vmwgfx (VMware) either lacks XBGR8888/ABGR8888 DMA-BUFs or lists them
++	// but can't allocate them with the scanout flag the gbm allocator uses.
++	// The BGRA layout works just as well for an offscreen effect buffer.
++	const struct wlr_drm_format *fallback = wlr_drm_format_set_get(texture_formats,
++		has_alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888);
++	if (format == NULL) {
++		format = fallback;
++		fallback = NULL;
++	}
+ 	if (format == NULL) {
+ 		wlr_log(WLR_ERROR, "Failed to get a supported texture format while allocating buffer");
+ 		*failed = true;
+@@ -101,6 +111,9 @@
+ 	}
+ 
+ 	struct wlr_buffer *wlr_buffer = wlr_allocator_create_buffer(allocator, width, height, format);
++	if (wlr_buffer == NULL && fallback != NULL) {
++		wlr_buffer = wlr_allocator_create_buffer(allocator, width, height, fallback);
++	}
+ 	if (wlr_buffer == NULL) {
+ 		wlr_log(WLR_ERROR, "Failed to allocate wlr_buffer");
+ 		*failed = true;

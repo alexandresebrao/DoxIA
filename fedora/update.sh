@@ -341,6 +341,8 @@ echo "==> Compositor: mango and its Wayland tools (sudo)"
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-mango"
 # On VMware, the DoxIA wlroots: Fedora's rejects every client DMA-BUF on vmwgfx.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-wlroots"
+# And scenefx: its blur/shadow buffers use formats vmwgfx can't allocate.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-scenefx"
 sudo bash -s <<'ROOT'
 set -euo pipefail
 tools=(xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)

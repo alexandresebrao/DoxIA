@@ -37,6 +37,10 @@ echo "==> wlroots (the DoxIA build, on VMware only)"
 # vmwgfx rejects every client DMA-BUF in Fedora's build: black login screen.
 bash "$omarchy_path/fedora/doxia/install-wlroots"
 
+echo "==> scenefx (the DoxIA build, on VMware only)"
+# vmwgfx can't allocate the blur/shadow buffers in the COPR build.
+bash "$omarchy_path/fedora/doxia/install-scenefx"
+
 echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
 bash "$omarchy_path/fedora/doxia/install-rs" || echo "  Not installed; the shell stands in."
 
