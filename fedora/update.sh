@@ -339,6 +339,8 @@ echo "==> Compositor: mango and its Wayland tools (sudo)"
 # Before the login screen below, whose greeter runs on mango. install-mango puts
 # back the DoxIA build if the unpatched COPR one got in, and keeps it excluded.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-mango"
+# On VMware, the DoxIA wlroots: Fedora's rejects every client DMA-BUF on vmwgfx.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-wlroots"
 sudo bash -s <<'ROOT'
 set -euo pipefail
 tools=(xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)

@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# The DoxIA build of wlroots on VMware (as root), for install-system.sh and
+# update.sh.
+#
+# On vmwgfx the DMA-BUF import check in wlr_linux_dmabuf_v1 fails (closing the
+# imported handle gives EINVAL), so mango rejects every GL client buffer: the
+# SDDM greeter and Quickshell die with "importing the supplied dmabufs failed".
+# The DoxIA build skips that check on vmwgfx and is published as a release
+# asset of this repository. It is version-locked so a Fedora wlroots update
+# does not swap it out. Other machines keep Fedora's wlroots; if this system
+# stopped being a VMware guest, the lock is dropped and Fedora's build comes
+# back with the next update.
+#
+# To ship a new build: upload the RPMs as release wlroots-<version>, then bump
+# version below.
+
+set -euo pipefail
+
+version=0.20.2-1
+target="$version.fc$(rpm -E %fedora).doxia1"
+arch=$(uname -m)
+base="https://github.com/alexandresebrao/DoxIA/releases/download/wlroots-$version"
+
+if [[ $(systemd-detect-virt 2>/dev/null || true) != vmware ]]; then
+  dnf versionlock delete wlroots wlroots-devel &>/dev/null || true
+  exit 0
+fi
+
+packages=(wlroots)
+# wlroots-devel requires the exact same build.
+rpm -q wlroots-devel &>/dev/null && packages+=(wlroots-devel)
+
+installed=$(rpm -q --qf '%{VERSION}-%{RELEASE}' wlroots 2>/dev/null || true)
+if [[ -z $installed ]]; then
+  order=-1
+else
+  order=$(rpm --eval "%{lua:print(rpm.vercmp('$installed', '$target'))}")
+fi
+
+if (( order != 0 )); then
+  urls=()
+  for package in "${packages[@]}"; do
+    urls+=("$base/$package-$target.$arch.rpm")
+  done
+
+  # Published for one Fedora release and architecture at a time.
+  if ! curl -sfIL "${urls[0]}" >/dev/null; then
+    echo "No DoxIA wlroots build for this system: ${urls[0]}" >&2
+    exit 1
+  fi
+
+  dnf versionlock delete wlroots wlroots-devel &>/dev/null || true
+  if (( order > 0 )); then
+    dnf downgrade -y "${urls[@]}"
+  else
+    dnf install -y --setopt=install_weak_deps=False "${urls[@]}"
+  fi
+fi
+
+# Re-added every run: wlroots-devel may have been installed since.
+dnf versionlock delete wlroots wlroots-devel &>/dev/null || true
+dnf versionlock add "${packages[@]/%/-$target}" >/dev/null

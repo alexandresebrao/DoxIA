@@ -1,0 +1,30 @@
+diff --color -ru a/types/wlr_linux_dmabuf_v1.c b/types/wlr_linux_dmabuf_v1.c
+--- a/types/wlr_linux_dmabuf_v1.c	2026-10-13 12:13:04.502532221 -0300
++++ b/types/wlr_linux_dmabuf_v1.c	2026-10-13 12:13:19.028343361 -0300
+@@ -2,6 +2,7 @@
+ #include <drm_fourcc.h>
+ #include <fcntl.h>
+ #include <stdlib.h>
++#include <string.h>
+ #include <sys/mman.h>
+ #include <unistd.h>
+ #include <wlr/backend.h>
+@@ -906,6 +907,18 @@
+ 			wlr_log_errno(WLR_ERROR, "Failed to open DRM device %s", name);
+ 			goto error_compiled;
+ 		}
++		// vmwgfx turns imported DMA-BUFs into TTM handles, not GEM handles, so
++		// drmCloseBufferHandle() fails with EINVAL and every client buffer
++		// would be rejected. The renderer still imports for real; only skip
++		// the advisory check.
++		drmVersion *version = drmGetVersion(main_device_fd);
++		if (version != NULL && strcmp(version->name, "vmwgfx") == 0) {
++			wlr_log(WLR_DEBUG, "DRM device is vmwgfx, "
++				"skipping DMA-BUF import checks");
++			close(main_device_fd);
++			main_device_fd = -1;
++		}
++		drmFreeVersion(version);
+ 	} else {
+ 		// Likely a split display/render setup. Unfortunately we have no way to
+ 		// get back the proper render node used by the renderer under-the-hood.

@@ -33,6 +33,10 @@ echo "==> mango (the DoxIA build, from this repository's releases)"
 # Also enables the kaleedtc/mangowm COPR for scenefx, with mangowm excluded.
 bash "$omarchy_path/fedora/doxia/install-mango"
 
+echo "==> wlroots (the DoxIA build, on VMware only)"
+# vmwgfx rejects every client DMA-BUF in Fedora's build: black login screen.
+bash "$omarchy_path/fedora/doxia/install-wlroots"
+
 echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
 bash "$omarchy_path/fedora/doxia/install-rs" || echo "  Not installed; the shell stands in."
 
