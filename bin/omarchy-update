@@ -127,7 +127,12 @@ if (( assume_yes )) || omarchy-update-confirm "$mode"; then
   else
     sudo -v || exit 1
   fi
-  ( while kill -0 $$ 2>/dev/null; do sudo -n -v 2>/dev/null; sleep 50; done ) &
+  # Its sleep outlives the update by up to 50 seconds. Holding the update lock or
+  # the update's output that long would turn a retry away as already running.
+  (
+    [[ -n ${OMARCHY_UPDATE_LOCK_FD:-} ]] && exec {OMARCHY_UPDATE_LOCK_FD}>&-
+    while kill -0 $$ 2>/dev/null; do sudo -n -v 2>/dev/null; sleep 50; done
+  ) >/dev/null 2>&1 &
   sudo_keepalive=$!
   trap 'kill "$sudo_keepalive" 2>/dev/null; omarchy-update-stay-awake stop' EXIT
 
