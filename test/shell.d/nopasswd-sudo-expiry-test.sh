@@ -110,11 +110,11 @@ for grant_name in "${grant_names[@]}"; do
 done
 touch "$sudoers_dir/omarchy-dns"
 
-systemd-tmpfiles --root="$fake_root" --remove --inline "${tmpfiles_rules[@]}"
+systemd-tmpfiles --root="$fake_root" --remove "$tmpfiles_file"
 [[ -f $sudoers_dir/99-omarchy-nopasswd-alice ]] ||
   fail "boot-only cleanup leaves a live grant alone outside boot"
 
-systemd-tmpfiles --root="$fake_root" --remove --boot --inline "${tmpfiles_rules[@]}"
+systemd-tmpfiles --root="$fake_root" --remove --boot "$tmpfiles_file"
 for grant_name in "${grant_names[@]}"; do
   stale_grant="$sudoers_dir/99-omarchy-nopasswd-$grant_name"
   [[ ! -e $stale_grant ]] || fail "boot cleanup removes every generated grant" "$stale_grant"
