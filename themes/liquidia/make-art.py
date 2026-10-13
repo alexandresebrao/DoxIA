@@ -2,8 +2,7 @@
 """Gera o fundo, o emblema da barra, a imagem de unlock e a prévia do tema LiquidIA.
 
 O fundo é "vidro líquido": gotas fundidas (metaballs: blur + limiar) num
-degradê vermelho -> laranja, com brilho especular na borda de cima e um
-painel de vidro fosco por cima. O ∞ é o infinito.png do DoxIA repintado no
+degradê vermelho -> laranja, com brilho especular na borda de cima. O ∞ é o infinito.png do DoxIA repintado no
 mesmo degradê.
 
 Rode de novo para regenerar: python3 make-art.py
@@ -111,22 +110,6 @@ def wallpaper():
     sh = Image.new("RGBA", size, (255, 210, 160, 0))
     sh.putalpha(sheen.point(lambda v: int(v * 0.35)))
     img.alpha_composite(sh)
-
-    # painel de vidro fosco por cima de parte do líquido
-    px, py, pw, ph, pr = int(W * 0.56), int(H * 0.46), 1180, 760, 90
-    panel_mask = Image.new("L", size, 0)
-    ImageDraw.Draw(panel_mask).rounded_rectangle([px, py, px + pw, py + ph], pr, fill=255)
-    frosted = img.filter(ImageFilter.GaussianBlur(55))
-    tint = Image.new("RGBA", size, (255, 255, 255, 22))
-    frosted.alpha_composite(tint)
-    img = Image.composite(frosted, img, panel_mask)
-    edge = Image.new("L", size, 0)
-    ed = ImageDraw.Draw(edge)
-    ed.rounded_rectangle([px, py, px + pw, py + ph], pr, outline=110, width=3)
-    ed.rounded_rectangle([px + 4, py + 4, px + pw - 4, py + ph // 2], pr - 4, outline=40, width=2)
-    stroke = Image.new("RGBA", size, (255, 235, 220, 0))
-    stroke.putalpha(edge.filter(ImageFilter.GaussianBlur(1.2)))
-    img.alpha_composite(stroke)
 
     # granulação leve para não dar banding
     noise = Image.effect_noise((W // 2, H // 2), 18).resize(size).point(lambda v: v // 14)
