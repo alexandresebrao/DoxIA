@@ -66,12 +66,15 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   `dismiss <summary>`, `ping`). Same lifetimes, do-not-disturb bypasses,
   replaces_id updates and files under `~/.local/state/omarchy/notifications`
   (popups survive a restart, the last ten are the history), so history carries
-  over between the two servers. The bus name has one owner: doxia-shell adds
-  `omarchy.notifications` to `disabledPlugins` in `shell.json` and waits in
-  line for the name, which it gets when Quickshell next restarts (the next
-  login, or the end of an update). It never restarts Quickshell itself:
-  `omarchy-restart-shell` can lock the session again. `apply-bar` takes the
-  entry back out where doxia-shell is not installed. The bar's DND indicator
+  over between the two servers. The bus name has one owner, and a Quickshell
+  that ever started its notification service keeps it for as long as it runs,
+  dropping what it receives once the plugin is unloaded. So `apply-bar` keeps
+  `omarchy.notifications` (and `omarchy.polkit`) in `disabledPlugins` where
+  doxia-shell is installed, and back out where it is not; doxia-shell adds
+  them too, and if Quickshell still holds the name 10 s after start it
+  restarts Quickshell once, only when `omarchy-mango-session-locked` says the
+  session is unlocked (`omarchy-restart-shell` re-locks a session it takes
+  for locked). The bar's DND indicator
   reads `notifications.json`, which both servers keep.
 
 - polkit: the session's authentication agent, replacing

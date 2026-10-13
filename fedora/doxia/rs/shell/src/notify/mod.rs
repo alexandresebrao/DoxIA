@@ -183,10 +183,27 @@ impl Notifications {
       move |_, _| lost.owns_name.set(false),
     );
     std::mem::forget(id);
-    // A running Quickshell keeps the name until it restarts: at the next
-    // login, or the restart at the end of every update. Never restart it from
-    // here: omarchy-restart-shell may lock the session again.
     crate::quickshell::disable("omarchy.notifications");
+
+    // A Quickshell that ever ran its notification service keeps the name for
+    // as long as it runs, plugin unloaded or not, and drops what it receives:
+    // notifications would vanish until the next login. apply-bar keeps the
+    // service off so this is rare; when it happens anyway, restart Quickshell
+    // once, and only when the session is certainly unlocked
+    // (omarchy-restart-shell re-locks a session it thinks is locked).
+    let me = self.clone();
+    let conn = conn.clone();
+    glib::timeout_add_seconds_local_once(10, move || {
+      if me.owns_name.get() {
+        return;
+      }
+      glib::spawn_future_local(async move {
+        if name_owner_comm(&conn, IFACE).await.as_deref() == Some("quickshell") && session_unlocked() {
+          glib::g_message!("doxia-shell", "notifications: Quickshell holds the bus name; restarting it");
+          spawn(&["omarchy-restart-shell".to_string()]);
+        }
+      });
+    });
   }
 
   fn emit(&self, signal: &str, args: glib::Variant) {
@@ -553,4 +570,32 @@ fn spawn(argv: &[String]) {
     .process_group(0)
     .spawn()
     .map(|mut c| std::thread::spawn(move || c.wait()));
+}
+
+// The process name of a bus name's owner.
+async fn name_owner_comm(conn: &gio::DBusConnection, name: &str) -> Option<String> {
+  let reply = conn
+    .call_future(
+      Some("org.freedesktop.DBus"),
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      "GetConnectionUnixProcessID",
+      Some(&(name,).to_variant()),
+      None,
+      gio::DBusCallFlags::NONE,
+      2000,
+    )
+    .await
+    .ok()?;
+  let (pid,) = reply.get::<(u32,)>()?;
+  std::fs::read_to_string(format!("/proc/{pid}/comm")).ok().map(|c| c.trim().to_string())
+}
+
+// omarchy-mango-session-locked exits 1 for unlocked, 0 locked, 2 unknown.
+fn session_unlocked() -> bool {
+  std::process::Command::new("omarchy-mango-session-locked")
+    .stdout(std::process::Stdio::null())
+    .stderr(std::process::Stdio::null())
+    .status()
+    .is_ok_and(|s| s.code() == Some(1))
 }

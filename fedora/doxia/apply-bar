@@ -122,11 +122,18 @@ jq '
 ' "$shell_json" > "$shell_json.tmp"
 mv "$shell_json.tmp" "$shell_json"
 
-# doxia-shell (fedora/doxia/rs/shell) turns Quickshell's notification service
-# and polkit agent off in shell.json when it takes them over. Without
-# doxia-shell installed, turn them back on, or nothing would show notifications
-# or ask for passwords.
-if ! command -v doxia-shell >/dev/null; then
+# doxia-shell (fedora/doxia/rs/shell) takes over Quickshell's notification
+# service and polkit agent. With it installed, keep them off in shell.json, so
+# Quickshell never starts them: once started, its notification server keeps
+# the bus name until Quickshell restarts and drops what it gets while its
+# plugin is unloaded. Without doxia-shell, turn them back on, or nothing would
+# show notifications or ask for passwords.
+if command -v doxia-shell >/dev/null; then
+  jq '(.disabledPlugins // []) as $off
+      | .disabledPlugins = $off + (["omarchy.notifications", "omarchy.polkit"] - $off)' \
+    "$shell_json" > "$shell_json.tmp"
+  mv "$shell_json.tmp" "$shell_json"
+else
   jq '["omarchy.notifications", "omarchy.polkit"] as $taken
       | if .disabledPlugins == null then .
         else .disabledPlugins |= map(select(. as $id | $taken | index($id) | not))
