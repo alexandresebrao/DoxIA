@@ -8,13 +8,13 @@ import Quickshell.Io
 // rounding, gap to screen edges, state affordances, spacing, typography
 // scale, and bar dimensions.
 //
-// `cornerRadius` mirrors Hyprland's `decoration:rounding`. `gapsOut` is
-// half of Hyprland's `general:gaps_out` — Hyprland's value works well as
-// a window-to-window gap but feels too cavernous when used as the
-// distance from a panel/notification to the screen edge, so the shell
-// halves it. Themes and user Hyprland config own those values; the
-// shell picks them up by re-running `hyprctl getoption` on startup and
-// after theme IPC applies a theme.
+// `cornerRadius` mirrors mango's `border_radius`. `gapsOut` is half of
+// mango's `gap_outer_horizontal` — mango's value works well as a
+// window-to-window gap but feels too cavernous when used as the distance
+// from a panel/notification to the screen edge, so the shell halves it.
+// Themes and user mango config own those values; the shell picks them up
+// by re-running `omarchy-mango-option` on startup and after theme IPC
+// applies a theme.
 //
 // Typography, spacing, and bar size come from theme/shell.toml.
 // `[font] base-size` is the rem root; every `Style.font.<token>` derives
@@ -348,7 +348,7 @@ QtObject {
   }
 
   function refresh() {
-    hyprctlProc.running = true
+    roundingProc.running = true
     gapsOutProc.running = true
   }
 
@@ -356,26 +356,16 @@ QtObject {
     refreshTimer.restart()
   }
 
-  function applyRoundingJson(raw) {
-    try {
-      var json = JSON.parse(raw || "{}")
-      var n = Number(json.int)
-      if (isFinite(n) && n >= 0) cornerRadius = n
-    } catch (e) {
-      // hyprctl missing / Hyprland not running — leave the previous value.
-    }
+  // A missing or unparsable value (mango config unreadable) leaves the
+  // previous one in place.
+  function applyRounding(raw) {
+    var n = parseInt(String(raw || "").trim(), 10)
+    if (isFinite(n) && n >= 0) cornerRadius = n
   }
 
-  function applyGapsOutJson(raw) {
-    try {
-      var json = JSON.parse(raw || "{}")
-      var css = String(json.css || "")
-      var parts = css.match(/-?\d+(?:\.\d+)?/g) || []
-      var n = parts.length > 0 ? Number(parts[0]) : Number(json.int)
-      if (isFinite(n) && n >= 0) gapsOut = Math.max(0, Math.round(n / 2))
-    } catch (e) {
-      // hyprctl missing / Hyprland not running — leave the previous value.
-    }
+  function applyGapsOut(raw) {
+    var n = parseInt(String(raw || "").trim(), 10)
+    if (isFinite(n) && n >= 0) gapsOut = Math.max(0, Math.round(n / 2))
   }
 
   // Pull typography, bar dimensions, state tokens, and spacing out of the
@@ -441,21 +431,21 @@ QtObject {
     styleOverrides = styleOut
   }
 
-  property Process hyprctlProc: Process {
-    id: hyprctlProc
-    command: ["hyprctl", "-j", "getoption", "decoration:rounding"]
+  property Process roundingProc: Process {
+    id: roundingProc
+    command: ["omarchy-mango-option", "border_radius"]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.applyRoundingJson(text)
+      onStreamFinished: root.applyRounding(text)
     }
   }
 
   property Process gapsOutProc: Process {
     id: gapsOutProc
-    command: ["hyprctl", "-j", "getoption", "general:gaps_out"]
+    command: ["omarchy-mango-option", "gap_outer_horizontal"]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.applyGapsOutJson(text)
+      onStreamFinished: root.applyGapsOut(text)
     }
   }
 

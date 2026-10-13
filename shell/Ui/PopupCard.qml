@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import qs.Commons
 
 PopupWindow {
@@ -17,7 +16,7 @@ PopupWindow {
   property var borderSpec: Border.localOrSurfaceSpec("popups", "border", borderColor, Color.popups.border, Math.max(1, Style.space(2)))
   property bool open: false
   property bool centerOnBar: false
-  // "click" — uses HyprlandFocusGrab so clicking outside dismisses the popup.
+  // "click" — grabs input (xdg_popup grab) so clicking outside dismisses the popup.
   // "hover" — passive overlay; the owning widget controls open via hover.
   property string triggerMode: "click"
 
@@ -65,6 +64,8 @@ PopupWindow {
   default property alias contentItem: contentHolder.children
 
   visible: open || card.opacity > 0
+  readonly property bool clickGrab: root.open && root.triggerMode === "click"
+  grabFocus: clickGrab
   color: "transparent"
   implicitWidth: contentWidth
   implicitHeight: contentHeight
@@ -75,14 +76,15 @@ PopupWindow {
     else if (bar.activePopout === coordinatorKey) bar.releasePopout(coordinatorKey)
   }
 
-  // Outside-click dismissal via Hyprland's focus grab. While `active`, input
-  // is routed only to the listed windows; clicking anywhere else clears the
-  // grab and we close the popup. Skipped for hover-mode popups so the cursor
-  // can move freely between the trigger and the popup.
-  HyprlandFocusGrab {
-    active: root.open && root.triggerMode === "click"
-    windows: root.anchorWindow ? [root, root.anchorWindow] : [root]
-    onCleared: root.close()
+  // Outside-click dismissal via the xdg_popup grab: a click anywhere else makes
+  // the compositor dismiss the popup, which hides the window behind our back.
+  // Close properly and restore the visibility binding the dismissal broke.
+  // Skipped for hover-mode popups so the cursor can move freely between the
+  // trigger and the popup.
+  onVisibleChanged: {
+    if (visible || !root.open) return
+    root.close()
+    visible = Qt.binding(function() { return root.open || card.opacity > 0 })
   }
 
   anchor {

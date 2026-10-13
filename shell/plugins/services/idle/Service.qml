@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import "IdleModel.js" as IdleModel
@@ -139,28 +138,12 @@ Item {
     root.cancelIdleCycle("screensaver-dismissed")
   }
 
-  function eventParts(event, count) {
-    return IdleModel.eventParts(event, count)
-  }
-
-  function handleHyprlandEvent(event) {
-    var name = String(event && event.name ? event.name : "")
-    if (name === "openwindow") {
-      var open = eventParts(event, 4)
-      if (String(open[2] || "") === root.screensaverClass) root.handleScreensaverWindowOpened(open[0])
-    } else if (name === "closewindow") {
-      var close = eventParts(event, 1)
-      var address = String(close[0] || "")
-      if (root.screensaverWindows[address]) root.handleScreensaverWindowClosed(address)
-    }
-  }
-
   function handleActiveSignal() {
     if (!root.idledThisCycle) return
 
     // Starting the screensaver can make the compositor report activity. Keep
     // the lock timer running once the screensaver exists (or during its short
-    // launch grace); Hyprland window events cancel the cycle if it exits before
+    // launch grace); toplevel events cancel the cycle if it exits before
     // the normal lock deadline.
     if (root.screensaverStartedThisCycle && (root.screensaverWindowCount > 0 || screensaverLaunchGraceTimer.running)) {
       logEvent("idle-monitor-active", "screensaver cycle remains armed")
@@ -281,9 +264,36 @@ Item {
     }
   }
 
-  Connections {
-    target: Hyprland
-    function onRawEvent(event) { root.handleHyprlandEvent(event) }
+  // Screensaver windows, seen through wlr-foreign-toplevel. Each gets its own
+  // key for as long as it lives, since toplevels carry no stable address.
+  property int nextToplevelKey: 0
+
+  Instantiator {
+    model: ToplevelManager.toplevels
+    delegate: QtObject {
+      required property var modelData
+      property string key: ""
+      readonly property bool isScreensaver: modelData && String(modelData.appId || "") === root.screensaverClass
+      property bool tracked: false
+
+      function sync() {
+        if (isScreensaver && !tracked) {
+          tracked = true
+          root.handleScreensaverWindowOpened(key)
+        } else if (!isScreensaver && tracked) {
+          tracked = false
+          root.handleScreensaverWindowClosed(key)
+        }
+      }
+
+      onIsScreensaverChanged: sync()
+      Component.onCompleted: {
+        key = "toplevel-" + root.nextToplevelKey
+        root.nextToplevelKey += 1
+        sync()
+      }
+      Component.onDestruction: if (tracked) root.handleScreensaverWindowClosed(key)
+    }
   }
 
   Process {

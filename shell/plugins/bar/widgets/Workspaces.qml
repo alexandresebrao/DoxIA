@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell.Hyprland
+import Quickshell
 import qs.Commons
 import qs.Ui
 
@@ -8,22 +8,26 @@ BarWidget {
   id: root
   moduleName: "omarchy.workspaces"
 
-  function workspaceById(id) {
-    var values = Hyprland.workspaces.values
-    for (var i = 0; i < values.length; i++) {
-      if (values[i].id === id) return values[i]
+  // mango tags are per output, so each bar shows its own monitor's.
+  readonly property var window: root.QsWindow.window
+  readonly property string monitorName: root.window && root.window.screen ? String(root.window.screen.name || "") : ""
+  readonly property var tags: Compositor.tagsFor(root.monitorName.length > 0 ? root.monitorName : Compositor.focusedMonitor)
+
+  function tagByIndex(index) {
+    for (var i = 0; i < root.tags.length; i++) {
+      if (root.tags[i].index === index) return root.tags[i]
     }
 
     return null
   }
 
+  // 1..5 always, plus any later tag holding a window or in view.
   function workspaceIds() {
     var ids = [1, 2, 3, 4, 5]
-    var values = Hyprland.workspaces.values
 
-    for (var i = 0; i < values.length; i++) {
-      var id = values[i].id
-      if (id > 0 && id <= 10 && ids.indexOf(id) === -1) ids.push(id)
+    for (var i = 0; i < root.tags.length; i++) {
+      var tag = root.tags[i]
+      if (tag.index > 0 && tag.index <= 10 && (tag.client_count > 0 || tag.is_active) && ids.indexOf(tag.index) === -1) ids.push(tag.index)
     }
 
     ids.sort(function(left, right) { return left - right })
@@ -31,8 +35,8 @@ BarWidget {
   }
 
   function focusWorkspace(id) {
-    if (!root.bar) return
-    root.bar.run("hyprctl dispatch " + Util.shellQuote("hl.dsp.focus({ workspace = \"" + id + "\" })"))
+    if (root.monitorName) Compositor.dispatch("focusmon", root.monitorName)
+    Compositor.dispatch("view", id)
   }
 
   readonly property real trailingGap: root.vertical ? 0 : Style.spaceReal(1.5)
@@ -54,9 +58,9 @@ BarWidget {
       WidgetButton {
         required property int modelData
 
-        readonly property var workspace: root.workspaceById(modelData)
-        readonly property bool occupied: workspace !== null && workspace.toplevels.values.length > 0
-        readonly property bool focused: Hyprland.focusedWorkspace !== null && Hyprland.focusedWorkspace.id === modelData
+        readonly property var tag: root.tagByIndex(modelData)
+        readonly property bool occupied: tag !== null && tag.client_count > 0
+        readonly property bool focused: tag !== null && tag.is_active
 
         bar: root.bar
         text: focused ? "\uDB85\uDCFB" : (modelData === 10 ? "0" : String(modelData))
