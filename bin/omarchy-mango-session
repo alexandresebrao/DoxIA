@@ -13,6 +13,13 @@ mkdir -p "$STATE_DIR"
 ln -sfn "$OMARCHY_PATH/default/mango" "$STATE_DIR/default"
 omarchy-mango-bindings
 
+# Themes' blur is too heavy for llvmpipe: lighter effects inside a VM.
+if systemd-detect-virt --vm --quiet; then
+  ln -sfn "$OMARCHY_PATH/default/mango/vm.conf" "$STATE_DIR/vm.conf"
+else
+  rm -f "$STATE_DIR/vm.conf"
+fi
+
 # No render node (Hyper-V's hyperv_drm, plain KMS framebuffers): render with
 # llvmpipe on the primary node instead of refusing to start.
 if ! compgen -G "/dev/dri/renderD*" >/dev/null; then
