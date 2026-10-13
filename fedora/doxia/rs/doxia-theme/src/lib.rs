@@ -46,13 +46,69 @@ impl Rgb {
 
 struct Toml(Vec<(String, String, String)>);
 
+// A # starts a comment only outside quotes: "#1f7ae0" is a color.
+fn strip_comment(line: &str) -> &str {
+  let mut quoted = false;
+  for (i, c) in line.char_indices() {
+    match c {
+      '"' => quoted = !quoted,
+      '#' if !quoted => return &line[..i],
+      _ => {}
+    }
+  }
+  line
+}
+
+// Hyprland-style colors from shell.toml: "#rrggbb", "rgba(rrggbbaa)" or
+// "rgb(rrggbb)", as CSS.
+fn css_color(token: &str) -> Option<String> {
+  let t = token.trim();
+  if let Some(hex) = t.strip_prefix("rgba(").and_then(|r| r.strip_suffix(')')) {
+    let rgb = Rgb::hex(&hex[..6.min(hex.len())])?;
+    let a = hex.get(6..8).and_then(|a| u8::from_str_radix(a, 16).ok()).map(|a| a as f64 / 255.0).unwrap_or(1.0);
+    return Some(rgb.alpha(a));
+  }
+  if let Some(hex) = t.strip_prefix("rgb(").and_then(|r| r.strip_suffix(')')) {
+    return Rgb::hex(hex).map(Rgb::css);
+  }
+  Rgb::hex(t).filter(|_| t.starts_with('#')).map(Rgb::css)
+}
+
+// A border value as a CSS image: a gradient for "c1 c2 45deg", a flat one for
+// a single color. Section.key values point at another entry (the popups use
+// "hyprland.active-border").
+fn border_image(shell: &Toml, value: &str, fallback: &str, depth: u8) -> String {
+  if let Some((section, key)) = value.split_once('.').filter(|(s, _)| !s.contains(['(', '#', ' '])) {
+    if depth < 4 {
+      if let Some(v) = shell.get(section, key) {
+        return border_image(shell, v, fallback, depth + 1);
+      }
+    }
+  }
+  let mut colors = Vec::new();
+  let mut angle = None;
+  for part in value.split_whitespace() {
+    if let Some(deg) = part.strip_suffix("deg") {
+      angle = deg.parse::<f64>().ok();
+    } else if let Some(c) = css_color(part) {
+      colors.push(c);
+    }
+  }
+  match colors.len() {
+    0 => format!("linear-gradient({fallback}, {fallback})"),
+    1 => format!("linear-gradient({0}, {0})", colors[0]),
+    // Hyprland measures the angle from the x axis, CSS from the top.
+    _ => format!("linear-gradient({}deg, {})", 90.0 - angle.unwrap_or(0.0), colors.join(", ")),
+  }
+}
+
 impl Toml {
   fn read(path: &PathBuf) -> Toml {
     let text = std::fs::read_to_string(path).unwrap_or_default();
     let mut section = String::new();
     let mut entries = Vec::new();
     for line in text.lines() {
-      let line = line.split('#').next().unwrap_or("").trim();
+      let line = strip_comment(line).trim();
       if line.starts_with('[') && line.ends_with(']') {
         section = line[1..line.len() - 1].trim().to_string();
       } else if let Some((k, v)) = line.split_once('=') {
@@ -186,6 +242,9 @@ pub fn css(app_css: &str) -> String {
   let radius = rounding();
   let r = |px: u32| if radius > 0 { format!("{}px", (px as f64 * scale).round()) } else { "0".into() };
 
+  let popup_text = shell.get("popups", "text").and_then(css_color).unwrap_or_else(|| p.fg.css());
+  let popup_border = border_image(&shell, shell.get("popups", "border").unwrap_or(""), &p.accent.css(), 0);
+
   let vars = [
     ("$FG", p.fg.css()),
     ("$BG", p.bg.css()),
@@ -230,6 +289,11 @@ pub fn css(app_css: &str) -> String {
     ("$FS_SUBTITLE", format!("{}px", font("subtitle", 1.083))),
     ("$FS_TITLE", format!("{}px", font("title", 1.167))),
     ("$FS_HEADING", format!("{}px", font("heading", 1.333))),
+    ("$FS_DISPLAY_LARGE", format!("{}px", font("display-large", 2.333))),
+    ("$POPUP_FILL", p.bg.alpha(0.97)),
+    ("$POPUP_TEXT", popup_text),
+    ("$POPUP_TRACK", Rgb::hex(&shell.get("popups", "text").unwrap_or("").replace('#', "")).unwrap_or(p.fg).alpha(0.45)),
+    ("$POPUP_BORDER", popup_border),
     ("$R_CTRL", if radius > 0 { format!("{radius}px") } else { "0".into() }),
     ("$R_CARD", r(6)),
     ("$R_ICON", r(5)),
@@ -285,5 +349,28 @@ impl Styler {
     *self.seen.borrow_mut() = fp;
     self.provider.load_from_string(&css(self.app_css));
     true
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn comments_stop_at_quotes() {
+    assert_eq!(strip_comment(r##"text = "#1b2a3d" # navy"##).trim(), r##"text = "#1b2a3d""##);
+  }
+
+  #[test]
+  fn borders_follow_references_and_gradients() {
+    let shell = Toml(vec![
+      ("hyprland".into(), "active-border".into(), "rgba(1f6bffee) rgba(2fd4ffee) 45deg".into()),
+      ("popups".into(), "border".into(), "hyprland.active-border".into()),
+    ]);
+    assert_eq!(
+      border_image(&shell, "hyprland.active-border", "#000000", 0),
+      "linear-gradient(45deg, rgba(31,107,255,0.933), rgba(47,212,255,0.933))"
+    );
+    assert_eq!(border_image(&shell, "#1f7ae0", "#000000", 0), "linear-gradient(#1f7ae0, #1f7ae0)");
   }
 }

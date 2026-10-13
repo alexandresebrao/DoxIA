@@ -4,11 +4,14 @@
 window.doxia {
   background: $BG;
   color: $FG;
-  font-family: monospace;
   font-size: $FS_BODY;
 }
 
 window.doxia * {
+  /* The shell font, Lucide icons and all (fedora/doxia/lucide). No
+     "monospace" in the list: omarchy-font-set's fontconfig rule puts the
+     terminal font first in any list naming it, icons included. */
+  font-family: "DoxIA Shell", "JetBrainsMono Nerd Font";
   outline: none;
   box-shadow: none;
   text-shadow: none;
