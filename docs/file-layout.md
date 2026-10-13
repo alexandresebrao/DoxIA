@@ -111,7 +111,8 @@ default/**                     ──►  omarchy-settings    /usr/share/omarchy
   ├─ systemd/zram-generator.conf.d/90-omarchy.conf      /usr/lib/systemd/zram-generator.conf.d/
   ├─ fonts/omarchy/omarchy.ttf                          /usr/share/fonts/omarchy/
   ├─ sddm/omarchy/                                      /usr/share/sddm/themes/omarchy/
-  ├─ sddm/hyprland.lua                                  /usr/share/sddm/hyprland.lua
+  ├─ sddm/mango.conf, mango-hyperv.conf                /usr/share/sddm/
+  ├─ sddm/doxia-greeter                                 /usr/libexec/doxia-sddm-greeter
   ├─ wayland-sessions/omarchy.desktop                   /usr/local/share/wayland-sessions/
   ├─ plymouth/                                          /usr/share/plymouth/themes/omarchy/
   └─ security/faillock, nsswitch, cups-browsed,

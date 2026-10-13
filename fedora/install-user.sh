@@ -36,7 +36,7 @@ done
 # omarchy-default-terminal's ~/.config/xdg-terminals.list can override it.
 
 # Hyper-V guests: hyperv_drm prefers 1024x768 and has no hardware cursor plane,
-# so the first login came up blurry (same check as default/sddm/hyprland.lua).
+# so the first login came up blurry (the greeter: default/sddm/doxia-greeter).
 if [[ $(</sys/class/dmi/id/sys_vendor) == "Microsoft Corporation" &&
       $(</sys/class/dmi/id/product_name) == "Virtual Machine" ]] 2>/dev/null; then
   echo "==> Hyper-V: 1280x720 at scale 1 and a software cursor"

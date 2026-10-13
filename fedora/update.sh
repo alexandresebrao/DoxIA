@@ -343,6 +343,22 @@ fi
 bash "$HOME/.config/omarchy/hooks/theme-set.d/firefox"
 bash "$HOME/.config/omarchy/hooks/theme-set.d/edge"
 
+echo "==> Compositor: mango and its Wayland tools (sudo)"
+# Before the login screen below, whose greeter runs on mango. Only what is
+# missing: an installed mangowm (such as a locally patched build) is left alone.
+sudo bash -s <<'ROOT'
+set -euo pipefail
+mango_packages=(mangowm xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)
+missing=()
+for package in "${mango_packages[@]}"; do
+  rpm -q "$package" &>/dev/null || missing+=("$package")
+done
+if (( ${#missing[@]} )); then
+  dnf copr enable -y kaleedtc/mangowm
+  dnf install -y --setopt=install_weak_deps=False "${missing[@]}"
+fi
+ROOT
+
 echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"
 sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
 set -euo pipefail
@@ -353,17 +369,20 @@ mkdir -p /etc/fastfetch
 ln -sfn "$omarchy_path/fedora/fastfetch/config.jsonc" /etc/fastfetch/config.jsonc
 ln -sfn "$omarchy_path/fedora/bin/fastfetch" /usr/local/bin/fastfetch
 install -Dm644 "$omarchy_path/etc/xdg/kitty/kitty.conf" /etc/xdg/kitty/kitty.conf
-install -Dm644 "$omarchy_path/default/xdg-terminal-exec/hyprland-xdg-terminals.list" \
-  /usr/share/xdg-terminal-exec/hyprland-xdg-terminals.list
+install -Dm644 "$omarchy_path/default/xdg-terminal-exec/mango-xdg-terminals.list" \
+  /usr/share/xdg-terminal-exec/mango-xdg-terminals.list
 install -Dm755 "$omarchy_path/fedora/doxia/kernel-install/95-doxia-title.install" \
   /etc/kernel/install.d/95-doxia-title.install
 /etc/kernel/install.d/95-doxia-title.install retitle
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" /usr/share/wayland-sessions/omarchy.desktop
 install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
 install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
-install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
+install -m644 "$omarchy_path"/default/sddm/mango.conf "$omarchy_path"/default/sddm/mango-hyperv.conf \
+  /usr/share/sddm/
+install -Dm755 "$omarchy_path/default/sddm/doxia-greeter" /usr/libexec/doxia-sddm-greeter
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
-restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
+rm -f /usr/share/sddm/hyprland.lua
+restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter 2>/dev/null || true
 bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
 # Chrome takes the theme from its profile now (fedora/doxia/chrome): a policy color
 # would keep its frame light, so the policy directory installs used to get goes.

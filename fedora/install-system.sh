@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fedora port of Omarchy: system-level setup (run with sudo).
-# Installs Hyprland + Quickshell + Omarchy runtime deps side by side with KDE.
+# Installs mango + Quickshell + Omarchy runtime deps side by side with KDE.
 # Nothing here removes or reconfigures KDE/Plasma.
 
 set -euo pipefail
@@ -23,15 +23,21 @@ fi
 echo "==> Enabling COPR repositories"
 dnf install -y dnf-plugins-core
 dnf copr disable -y sdegler/hyprland 2>/dev/null || true
+dnf copr enable -y kaleedtc/mangowm
+# Only for hyprpicker (the capture and color-picker binds); Hyprland itself
+# is no longer installed.
 dnf copr enable -y mineiro/hyprland
 dnf copr enable -y errornointernet/quickshell
 dnf copr enable -y brycensranch/gpu-screen-recorder-git
 
 echo "==> Installing packages"
 packages=(
-  # Compositor, session, portals
-  hyprland hyprland-guiutils hyprpicker hyprsunset
-  xdg-desktop-portal-hyprland xdg-desktop-portal-gtk uwsm sddm
+  # Compositor, session, portals. mangowm ships mango-portals.conf, which routes
+  # screen sharing and screenshots to the wlr portal.
+  mangowm xdg-desktop-portal-wlr xdg-desktop-portal-gtk uwsm sddm
+  # Output layout (monitor panel, captures), virtual pointer (capture-region),
+  # color picker and the nightlight
+  wlr-randr wlrctl hyprpicker gammastep
 
   # Omarchy shell (bar, menu, notifications, OSD, lock, polkit) runs on Quickshell
   quickshell qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia
@@ -172,8 +178,9 @@ echo "==> Kitty as the default terminal (Omarchy's defaults and terminal order)"
 install -Dm644 "$omarchy_path/etc/xdg/kitty/kitty.conf" /etc/xdg/kitty/kitty.conf
 # System-wide, like Omarchy: ~/.config/xdg-terminals.list (omarchy-default-terminal)
 # still wins over it.
-install -Dm644 "$omarchy_path/default/xdg-terminal-exec/hyprland-xdg-terminals.list" \
-  /usr/share/xdg-terminal-exec/hyprland-xdg-terminals.list
+# xdg-terminal-exec picks the list by desktop name (DesktopNames=mango).
+install -Dm644 "$omarchy_path/default/xdg-terminal-exec/mango-xdg-terminals.list" \
+  /usr/share/xdg-terminal-exec/mango-xdg-terminals.list
 
 echo "==> Linking Omarchy into /usr/share/omarchy"
 # Many Omarchy scripts reference /usr/share/omarchy directly (Arch package path).
@@ -197,12 +204,16 @@ echo "==> Installing Omarchy session entry"
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" \
   /usr/share/wayland-sessions/omarchy.desktop
 
-echo "==> Login screen (SDDM with the DoxIA theme on a Hyprland greeter)"
+echo "==> Login screen (SDDM with the DoxIA theme on a mango greeter)"
 install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
 install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
-install -m644 "$omarchy_path/default/sddm/hyprland.lua" /usr/share/sddm/hyprland.lua
+install -m644 "$omarchy_path"/default/sddm/mango.conf "$omarchy_path"/default/sddm/mango-hyperv.conf \
+  /usr/share/sddm/
+# In /usr/libexec so SELinux labels it bin_t, like the start-hyprland it replaces.
+install -Dm755 "$omarchy_path/default/sddm/doxia-greeter" /usr/libexec/doxia-sddm-greeter
 install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
-restorecon -R /usr/share/sddm /etc/sddm.conf.d 2>/dev/null || true
+rm -f /usr/share/sddm/hyprland.lua
+restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter 2>/dev/null || true
 # The theme preselects SDDM's last user and session, which a fresh SDDM doesn't
 # have yet (the Arch ISO seeds it): start on the DoxIA session.
 if [[ ! -s /var/lib/sddm/state.conf ]]; then
