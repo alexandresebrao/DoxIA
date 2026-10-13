@@ -41,7 +41,9 @@ grep -qx pnpm "$nvm_dir/default-packages" 2>/dev/null || echo pnpm >> "$nvm_dir/
 for node in "$nvm_dir"/versions/node/*/; do
   [[ -x $node/bin/node && ! -e $node/bin/pnpm ]] || continue
   echo "  pnpm for Node.js $(basename "$node")"
-  PATH="$node/bin:$PATH" npm install -g --silent pnpm
+  # Current pnpm doesn't run on old Node.js versions (v13 and earlier): skip them.
+  PATH="$node/bin:$PATH" npm install -g --silent pnpm ||
+    echo "  pnpm doesn't install on Node.js $(basename "$node"), skipped"
 done
 
 # nvm and SDKMAN! are shell functions that don't run under set -u.
