@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# omarchy:summary=Print the name of the built-in laptop display, including disabled outputs.
+
+wlr-randr --json 2>/dev/null | jq -r '.[] | select(.name | test("^(eDP|LVDS|DSI)-")).name' | head -n 1

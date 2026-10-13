@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# omarchy:summary=Watch mango monitor changes and keep clamshell/mirror state in sync
+# omarchy:hidden=true
+
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/omarchy-monitor-clamshell.lock"
+
+sync_clamshell() {
+  (
+    flock -n 9 || exit 0
+    omarchy-mango-monitor-clamshell
+  ) 9>"$LOCK"
+}
+
+# The lid switch binds handle open/close; this poll is the backstop for drift
+# they can miss (suspend/resume), and only matters while docked.
+poll_pid=""
+sync_poll_state() {
+  if omarchy-hw-laptop && omarchy-mango-monitor-external-active; then
+    if [[ -z $poll_pid ]] || ! kill -0 "$poll_pid" 2>/dev/null; then
+      (while sleep 2; do sync_clamshell; done) &
+      poll_pid=$!
+    fi
+  elif [[ -n $poll_pid ]]; then
+    kill "$poll_pid" 2>/dev/null
+    poll_pid=""
+  fi
+}
+
+sync_clamshell
+sync_poll_state
+
+# mango streams the full monitor list on every change; react only when the set
+# of outputs changes, not on focus or tag switches.
+last=""
+while read -r event; do
+  names=$(jq -r '[.monitors[].name] | sort | join(",")' <<<"$event" 2>/dev/null)
+  [[ $names == "$last" ]] && continue
+  last=$names
+  sync_clamshell
+  (sleep 1; sync_clamshell) &
+  sync_poll_state
+done < <(mmsg watch all-monitors)

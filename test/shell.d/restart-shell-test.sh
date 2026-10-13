@@ -80,7 +80,7 @@ touch "$restart_root/shell/shell.qml"
 ln -s "$ROOT/bin/omarchy-shell" "$restart_bin/omarchy-shell"
 ln -s "$ROOT/bin/omarchy-launch-shell" "$restart_bin/omarchy-launch-shell"
 ln -s "$ROOT/bin/omarchy-cmd-missing" "$restart_bin/omarchy-cmd-missing"
-ln -s "$ROOT/bin/omarchy-hyprland-session-locked" "$restart_bin/omarchy-hyprland-session-locked"
+ln -s "$ROOT/bin/omarchy-mango-session-locked" "$restart_bin/omarchy-mango-session-locked"
 
 cat >"$restart_bin/qs" <<'SH'
 #!/bin/bash
@@ -128,23 +128,17 @@ case " $* " in
 esac
 SH
 
-cat >"$restart_bin/hyprctl" <<'SH'
+cat >"$restart_bin/mmsg" <<'SH'
 #!/bin/bash
 
-if [[ ${1:-} == "-j" && ${2:-} == "monitors" ]]; then
-  # Hyprland reports an active session lock as a reason the monitor cannot hand
-  # a client the whole screen, not as a workspace.
-  if [[ ${OMARCHY_TEST_SESSION_LOCKED:-0} == 1 ]]; then
-    printf '[{"name":"eDP-1","solitaryBlockedBy":["WINDOWED","LOCK","CANDIDATE"]}]\n'
-  else
-    printf '[{"name":"eDP-1","solitaryBlockedBy":["WINDOWED","CANDIDATE"]}]\n'
-  fi
-elif [[ ${1:-} == "dispatch" && ${2:-} == hl.dsp.exec_cmd* ]]; then
+if [[ ${1:-} == "dispatch" && ${2:-} == spawn,* ]]; then
   printf '%s\n' "${2:-}" >>"$OMARCHY_TEST_DISPATCH_LOG"
   OMARCHY_PATH="$OMARCHY_TEST_SESSION_PATH" \
     env -u OMARCHY_TEST_TRANSIENT_ENV omarchy-launch-shell
-  printf 'ok\n'
-elif [[ ${1:-} == "dispatch" ]]; then
+  printf '{"success":true}\n'
+elif [[ ${1:-} == "get" ]]; then
+  printf '{}\n'
+else
   exit 1
 fi
 SH
@@ -172,7 +166,7 @@ else
 fi
 SH
 
-chmod +x "$restart_bin/qs" "$restart_bin/quickshell" "$restart_bin/hyprctl" "$restart_bin/systemd-cat" "$restart_bin/systemctl"
+chmod +x "$restart_bin/qs" "$restart_bin/quickshell" "$restart_bin/mmsg" "$restart_bin/systemd-cat" "$restart_bin/systemctl"
 
 sleep 30 &
 restart_pid_one=$!
@@ -209,19 +203,18 @@ restart_pid_two=""
 [[ $(<"$restart_state") == 303 ]] || fail "restart leaves exactly one fresh shell instance"
 [[ $(grep -c '^-n -p ' "$restart_log") == 1 ]] || fail "restart launches one fresh shell process"
 grep -F "kill -p $restart_root/shell --any-display" "$restart_log" >/dev/null || fail "restart stops the shell from the session checkout"
-[[ $(<"$restart_env_log") == "unset" ]] || fail "restart uses the Hyprland session environment for the fresh shell"
-grep -F 'hl.dsp.exec_cmd("omarchy-launch-shell")' "$dispatch_log" >/dev/null || fail "restart launches the fresh shell through Hyprland"
+[[ $(<"$restart_env_log") == "unset" ]] || fail "restart uses the mango session environment for the fresh shell"
+grep -Fx 'spawn,omarchy-launch-shell' "$dispatch_log" >/dev/null || fail "restart launches the fresh shell through mango"
 grep -F "ipc -n -p $restart_root/shell call -- shell ping" "$ipc_log" >/dev/null || fail "restart checks readiness in the session checkout"
 pass "restart replaces duplicate shell instances from the session checkout"
 
 : >"$restart_log"
 printf '303\n' >"$restart_state"
-touch "$restart_state.locked"
+touch "$restart_state.locked" "$runtime_dir/omarchy-session-locked"
 
 locked_error=$(PATH="$restart_bin:$PATH" \
   OMARCHY_PATH="$restart_root" \
   XDG_RUNTIME_DIR="$runtime_dir" \
-  OMARCHY_TEST_SESSION_LOCKED=1 \
   OMARCHY_TEST_QS_STATE="$restart_state" \
   OMARCHY_TEST_QS_LOG="$restart_log" \
   OMARCHY_TEST_DISPATCH_LOG="$dispatch_log" \
@@ -247,7 +240,6 @@ rm -f "$restart_state.locked"
 PATH="$restart_bin:$PATH" \
 OMARCHY_PATH="$restart_root" \
 XDG_RUNTIME_DIR="$runtime_dir" \
-OMARCHY_TEST_SESSION_LOCKED=1 \
 OMARCHY_TEST_QS_STATE="$restart_state" \
 OMARCHY_TEST_QS_LOG="$restart_log" \
 OMARCHY_TEST_QS_ENV_LOG="$restart_env_log" \

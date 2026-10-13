@@ -52,16 +52,16 @@ done
 exec "$@"
 SH
 
-cat >"$fake_bin/hyprctl" <<'SH'
+cat >"$fake_bin/mmsg" <<'SH'
 #!/bin/bash
 
 [[ ${OMARCHY_TEST_COMPOSITOR_GONE:-0} == 1 ]] && exit 4
 
-# Refuse the first OMARCHY_TEST_HYPRCTL_MISSES queries, then answer.
-if (( ${OMARCHY_TEST_HYPRCTL_MISSES:-0} > 0 )); then
-  misses=$(cat "$OMARCHY_TEST_HYPRCTL_MISS_COUNT" 2>/dev/null || printf '0')
-  if (( misses < OMARCHY_TEST_HYPRCTL_MISSES )); then
-    printf '%s\n' "$(( misses + 1 ))" >"$OMARCHY_TEST_HYPRCTL_MISS_COUNT"
+# Refuse the first OMARCHY_TEST_MMSG_MISSES queries, then answer.
+if (( ${OMARCHY_TEST_MMSG_MISSES:-0} > 0 )); then
+  misses=$(cat "$OMARCHY_TEST_MMSG_MISS_COUNT" 2>/dev/null || printf '0')
+  if (( misses < OMARCHY_TEST_MMSG_MISSES )); then
+    printf '%s\n' "$(( misses + 1 ))" >"$OMARCHY_TEST_MMSG_MISS_COUNT"
     exit 4
   fi
 fi
@@ -76,13 +76,13 @@ shift 2
 printf '%s\n' "$*" >>"$OMARCHY_TEST_LOGGER_LOG"
 SH
 
-chmod +x "$fake_bin/quickshell" "$fake_bin/systemd-cat" "$fake_bin/hyprctl" "$fake_bin/logger"
+chmod +x "$fake_bin/quickshell" "$fake_bin/systemd-cat" "$fake_bin/mmsg" "$fake_bin/logger"
 
 qs_log="$test_tmp/quickshell.log"
 qs_env_log="$test_tmp/quickshell-env.log"
 logger_log="$test_tmp/logger.log"
 qs_terminated="$test_tmp/quickshell-terminated"
-hyprctl_misses="$test_tmp/hyprctl-misses"
+mmsg_misses="$test_tmp/mmsg-misses"
 
 launch_shell() {
   : >"$qs_log"
@@ -97,8 +97,8 @@ launch_shell() {
   OMARCHY_TEST_COMPOSITOR_GONE="${2:-0}" \
   OMARCHY_TEST_LOGGER_LOG="$logger_log" \
   OMARCHY_TEST_QS_TERMINATED="$qs_terminated" \
-  OMARCHY_TEST_HYPRCTL_MISSES="${3:-0}" \
-  OMARCHY_TEST_HYPRCTL_MISS_COUNT="$hyprctl_misses" \
+  OMARCHY_TEST_MMSG_MISSES="${3:-0}" \
+  OMARCHY_TEST_MMSG_MISS_COUNT="$mmsg_misses" \
     timeout 30 "$ROOT/bin/omarchy-launch-shell"
 }
 
@@ -134,7 +134,7 @@ launch_shell $'255\n0' 1 || fail "a shell outliving the compositor exits cleanly
 pass "the shell is not relaunched once the compositor is gone"
 
 # A compositor mid-modeset can miss a query without being gone.
-rm -f "$hyprctl_misses"
+rm -f "$mmsg_misses"
 launch_shell $'255\n0' 0 2 || fail "a shell survives a compositor that misses a query"
 [[ $(launches) == 2 ]] || fail "a missed compositor query does not end supervision" "$(<"$qs_log")"
 pass "a compositor too busy to answer is not mistaken for one that is gone"

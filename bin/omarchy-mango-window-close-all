@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# omarchy:summary=Close all open windows
+
+mmsg get all-clients | jq -r '.clients[].id' | while read -r id; do
+  mmsg dispatch killclient "client,$id" >/dev/null
+done
+
+# Move to first workspace
+mmsg dispatch view,1 >/dev/null

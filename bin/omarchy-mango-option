@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# omarchy:summary=Print the value mango uses for a config option
+# omarchy:args=<option>
+# omarchy:examples=omarchy mango option border_radius
+# omarchy:hidden=true
+
+# mango's IPC has no getoption, so follow the same source= chain mango reads
+# from ~/.config/mango/config.conf and print the last value assigned. Relative
+# sources resolve against the file that names them, and only ~ is expanded,
+# like mango does. Exits 1 when nothing sets the option.
+
+option=${1:-}
+[[ -n $option ]] || { echo "Usage: omarchy-mango-option <option>" >&2; exit 1; }
+
+value=""
+found=0
+depth=0
+
+read_conf() {
+  local file=$1 dir line key val
+  [[ -f $file ]] || return
+  (( depth++ < 16 )) || return
+  dir=$(dirname "$file")
+
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%#*}
+    [[ $line == *=* ]] || continue
+    key=${line%%=*}
+    key=${key//[[:space:]]/}
+    val=${line#*=}
+    val=${val#"${val%%[![:space:]]*}"}
+    val=${val%"${val##*[![:space:]]}"}
+
+    case $key in
+      source | source_optional)
+        val=${val/#\~/$HOME}
+        [[ $val == /* ]] || val="$dir/$val"
+        read_conf "$val"
+        ;;
+      "$option")
+        value=$val
+        found=1
+        ;;
+    esac
+  done <"$file"
+
+  (( depth-- ))
+}
+
+read_conf "${MANGO_CONFIG:-$HOME/.config/mango/config.conf}"
+
+(( found )) || exit 1
+echo "$value"

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# omarchy:summary=Returns true when the compositor holds a session lock
+# omarchy:hidden=true
+
+# mango's IPC does not report the ext-session-lock state, so the lock client
+# (the shell's lock service) is the witness. It keeps a marker in the runtime
+# dir while it holds a lock, which outlives a shell that dies locked: a marker
+# with no live locker behind it is a lock the compositor still holds.
+#
+# Exits 0 locked, 1 unlocked, 2 undetermined.
+[[ -n ${XDG_RUNTIME_DIR:-} ]] || exit 2
+
+[[ -e $XDG_RUNTIME_DIR/omarchy-session-locked ]] && exit 0
+
+status=$(OMARCHY_SHELL_IPC_TIMEOUT=0.5s omarchy-shell lock status 2>/dev/null) || exit 1
+
+state=$(jq 'if (.secure or .requested) then 0 else 1 end' <<<"$status" 2>/dev/null)
+
+case $state in
+  0 | 1) exit "$state" ;;
+  *) exit 1 ;;
+esac

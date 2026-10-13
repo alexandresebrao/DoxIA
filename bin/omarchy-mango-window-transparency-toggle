@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# omarchy:summary=Toggles transparency for every window.
+
+# mango sets opacity per rule, not per live window, so this flips the global
+# default (apps with their own opacity rule keep it).
+TOGGLE="$HOME/.local/state/omarchy/toggles/mango/transparency.conf"
+
+if [[ -f $TOGGLE ]]; then
+  rm "$TOGGLE"
+else
+  mkdir -p "$(dirname "$TOGGLE")"
+  printf 'focused_opacity=1.0\nunfocused_opacity=1.0\n' >"$TOGGLE"
+fi
+
+mmsg dispatch reload_config >/dev/null

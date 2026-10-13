@@ -35,6 +35,15 @@ Item {
   property bool strandedLockResolved: false
 
   readonly property bool locked: lockRequested || sessionLock.locked || sessionLock.secure
+
+  // mango cannot say whether the session is locked, and ext-session-lock
+  // outlives this client. Leave a marker in the runtime dir for as long as a
+  // lock is held, so omarchy-mango-session-locked can tell a lock orphaned by a
+  // dead shell from a session that was never locked.
+  onLockedChanged: {
+    var marker = Quickshell.env("XDG_RUNTIME_DIR") + "/omarchy-session-locked"
+    Quickshell.execDetached(locked ? ["touch", marker] : ["rm", "-f", marker])
+  }
   readonly property bool authenticating: authenticatingPassword || fingerprintAuthenticating
 
   function realScreenCount() {
@@ -77,7 +86,7 @@ Item {
   }
 
   // ext-session-lock outlives its client, and a restart carries no lock over, so
-  // a session locked this early is an orphan behind Hyprland's failsafe. Outputs
+  // a session locked this early is an orphan behind the compositor's failsafe. Outputs
   // are often still absent here, so ask until the answer means something.
   function checkStrandedLock() {
     if (strandedLockResolved || strandedLockCheckProc.running) return
@@ -388,7 +397,7 @@ Item {
 
   Process {
     id: strandedLockCheckProc
-    command: ["bash", "-c", "omarchy-hyprland-session-locked"]
+    command: ["bash", "-c", "omarchy-mango-session-locked"]
     onExited: function(exitCode) {
       // No output to read the lock off yet.
       if (exitCode === 2) return

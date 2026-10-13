@@ -401,7 +401,7 @@ Item {
   function focusApp(entry) {
     if (!entry || !entry.app) return
     focusAppProc.command = [
-      service.omarchyPath + "/bin/omarchy-hyprland-focus-app",
+      service.omarchyPath + "/bin/omarchy-mango-focus-app",
       String(entry.app)
     ]
     focusAppProc.running = true

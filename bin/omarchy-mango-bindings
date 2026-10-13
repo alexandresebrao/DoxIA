@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# omarchy:summary=Build mango's default keybindings minus the keys you rebound
+# omarchy:hidden=true
+
+# mango has no unbind, and binding a key twice is a config error. So Omarchy's
+# default binds are not sourced directly: this writes them to
+# ~/.local/state/omarchy/mango/bindings.conf, leaving out every key that a file
+# in ~/.config/mango binds again or names in a "# unbind=MODS,KEY" comment.
+# The preinstalled-app binds are left out once omarchy-remove-preinstalls ran.
+#
+# config.conf runs this with exec= on every reload; the file is rewritten only
+# when it changes, so the reload that the rewrite triggers ends there.
+
+DEFAULT_DIR="$OMARCHY_PATH/default/mango/bindings"
+USER_DIR="$HOME/.config/mango"
+STATE_DIR="$HOME/.local/state/omarchy/mango"
+OUTPUT="$STATE_DIR/bindings.conf"
+
+defaults=("$DEFAULT_DIR"/{media,clipboard,tiling,utilities,applications}.conf)
+[[ -f $HOME/.local/state/omarchy/preinstalls-removed ]] || defaults+=("$DEFAULT_DIR/preinstalled.conf")
+
+mkdir -p "$STATE_DIR"
+tmp=$(mktemp "$STATE_DIR/.bindings.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+
+shopt -s nullglob
+user_files=("$USER_DIR"/*.conf)
+
+awk -v user_count="${#user_files[@]}" '
+  # Key identity as mango compares it: the bind kind, the key mode, the
+  # modifier set and the key (names are case-insensitive).
+  function norm_mods(mods,    parts, n, i, j, tmp, out) {
+    n = split(toupper(mods), parts, "+")
+    for (i = 1; i <= n; i++) gsub(/^[ \t]+|[ \t]+$/, "", parts[i])
+    for (i = 1; i <= n; i++)
+      for (j = i + 1; j <= n; j++)
+        if (parts[j] < parts[i]) { tmp = parts[i]; parts[i] = parts[j]; parts[j] = tmp }
+    out = ""
+    for (i = 1; i <= n; i++) if (parts[i] != "" && parts[i] != "NONE") out = out (out == "" ? "" : "+") parts[i]
+    return out == "" ? "NONE" : out
+  }
+
+  function key_of(kind, value, mode,    f, n) {
+    n = split(value, f, ",")
+    gsub(/^[ \t]+|[ \t]+$/, "", f[2]); gsub(/^[ \t]+|[ \t]+$/, "", f[3])
+    if (kind == "switchbind") return kind "|" mode "|" tolower(f[1])
+    if (kind == "gesturebind") return kind "|" mode "|" norm_mods(f[1]) "|" tolower(f[2]) "|" f[3]
+    return kind "|" mode "|" norm_mods(f[1]) "|" tolower(f[2])
+  }
+
+  function kind_of(name) {
+    if (name ~ /^bind[lsrpc]*$/) return "bind"
+    if (name ~ /^(mousebind|axisbind|gesturebind|switchbind)$/) return name
+    return ""
+  }
+
+  FNR == 1 { mode = "default"; file_index++ }
+
+  {
+    line = $0
+    is_user = file_index <= user_count
+
+    if (is_user && match(line, /^[ \t]*#[ \t]*unbind[ \t]*=[ \t]*(.*)$/, m)) {
+      taken[key_of("bind", m[1], mode)] = 1
+      next
+    }
+
+    if (line ~ /^[ \t]*key_mode[ \t]*=/) {
+      mode = line; sub(/^[^=]*=[ \t]*/, "", mode); gsub(/[ \t]+$/, "", mode)
+    }
+
+    if (is_user) {
+      if (match(line, /^[ \t]*([a-z]+)[ \t]*=[ \t]*(.*)$/, m) && kind_of(m[1]) != "")
+        taken[key_of(kind_of(m[1]), m[2], mode)] = 1
+      next
+    }
+
+    # Defaults: hold a description comment until the bind it describes.
+    if (line ~ /^#/) { pending = pending line "\n"; next }
+    if (match(line, /^[ \t]*([a-z]+)[ \t]*=[ \t]*(.*)$/, m) && kind_of(m[1]) != "" && taken[key_of(kind_of(m[1]), m[2], mode)]) {
+      pending = ""
+      next
+    }
+    printf "%s%s\n", pending, line
+    pending = ""
+  }
+' "${user_files[@]}" "${defaults[@]}" >"$tmp"
+
+if ! cmp -s "$tmp" "$OUTPUT"; then
+  mv "$tmp" "$OUTPUT"
+fi

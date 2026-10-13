@@ -15,7 +15,7 @@ assert(
 )
 
 assert(
-  /id: strandedLockCheckProc[\s\S]*omarchy-hyprland-session-locked/.test(serviceQml),
+  /id: strandedLockCheckProc[\s\S]*omarchy-mango-session-locked/.test(serviceQml),
   'the startup check goes through the shared session lock helper'
 )
 

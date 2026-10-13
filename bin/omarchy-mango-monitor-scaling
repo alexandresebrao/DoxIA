@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# omarchy:summary=Show, set, or adjust focused mango monitor scaling
+# omarchy:args=[up|down|SCALE]
+# omarchy:examples=omarchy mango monitor scaling | omarchy mango monitor scaling 1.6 | omarchy mango monitor scaling up | omarchy mango monitor scaling down
+
+SCALES=(1 1.25 1.6 2 3 4)
+MONITORS_CONF="$HOME/.config/mango/monitors.conf"
+TOGGLES_DIR="$HOME/.local/state/omarchy/toggles/mango"
+
+usage() {
+  echo "Usage: omarchy-mango-monitor-scaling [up|down|SCALE]"
+}
+
+focused_monitor() {
+  mmsg get all-monitors | jq -c '.monitors[] | select(.active == true)'
+}
+
+# The preset nearest the current scale, or the one above/below it.
+step_scale() {
+  awk -v scale="$1" -v direction="$2" -v list="${SCALES[*]}" 'BEGIN {
+    n = split(list, presets, " ")
+    best = 1; best_diff = 1e9
+    for (i = 1; i <= n; i++) {
+      diff = scale - presets[i]; if (diff < 0) diff = -diff
+      if (diff < best_diff) { best_diff = diff; best = i }
+    }
+    if (direction == "up" && best < n) best++
+    if (direction == "down" && best > 1) best--
+    print presets[best]
+  }'
+}
+
+# Persist: a user rule naming this output keeps the scale in its own line;
+# otherwise omarchy-mango-monitor-apply carries it as a toggle rule.
+persist_scale() {
+  local output="$1" scale="$2" line_no
+
+  line_no=$(awk -v output="$output" '
+    /^monitor_rule=/ {
+      if (match($0, /name:([^,]*)/, m) && output ~ m[1]) { print NR; exit }
+    }' "$MONITORS_CONF" 2>/dev/null)
+
+  if [[ -n $line_no ]]; then
+    if sed -n "${line_no}p" "$MONITORS_CONF" | grep -q 'scale:'; then
+      sed -i -E "${line_no}s/scale:[0-9.]+/scale:${scale}/" "$MONITORS_CONF"
+    else
+      sed -i "${line_no}s/\$/,scale:${scale}/" "$MONITORS_CONF"
+    fi
+    rm -f "$TOGGLES_DIR/scale-$output"
+  else
+    mkdir -p "$TOGGLES_DIR"
+    printf '%s\n' "$scale" >"$TOGGLES_DIR/scale-$output"
+  fi
+}
+
+set_scale() {
+  local scale="$1" monitor output
+
+  monitor=$(focused_monitor)
+  output=$(jq -r '.name' <<<"$monitor")
+  [[ $output =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Refusing unsafe monitor name" >&2; exit 1; }
+
+  wlr-randr --output "$output" --scale "$scale"
+  persist_scale "$output" "$scale"
+  omarchy-mango-monitor-apply
+}
+
+case "${1:-}" in
+"")
+  focused_monitor | jq -r '.scale'
+  ;;
+-h | --help)
+  usage
+  ;;
+up | down)
+  set_scale "$(step_scale "$(focused_monitor | jq -r '.scale')" "$1")"
+  ;;
+*)
+  if [[ $1 =~ ^[0-9]+([.][0-9]+)?$ ]] && awk -v scale="$1" 'BEGIN { exit !(scale >= 1 && scale <= 4) }'; then
+    set_scale "$1"
+  else
+    usage >&2
+    exit 1
+  fi
+  ;;
+esac

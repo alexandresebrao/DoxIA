@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# omarchy:summary=Rebuild mango's monitor toggle rules and reload when they change
+# omarchy:hidden=true
+
+# ~/.config/mango/config.conf sources the generated file both before and after
+# the user's monitors.conf: mango applies the first matching rule to a new
+# output but the last one on reload, and a toggle has to win in both.
+#
+# Flags in the toggles dir:
+#   internal-monitor-disable    the laptop display was turned off by hand
+#   internal-monitor-clamshell  the lid is shut with an external monitor on
+#   scale-<output>              a scale picked with omarchy-mango-monitor-scaling
+#                               for an output no user rule covers
+
+TOGGLES_DIR="$HOME/.local/state/omarchy/toggles/mango"
+OUTPUT="$TOGGLES_DIR/monitors.conf"
+
+mkdir -p "$TOGGLES_DIR"
+tmp=$(mktemp "$TOGGLES_DIR/.monitors.XXXXXX")
+trap 'rm -f "$tmp"' EXIT
+
+internal=$(omarchy-mango-monitor-laptop)
+internal_off=0
+if [[ -n $internal ]] && [[ -f $TOGGLES_DIR/internal-monitor-disable || -f $TOGGLES_DIR/internal-monitor-clamshell ]]; then
+  internal_off=1
+  printf 'monitor_rule=name:^%s$,disable:1\n' "$internal" >>"$tmp"
+fi
+
+shopt -s nullglob
+for flag in "$TOGGLES_DIR"/scale-*; do
+  output=${flag##*/scale-}
+  scale=$(<"$flag")
+  [[ $output =~ ^[A-Za-z0-9._-]+$ && $scale =~ ^[0-9]+([.][0-9]+)?$ ]] || continue
+  (( internal_off )) && [[ $output == "$internal" ]] && continue
+  printf 'monitor_rule=name:^%s$,scale:%s\n' "$output" "$scale" >>"$tmp"
+done
+
+if ! cmp -s "$tmp" "$OUTPUT"; then
+  mv "$tmp" "$OUTPUT"
+  mmsg dispatch reload_config >/dev/null 2>&1 || true
+fi

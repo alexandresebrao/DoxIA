@@ -173,6 +173,39 @@ gradient_start_value() {
   fi
 }
 
+# mango takes one 0xRRGGBBAA color, not a gradient: the first stop, alpha kept.
+color_to_mango_hex() {
+  local color
+
+  color=$(resolve_gradient_color "$1")
+
+  if [[ $color =~ ^#([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})?$ ]]; then
+    printf "0x%s%s" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]:-ff}"
+  elif [[ $color =~ ^[Rr][Gg][Bb][Aa]?\(([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})?\)$ ]]; then
+    printf "0x%s%s" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]:-ff}"
+  elif [[ $color =~ ^[Rr][Gg][Bb][Aa]?\(([0-9]+),([0-9]+),([0-9]+)(,([0-9.]+))?\)$ ]]; then
+    printf "0x%02x%02x%02x%02x" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" \
+      "$(awk -v a="${BASH_REMATCH[5]:-1}" 'BEGIN { printf "%d", a * 255 + 0.5 }')"
+  elif [[ $color =~ ^0x[0-9A-Fa-f]{8}$ ]]; then
+    printf "%s" "$color"
+  else
+    printf "%s" "$color"
+  fi
+}
+
+mango_color_value() {
+  local spec
+
+  spec=$(resolve_theme_ref "$1" "${2:-}")
+  parse_gradient "$spec"
+
+  if (( ${#GRADIENT_COLORS[@]} == 0 )); then
+    color_to_mango_hex "$spec"
+  else
+    color_to_mango_hex "${GRADIENT_COLORS[0]}"
+  fi
+}
+
 shell_gradient_value() {
   local spec index
 
@@ -269,6 +302,9 @@ add_gradient_function_value() {
     shell_gradient)
       value=$(shell_gradient_value "$key" "$fallback")
       ;;
+    mango_color)
+      value=$(mango_color_value "$key" "$fallback")
+      ;;
     *)
       return
       ;;
@@ -286,7 +322,7 @@ add_gradient_function_values() {
       [[ -n ${seen[$token]:-} ]] && continue
       seen[$token]=1
       add_gradient_function_value "$token"
-    done < <(grep -hEo '\{\{[[:space:]]*(hypr_gradient|gradient_start|shell_gradient)[[:space:]]+[^}]+[[:space:]]*\}\}' "$tpl" 2>/dev/null || true)
+    done < <(grep -hEo '\{\{[[:space:]]*(hypr_gradient|gradient_start|shell_gradient|mango_color)[[:space:]]+[^}]+[[:space:]]*\}\}' "$tpl" 2>/dev/null || true)
   done
 }
 

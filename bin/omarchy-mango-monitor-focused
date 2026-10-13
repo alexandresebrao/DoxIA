@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# omarchy:summary=Print the name of the currently focused mango monitor.
+
+mmsg get all-monitors | jq -r '.monitors[] | select(.active == true).name'

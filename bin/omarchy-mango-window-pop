@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# omarchy:summary=Toggle to pop-out a tile to stay fixed on a display basis.
+# omarchy:args=[width height x y]
+
+width=${1:-1300}
+height=${2:-900}
+x=${3:-}
+y=${4:-}
+
+client=$(mmsg get focusing-client)
+id=$(jq -r '.id // empty' <<<"$client")
+[[ -n $id ]] || exit 0
+
+# A popped window is global (on every workspace) and floating; popping it back
+# drops both.
+if [[ $(jq -r '.is_global' <<<"$client") == "true" ]]; then
+  mmsg dispatch toggleglobal "client,$id" >/dev/null
+  [[ $(jq -r '.is_floating' <<<"$client") == "true" ]] && mmsg dispatch togglefloating "client,$id" >/dev/null
+else
+  [[ $(jq -r '.is_floating' <<<"$client") == "true" ]] || mmsg dispatch togglefloating "client,$id" >/dev/null
+  mmsg dispatch "resizewin,$width,$height" "client,$id" >/dev/null
+
+  if [[ -n $x && -n $y ]]; then
+    mmsg dispatch "movewin,$x,$y" "client,$id" >/dev/null
+  else
+    mmsg dispatch centerwin "client,$id" >/dev/null
+  fi
+
+  mmsg dispatch toggleglobal "client,$id" >/dev/null
+fi

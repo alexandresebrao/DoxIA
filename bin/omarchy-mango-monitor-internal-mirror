@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# omarchy:summary=Enable, disable, toggle, or recover mirroring the internal display to an external monitor
+# omarchy:args=<on|off|toggle|recover>
+
+# mango has no output mirroring, so wl-mirror shows the laptop display
+# fullscreen on the external monitor.
+
+PID_FILE="${XDG_RUNTIME_DIR:-/tmp}/omarchy-monitor-mirror.pid"
+
+INTERNAL=$(omarchy-mango-monitor-laptop)
+EXTERNAL=$(wlr-randr --json 2>/dev/null | jq -r '.[] | select(.enabled == true) | select(.name | test("^(eDP|LVDS|DSI)-") | not).name' | head -n 1)
+
+running() {
+  [[ -f $PID_FILE ]] && kill -0 "$(<"$PID_FILE")" 2>/dev/null
+}
+
+on() {
+  if [[ -z $EXTERNAL ]]; then
+    omarchy-notification-send -g 󰍹 "Nenhum monitor externo encontrado para espelhar"
+    exit 1
+  fi
+
+  if [[ -z $INTERNAL ]]; then
+    omarchy-notification-send -g 󰍹 "Nenhuma tela de notebook encontrada para espelhar"
+    exit 1
+  fi
+
+  running && return 0
+  omarchy-mango-monitor-internal on >/dev/null
+
+  setsid wl-mirror --fullscreen-output "$EXTERNAL" "$INTERNAL" >/dev/null 2>&1 &
+  echo $! >"$PID_FILE"
+  omarchy-notification-send -g 󰍹 "Espelhamento ativado ($EXTERNAL)"
+}
+
+off() {
+  if running; then
+    kill "$(<"$PID_FILE")" 2>/dev/null
+    rm -f "$PID_FILE"
+    omarchy-notification-send -g 󰍹 "Modo estendido restaurado"
+  fi
+}
+
+recover() {
+  if ! omarchy-mango-monitor-external-active && running; then
+    kill "$(<"$PID_FILE")" 2>/dev/null
+    rm -f "$PID_FILE"
+  fi
+}
+
+case "$1" in
+  on) on ;;
+  off) off ;;
+  toggle) if running; then off; else on; fi ;;
+  recover) recover ;;
+  *)
+    echo "Usage: $(basename "$0") {on|off|toggle|recover}" >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# omarchy:summary=Send the app's own copy/paste/cut shortcut to the focused window
+# omarchy:args=copy|paste|cut
+# omarchy:hidden=true
+
+# Runs on release of SUPER+C/V/X. wtype types through its own virtual keyboard,
+# whose modifiers mango keeps apart from the physical SUPER still held.
+# Terminals use CTRL+Insert / SHIFT+Insert, since CTRL+C would interrupt.
+
+TERMINALS='^(Alacritty|kitty|com\.mitchellh\.ghostty|foot|org\.codeberg\.dnkl\.foot|wezterm|org\.omarchy\..*|TUI\..*)$'
+
+appid=$(mmsg get focusing-client | jq -r '.appid // empty')
+terminal=0
+[[ $appid =~ $TERMINALS ]] && terminal=1
+
+case "$1" in
+copy)
+  if (( terminal )); then wtype -M ctrl -k Insert -m ctrl; else wtype -M ctrl -k c -m ctrl; fi
+  ;;
+paste)
+  if (( terminal )); then wtype -M shift -k Insert -m shift; else wtype -M ctrl -k v -m ctrl; fi
+  ;;
+cut)
+  wtype -M ctrl -k x -m ctrl
+  ;;
+*)
+  echo "Usage: omarchy-mango-send-shortcut copy|paste|cut" >&2
+  exit 1
+  ;;
+esac

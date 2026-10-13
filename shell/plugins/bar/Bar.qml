@@ -1,5 +1,4 @@
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
@@ -721,12 +720,11 @@ Item {
     return window && window.screen ? String(window.screen.name || "") : ""
   }
 
-  // The output Hyprland has focused, which is where a keyboard-summoned panel
-  // belongs. Empty until Hyprland reports one, which leaves panel routing on
+  // The output mango has focused, which is where a keyboard-summoned panel
+  // belongs. Empty until mango reports one, which leaves panel routing on
   // its per-monitor fallback rather than guessing at an output.
   function focusedScreenName() {
-    var monitor = Hyprland.focusedMonitor
-    return monitor ? String(monitor.name || "") : ""
+    return Compositor.focusedMonitor
   }
 
   // Resolve the live bar-widget instance for a plugin id (e.g. "omarchy.bluetooth").
@@ -1201,6 +1199,12 @@ Item {
     // killing it here can swallow the result entirely.
     function syncHidden(): void {
       barHiddenProbe.running = true
+    }
+
+    // Height the bar reserves at the top of each monitor (0 when hidden or
+    // docked elsewhere); omarchy-mango-scroll-focus routes SUPER+wheel over it.
+    function reservedTop(): int {
+      return root.barHidden || root.position !== "top" ? 0 : root.windowSize
     }
   }
 

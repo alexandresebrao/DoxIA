@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# omarchy:summary=SUPER + scroll: next/previous window on scroller, workspace otherwise
+# omarchy:args=next|prev
+# omarchy:hidden=true
+
+# Over the bar (the strip it reserves at the top of the monitor) the wheel goes
+# to the bar instead, which adjusts brightness on the computer icon.
+
+direction=${1:-next}
+[[ $direction == "next" || $direction == "prev" ]] || exit 1
+
+cursor=$(mmsg get cursorpos)
+monitor_name=$(jq -r '.monitor // empty' <<<"$cursor")
+[[ -n $monitor_name ]] || exit 0
+monitor=$(mmsg get monitor "$monitor_name")
+
+cursor_y=$(jq -r '.y' <<<"$cursor")
+monitor_y=$(jq -r '.y' <<<"$monitor")
+bar_height=$(omarchy-shell omarchy.bar reservedTop 2>/dev/null)
+
+if [[ $bar_height =~ ^[0-9]+$ ]] && (( bar_height > 0 )) && awk -v c="$cursor_y" -v m="$monitor_y" -v h="$bar_height" 'BEGIN { exit !(c - m < h) }'; then
+  omarchy-shell omarchy.group superWheel "$([[ $direction == "next" ]] && echo down || echo up)"
+  exit 0
+fi
+
+if jq -e '.tags[] | select(.is_active) | .layout == "scroller"' <<<"$monitor" >/dev/null; then
+  mmsg dispatch "focusdir,$([[ $direction == "next" ]] && echo right || echo left)" >/dev/null
+else
+  mmsg dispatch "$([[ $direction == "next" ]] && echo viewtoright_have_client || echo viewtoleft_have_client)" >/dev/null
+fi
