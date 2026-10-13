@@ -280,20 +280,25 @@ def to_ansi(buf):
     return "".join(out)
 
 
-# --- integração com o Hyprland / Omarchy --------------------------------------
-def hypr(*args):
-    return subprocess.run(["hyprctl", *args], capture_output=True, text=True)
+# --- integração com o mango / Omarchy -----------------------------------------
+def mmsg(*args):
+    return subprocess.run(["mmsg", *args], capture_output=True, text=True)
 
 
 def cursor_invisible(on):
-    v = "true" if on else "false"
-    if hypr("eval", f"hl.config({{ cursor = {{ invisible = {v} }} }})").returncode != 0:
-        hypr("keyword", "cursor:invisible", v)
+    # mango não tem cursor invisível: esconde 1s depois de parar de mexer, e
+    # ao sair volta ao cursor_hide_timeout da config (0 = nunca esconde).
+    if on:
+        timeout = "1"
+    else:
+        r = subprocess.run(["omarchy-mango-option", "cursor_hide_timeout"], capture_output=True, text=True)
+        timeout = r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else "0"
+    mmsg("dispatch", f"setoption,cursor_hide_timeout,{timeout}")
 
 
 def in_focus():
     try:
-        return json.loads(hypr("activewindow", "-j").stdout).get("class") == "org.omarchy.screensaver"
+        return json.loads(mmsg("get", "focusing-client").stdout).get("appid") == "org.omarchy.screensaver"
     except Exception:
         return True
 
