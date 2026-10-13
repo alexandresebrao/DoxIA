@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# The DoxIA build of mango (as root), for install-system.sh and update.sh.
+#
+# mango 0.18 crashes at startup without a DRM render node (Hyper-V, llvmpipe):
+# the DoxIA build carries the fix and is published as a release asset of this
+# repository. The kaleedtc/mangowm COPR stays enabled for scenefx, but excludes
+# mangowm: its unpatched 0.18.0-2.fc44 sorts newer than 0.18.0-2.doxia1.fc44,
+# so dnf upgrade would otherwise swap it in.
+#
+# To ship a new build: upload the RPM as release mangowm-<version>, then bump
+# version below.
+
+set -euo pipefail
+
+version=0.18.0-2.doxia1
+target="$version.fc$(rpm -E %fedora)"
+rpm_file="mangowm-$target.$(uname -m).rpm"
+url="https://github.com/alexandresebrao/DoxIA/releases/download/mangowm-$version/$rpm_file"
+
+dnf copr enable -y kaleedtc/mangowm
+dnf config-manager setopt copr:copr.fedorainfracloud.org:kaleedtc:mangowm.excludepkgs=mangowm
+
+installed=$(rpm -q --qf '%{VERSION}-%{RELEASE}' mangowm 2>/dev/null || true)
+if [[ -z $installed ]]; then
+  order=-1
+else
+  order=$(rpm --eval "%{lua:print(rpm.vercmp('$installed', '$target'))}")
+fi
+
+if (( order == 0 )); then
+  exit 0
+fi
+
+# Published for one Fedora release and architecture at a time.
+if ! curl -sfIL "$url" >/dev/null; then
+  echo "No DoxIA mangowm build for this system: $url" >&2
+  exit 1
+fi
+
+if (( order > 0 )); then
+  dnf downgrade -y "$url"
+else
+  dnf install -y --setopt=install_weak_deps=False "$url"
+fi

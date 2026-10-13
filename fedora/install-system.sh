@@ -23,18 +23,21 @@ fi
 echo "==> Enabling COPR repositories"
 dnf install -y dnf-plugins-core
 dnf copr disable -y sdegler/hyprland 2>/dev/null || true
-dnf copr enable -y kaleedtc/mangowm
 # Only for hyprpicker (the capture and color-picker binds); Hyprland itself
 # is no longer installed.
 dnf copr enable -y mineiro/hyprland
 dnf copr enable -y errornointernet/quickshell
 dnf copr enable -y brycensranch/gpu-screen-recorder-git
 
+echo "==> mango (the DoxIA build, from this repository's releases)"
+# Also enables the kaleedtc/mangowm COPR for scenefx, with mangowm excluded.
+bash "$omarchy_path/fedora/doxia/install-mango"
+
 echo "==> Installing packages"
 packages=(
-  # Compositor, session, portals. mangowm ships mango-portals.conf, which routes
-  # screen sharing and screenshots to the wlr portal.
-  mangowm xdg-desktop-portal-wlr xdg-desktop-portal-gtk uwsm sddm
+  # Session and portals. mangowm ships mango-portals.conf, which routes screen
+  # sharing and screenshots to the wlr portal.
+  xdg-desktop-portal-wlr xdg-desktop-portal-gtk uwsm sddm
   # Output layout (monitor panel, captures), virtual pointer (capture-region),
   # color picker and the nightlight
   wlr-randr wlrctl hyprpicker gammastep

@@ -344,17 +344,17 @@ bash "$HOME/.config/omarchy/hooks/theme-set.d/firefox"
 bash "$HOME/.config/omarchy/hooks/theme-set.d/edge"
 
 echo "==> Compositor: mango and its Wayland tools (sudo)"
-# Before the login screen below, whose greeter runs on mango. Only what is
-# missing: an installed mangowm (such as a locally patched build) is left alone.
+# Before the login screen below, whose greeter runs on mango. install-mango puts
+# back the DoxIA build if the unpatched COPR one got in, and keeps it excluded.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-mango"
 sudo bash -s <<'ROOT'
 set -euo pipefail
-mango_packages=(mangowm xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)
+tools=(xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)
 missing=()
-for package in "${mango_packages[@]}"; do
+for package in "${tools[@]}"; do
   rpm -q "$package" &>/dev/null || missing+=("$package")
 done
 if (( ${#missing[@]} )); then
-  dnf copr enable -y kaleedtc/mangowm
   dnf install -y --setopt=install_weak_deps=False "${missing[@]}"
 fi
 ROOT
