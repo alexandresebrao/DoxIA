@@ -14,64 +14,62 @@ if omarchy-toggle-enabled screensaver-off && [[ $1 != "force" ]]; then
   exit 1
 fi
 
-focused=$(omarchy-hyprland-monitor-focused)
-terminal=$(xdg-terminal-exec --print-id)
+focused=$(omarchy-mango-monitor-focused)
 
+# Use the default terminal when it can draw the screensaver, otherwise the first
+# supported one that is installed (the default may be Ptyxis or similar).
+terminal=$(xdg-terminal-exec --print-id)
 case $terminal in
 *Alacritty* | *ghostty* | *foot* | *kitty*) ;;
 *)
-  omarchy-notification-send -g ✋ "O protetor de tela só funciona no Alacritty, Foot, Ghostty ou Kitty"
-  exit 1
+  terminal=""
+  for candidate in kitty alacritty ghostty foot; do
+    if omarchy-cmd-present "$candidate"; then
+      terminal=$candidate
+      break
+    fi
+  done
   ;;
 esac
 
-hypr_focus_monitor() {
-  hyprctl dispatch "hl.dsp.focus({ monitor = \"$1\" })" >/dev/null 2>&1 || hyprctl dispatch focusmonitor "$1" >/dev/null
-}
+if [[ -z $terminal ]]; then
+  omarchy-notification-send -g ✋ "O protetor de tela precisa do Alacritty, Foot, Ghostty ou Kitty instalado"
+  exit 1
+fi
 
-hypr_exec() {
-  local command
-  printf -v command '%q ' "$@"
-
-  hyprctl dispatch "hl.dsp.exec_cmd([[$command]])" >/dev/null 2>&1 || hyprctl dispatch exec -- bash -lc "$command" >/dev/null
-}
-
-SOCKET="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
-
-# Open Hyprland's event stream before spawning anything, so a terminal that maps
-# quickly can't emit its openwindow event before we are listening for it.
-exec {events}< <(socat -U - "UNIX-CONNECT:$SOCKET")
-
-# hypr_exec is async and a new window maps on whatever monitor is focused at that
-# moment. Block until this monitor's screensaver actually opens before moving
-# focus on -- otherwise slow-starting terminals all pile onto the last monitor.
-# The deadline is a safety net in case the window never appears.
+# A new window maps on whatever monitor is focused at that moment. Block until
+# this monitor's screensaver actually opens before moving focus on -- otherwise
+# slow-starting terminals all pile onto the last monitor. The deadline is a
+# safety net in case the window never appears.
 wait_for_screensaver_window() {
-  local line deadline=$((SECONDS + 5))
-  while ((SECONDS < deadline)) && IFS= read -r -t $((deadline - SECONDS)) -u "$events" line; do
-    [[ $line == openwindow\>\>*,org.omarchy.screensaver,* ]] && return 0
+  local deadline=$((SECONDS + 5))
+  while ((SECONDS < deadline)); do
+    mmsg get all-clients 2>/dev/null |
+      jq -e --arg m "$1" 'any(.clients[]; .appid == "org.omarchy.screensaver" and .monitor == $m)' >/dev/null &&
+      return 0
+    sleep 0.1
   done
 }
 
-for m in $(hyprctl monitors -j | jq -r '.[] | .name'); do
-  hypr_focus_monitor "$m"
+for m in $(mmsg get all-monitors | jq -r '.monitors[].name'); do
+  mmsg dispatch "focusmon,$m" >/dev/null
 
   case $terminal in
-  *Alacritty*)
-    hypr_exec alacritty --class=org.omarchy.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e omarchy-screensaver
+  *Alacritty* | alacritty)
+    setsid -f alacritty --class=org.omarchy.screensaver --config-file "$OMARCHY_PATH/default/alacritty/screensaver.toml" -e omarchy-screensaver
     ;;
   *ghostty*)
-    hypr_exec ghostty --class=org.omarchy.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e omarchy-screensaver
+    setsid -f ghostty --class=org.omarchy.screensaver --config-file="$OMARCHY_PATH/default/ghostty/screensaver" --font-size=18 -e omarchy-screensaver
     ;;
   *foot*)
-    hypr_exec foot --app-id=org.omarchy.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e omarchy-screensaver
+    setsid -f foot --app-id=org.omarchy.screensaver --config="$OMARCHY_PATH/default/foot/screensaver.ini" -e omarchy-screensaver
     ;;
   *kitty*)
-    hypr_exec kitty --class=org.omarchy.screensaver --override font_size=18 --override window_padding_width=0 -e omarchy-screensaver
+    setsid -f kitty --class=org.omarchy.screensaver --override font_size=18 --override window_padding_width=0 -e omarchy-screensaver
     ;;
-  esac
+  esac >/dev/null 2>&1
 
-  wait_for_screensaver_window
+  wait_for_screensaver_window "$m"
 done
 
-hypr_focus_monitor "$focused"
+mmsg dispatch "focusmon,$focused" >/dev/null
