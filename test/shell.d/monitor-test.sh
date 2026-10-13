@@ -54,8 +54,8 @@ assertDeepEqual(
   'monitor keeps presets until display dimensions are known'
 )
 
-assertEqual(monitor.brightnessName(96), 'Sun blast', 'monitor names very bright displays')
-assertEqual(monitor.brightnessName(12), 'Candlelit', 'monitor names dim displays')
+assertEqual(monitor.brightnessName(96), 'Sol a pino', 'monitor names very bright displays')
+assertEqual(monitor.brightnessName(12), 'Luz de velas', 'monitor names dim displays')
 
 assertDeepEqual(
   monitor.parseDisplays(JSON.stringify([

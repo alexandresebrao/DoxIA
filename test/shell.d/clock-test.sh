@@ -185,7 +185,7 @@ assert(/function close\(\) \{\s*\n\s*setCenterHoverRevealSuppressed\(false\)/.te
 assert(/width: Math\.max\(calendarScroll\.width, gridColumn\.width\)/.test(panelSource), 'calendar scrolls rather than clipping the grid on a narrow popup')
 assert(/enabled: !root\.viewingCurrentMonth/.test(panelSource) && /onClicked: root\.goToToday\(\)/.test(panelSource), 'calendar hero returns to today once the view has stepped away')
 assert(!/clampMonth/.test(panelSource), 'calendar steps freely into future months')
-assert(/Qt\.formatDate\(root\.today, "MMMM d"\)/.test(panelSource), 'calendar hero spells out today')
+assert(/Qt\.locale\(\)\.toString\(root\.today, "d 'de' MMMM"\)/.test(panelSource), 'calendar hero spells out today')
 assert(/id: yearLabel/.test(panelSource) && /root\.yearDone/.test(panelSource), 'calendar panel shows the year progress bar')
 
 // The memento mori bar is opt-in: double-tapping the year bar asks for an age,
@@ -238,7 +238,7 @@ shell_json=$(cd "$ROOT" && jq -r '[.bar.layout.center[].id] | join(",")' config/
 [[ $shell_json != *"omarchy.calendar"* ]] || fail "clock hosts the calendar instead of a second bar pill" "center: $shell_json"
 pass "default bar layout includes the clock widget"
 
-grep -q 'o.bind("SUPER + CTRL + ALT + D", "Calendar", "omarchy-shell shell toggle omarchy.clock")' \
-  "$ROOT/default/hypr/bindings/utilities.lua" ||
+grep -qx 'bind=SUPER+CTRL+ALT,D,spawn,omarchy-shell shell toggle omarchy.clock' \
+  "$ROOT/default/mango/bindings/utilities.conf" ||
   fail "SUPER+CTRL+ALT+D toggles the calendar panel"
 pass "SUPER+CTRL+ALT+D toggles the calendar panel"

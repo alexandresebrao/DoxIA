@@ -115,7 +115,7 @@ const defaultById = Object.fromEntries(defaultItems.map(item => [item.id, item])
 const rankBase = menu.mergeMenuSources(defaultItems, [])
 const ranked = menu.mergeAppRows(rankBase.items, rankBase.itemOrder, [
   { id: 'apps.brave', parent: 'apps', kind: 'app', label: 'Brave', description: '', aliases: [] },
-  { id: 'apps.fontforge', parent: 'apps', kind: 'app', label: 'FontForge', description: '', aliases: [] },
+  { id: 'apps.fontforge', parent: 'apps', kind: 'app', label: 'FonteForge', description: '', aliases: [] },
   { id: 'apps.zen', parent: 'apps', kind: 'app', label: 'Zen Browser', description: '', aliases: [] }
 ])
 const rankScore = (id, query) => menu.searchScore(ranked.items, ranked.items[id], query)
@@ -132,7 +132,7 @@ assert(
   'menu ranks an app matching the query as a whole word above exact-labeled menu entries'
 )
 assert(
-  rankScore('style.font', 'font') < rankScore('apps.fontforge', 'font'),
+  rankScore('style.font', 'fonte') < rankScore('apps.fontforge', 'fonte'),
   'menu keeps a better-matching menu entry above a weaker app match'
 )
 
@@ -165,8 +165,8 @@ assertEqual(
   'menu opens the emoji picker from Trigger'
 )
 assert(
-  defaultById['update.omarchy'].icon === '\ue900',
-  'menu update Omarchy entry uses the Omarchy glyph'
+  defaultById['update.omarchy'].icon === '\ue90e',
+  'menu update entry uses the DoxIA glyph'
 )
 assert(
   defaultById['update.omarchy'].iconFont === 'omarchy',
@@ -178,7 +178,7 @@ assertEqual(
   'menu hides Extra Themes until a theme cloned from git is there to update'
 )
 assert(
-  defaultById['setup.input'].action.includes('input.lua'),
+  defaultById['setup.input'].action.includes('mango/input.conf'),
   'menu keeps Input as a direct config action'
 )
 assert(
@@ -255,7 +255,7 @@ assertEqual(
 )
 assertDeepEqual(
   defaultItems.filter(item => item.parent === 'setup.plugin').map(item => item.label),
-  ['Enable Plugin', 'Disable Plugin', 'Add Plugin', 'Clone Plugin', 'Remove Plugin'],
+  ['Ativar plugin', 'Desativar plugin', 'Adicionar plugin', 'Clonar plugin', 'Remover plugin'],
   'menu manages plugins from Setup > Plugins'
 )
 assert(

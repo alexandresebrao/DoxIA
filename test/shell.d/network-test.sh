@@ -159,10 +159,10 @@ assertEqual(network.formatBytes(1536), '1.5 KB', 'network formats bytes')
 assertEqual(network.formatRate(1536), '1.5 KB/s', 'network formats rates')
 assertEqual(network.formatPingLatency('2.54'), '2.5 ms', 'network formats low ping with precision')
 assertEqual(network.formatPingLatency('25.4'), '25 ms', 'network formats ping')
-assertEqual(network.formatPingLatency(''), 'Timeout', 'network formats missing ping as timeout')
+assertEqual(network.formatPingLatency(''), 'Tempo esgotado', 'network formats missing ping as timeout')
 assertEqual(network.formatPingLatency(-1, false), '--', 'network holds the ping row before the first sample')
 assertEqual(network.formatPingLatency('25.4', true), '25 ms', 'network formats ping once samples exist')
-assertEqual(network.formatPingLatency('', true), 'Timeout', 'network still reports a timeout among real samples')
+assertEqual(network.formatPingLatency('', true), 'Tempo esgotado', 'network still reports a timeout among real samples')
 assertEqual(network.formatPacketLoss(2), '2%', 'network formats packet loss')
 assertEqual(network.formatPacketLoss(0), '0%', 'network formats zero packet loss')
 assertEqual(network.formatPacketLoss(0, false), '--', 'network holds the packet loss row before the first sample')
@@ -174,8 +174,8 @@ const rows = network.sortWifiRows([
   { ssid: 'Connected', connected: true, known: true, signal: 20 }
 ])
 assertDeepEqual(rows.map(row => row.ssid), ['Connected', 'Known', 'Open'], 'network sorts wifi rows by connection and known state')
-assertEqual(network.wifiSectionTitle(rows, 0), 'KNOWN NETWORKS', 'network labels known wifi section')
-assertEqual(network.wifiSectionTitle(rows, 2), 'OTHER NETWORKS', 'network labels other wifi section')
+assertEqual(network.wifiSectionTitle(rows, 0), 'REDES CONHECIDAS', 'network labels known wifi section')
+assertEqual(network.wifiSectionTitle(rows, 2), 'OUTRAS REDES', 'network labels other wifi section')
 
 const wifiRow = network.wifiRow({ connected: true, known: true, name: 'Home', signalStrength: 0.8, security: 1 })
 assertDeepEqual(
@@ -251,11 +251,11 @@ assert(
 )
 
 const reasons = { NoSecrets: 1, WifiAuthTimeout: 2, WifiNetworkLost: 3, WifiClientDisconnected: 4, WifiClientFailed: 5 }
-assertEqual(network.networkFailureReason(reasons.NoSecrets, true, reasons), 'Passphrase required', 'network maps missing credential failures')
-assertEqual(network.networkFailureReason(reasons.WifiAuthTimeout, true, reasons), 'Wrong password', 'network maps credentialed auth timeouts')
-assertEqual(network.networkFailureReason(reasons.NoSecrets, false, reasons), 'Failed to connect', 'network gives passwordless missing-secret failures generic copy')
-assertEqual(network.networkFailureReason(reasons.WifiAuthTimeout, false, reasons), 'Failed to connect', 'network gives passwordless auth timeouts generic copy')
-assertEqual(network.networkFailureReason(99, true, reasons), 'Failed to connect', 'network maps unknown failures')
+assertEqual(network.networkFailureReason(reasons.NoSecrets, true, reasons), 'Senha necessária', 'network maps missing credential failures')
+assertEqual(network.networkFailureReason(reasons.WifiAuthTimeout, true, reasons), 'Senha incorreta', 'network maps credentialed auth timeouts')
+assertEqual(network.networkFailureReason(reasons.NoSecrets, false, reasons), 'Não foi possível conectar', 'network gives passwordless missing-secret failures generic copy')
+assertEqual(network.networkFailureReason(reasons.WifiAuthTimeout, false, reasons), 'Não foi possível conectar', 'network gives passwordless auth timeouts generic copy')
+assertEqual(network.networkFailureReason(99, true, reasons), 'Não foi possível conectar', 'network maps unknown failures')
 
 assertEqual(network.canForgetNetwork({ known: true, connected: false, security: security.Owe }), true, 'network can forget known disconnected OWE networks')
 assertEqual(network.canForgetNetwork({ known: true, connected: false, security: security.Open }), true, 'network can forget known disconnected open networks')
@@ -273,10 +273,10 @@ assertEqual(network.bandLabel('2.4'), '2.4ghz', 'network labels the 2.4GHz band'
 assertEqual(network.bandLabel('6'), '6ghz', 'network labels the 6GHz band')
 assertEqual(network.bandLabel('auto'), 'Auto', 'network labels the automatic band choice')
 
-assertEqual(network.bandSectionTitle('auto', '2.4'), 'WI-FI BAND: 2.4GHZ', 'network names the live band in the header under automatic')
-assertEqual(network.bandSectionTitle('auto', ''), 'WI-FI BAND', 'network omits an unknown band from the header')
-assertEqual(network.bandSectionTitle('5', '5'), 'WI-FI BAND', 'network drops the header band once the pills are showing')
-assertEqual(network.bandSectionTitle('5', '2.4'), 'WI-FI BAND', 'network keeps a plain header while a pin is settling')
+assertEqual(network.bandSectionTitle('auto', '2.4'), 'BANDA DO WI-FI: 2.4GHZ', 'network names the live band in the header under automatic')
+assertEqual(network.bandSectionTitle('auto', ''), 'BANDA DO WI-FI', 'network omits an unknown band from the header')
+assertEqual(network.bandSectionTitle('5', '5'), 'BANDA DO WI-FI', 'network drops the header band once the pills are showing')
+assertEqual(network.bandSectionTitle('5', '2.4'), 'BANDA DO WI-FI', 'network keeps a plain header while a pin is settling')
 
 assertDeepEqual(
   network.parseBandStatus('band\t5\navailable\t2.4 5 6\nselected\tauto\n'),
