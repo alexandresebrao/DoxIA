@@ -106,13 +106,16 @@ svg = temporary / 'fixture.svg'
 svg.write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2 L22 2 L22 22 L2 22 Z"/></svg>')
 subprocess.run([sys.executable, str(tool), 'add', 'release-fixture', str(svg), '--font', str(font)], check=True, stdout=subprocess.DEVNULL)
 after = snapshot()
+# The tool takes the next codepoint after the highest one in use (DoxIA's own
+# glyphs sit past Cursor's E90D).
+next_cp = max(cp for cp in before[1] if cp >= 0xE900) + 1
 assert after[0] == before[0] + ['release-fixture']
-assert after[1] == before[1] | {0xE90E: len(before[0])}
+assert after[1] == before[1] | {next_cp: len(before[0])}
 assert after[2][:-1] == before[2]
 assert after[3].startswith(before[3])
 print('ok - adding a local SVG preserves every existing name, codepoint, outline and metric')
 listing = subprocess.check_output([sys.executable, str(tool), 'list', '--font', str(font)], text=True)
-assert 'U+E90E' in listing and 'release-fixture' in listing and 'cursor' in listing
+assert f'U+{next_cp:04X}' in listing and 'release-fixture' in listing and 'cursor' in listing
 print('ok - the real font tool lists the newly added disposable glyph')
 unchanged = font.read_bytes()
 result = subprocess.run([sys.executable, str(tool), 'add', 'collision', str(svg), '--codepoint', 'E90D', '--font', str(font)], capture_output=True, text=True)
