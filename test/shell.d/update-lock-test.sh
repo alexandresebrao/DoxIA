@@ -12,8 +12,12 @@ test_home="$test_tmp/home"
 runtime_dir="$test_tmp/runtime"
 mkdir -p "$stub_bin" "$test_home" "$runtime_dir"
 
+# XDG_CONFIG_HOME keeps the person's own update preferences out of the update,
+# and OMARCHY_PATH their checkout.
 run_with_lock_env() {
   HOME="$test_home" \
+  XDG_CONFIG_HOME="$test_home/.config" \
+  OMARCHY_PATH="$test_tmp/omarchy" \
   XDG_RUNTIME_DIR="$runtime_dir" \
   XDG_STATE_HOME="$test_tmp/state" \
   PATH="$stub_bin:$ROOT/bin:$PATH" \
@@ -46,18 +50,23 @@ for command in \
   omarchy-hook \
   omarchy-update-analyze-logs \
   omarchy-shell \
-  omarchy-update-restart; do
+  omarchy-update-restart \
+  omarchy-update-check \
+  omarchy-update-status \
+  snapper; do
   write_stub "$command" 'exit 0'
 done
 write_stub omarchy-update-available 'exit 1'
 write_stub pkexec 'exec "$@"'
+# The update validates the password up front and keeps it fresh in the background.
+write_stub sudo 'case $1 in -v | -n) exit 0 ;; esac; exec "$@"'
 
 # omarchy-update should hold the lock before snapshotting, so a second update
 # cannot even enter its pre-update snapshot.
 update_snapshot_marker="$test_tmp/update-snapshot-started"
 write_stub omarchy-snapshot 'echo started >"$TEST_MARKER"; sleep 2; exit 0'
 
-OMARCHY_UPDATE_LOGGED=1 TEST_MARKER="$update_snapshot_marker" run_with_lock_env "$ROOT/bin/omarchy-update" -y >"$test_tmp/update-first.out" 2>&1 &
+OMARCHY_UPDATE_LOGGED=1 TEST_MARKER="$update_snapshot_marker" run_with_lock_env "$ROOT/bin/omarchy-update" --now -y >"$test_tmp/update-first.out" 2>&1 &
 update_pid=$!
 
 for _ in {1..50}; do
@@ -67,7 +76,7 @@ done
 [[ -f $update_snapshot_marker ]] || fail "first omarchy-update reached snapshot under lock"
 
 set +e
-OMARCHY_UPDATE_LOGGED=1 TEST_MARKER="$test_tmp/update-second-snapshot-started" run_with_lock_env "$ROOT/bin/omarchy-update" -y >"$test_tmp/update-second.out" 2>&1
+OMARCHY_UPDATE_LOGGED=1 TEST_MARKER="$test_tmp/update-second-snapshot-started" run_with_lock_env "$ROOT/bin/omarchy-update" --now -y >"$test_tmp/update-second.out" 2>&1
 update_second_status=$?
 set -e
 
@@ -77,6 +86,14 @@ wait "$update_pid"
 grep -q "already running" "$test_tmp/update-second.out" || fail "second omarchy-update reports held update lock"
 [[ ! -f $test_tmp/update-second-snapshot-started ]] || fail "second omarchy-update did not snapshot while lock was held"
 pass "omarchy-update prevents overlapping top-level updates"
+
+# The password keepalive sleeps between refreshes and outlives the update by up
+# to that long, so it must not take the lock with it: the next update, such as
+# a retry from the update window, starts as soon as this one ends.
+write_stub omarchy-snapshot 'exit 0'
+OMARCHY_UPDATE_LOGGED=1 run_with_lock_env "$ROOT/bin/omarchy-update" --now -y >"$test_tmp/update-back-to-back.out" 2>&1 ||
+  fail "an update right after another one finished is not turned away" "$(cat "$test_tmp/update-back-to-back.out")"
+pass "a finished update releases the lock for the next one"
 
 # The sleep inhibitor deliberately outlives the step that starts it, so it must
 # not inherit the update lock. An update killed before restore_update_inhibitors
@@ -89,7 +106,7 @@ write_stub systemd-inhibit 'echo "$$" >"$INHIBIT_PID_FILE"; exec sleep 30'
 write_stub omarchy-update-keyring 'echo started >"$TEST_MARKER"; sleep 3; exit 0'
 
 OMARCHY_UPDATE_LOGGED=1 TEST_MARKER="$keyring_marker" INHIBIT_PID_FILE="$inhibit_pid_file" \
-  run_with_lock_env "$ROOT/bin/omarchy-update" -y >"$test_tmp/update-inhibit.out" 2>&1 &
+  run_with_lock_env "$ROOT/bin/omarchy-update" --now -y >"$test_tmp/update-inhibit.out" 2>&1 &
 inhibit_update_pid=$!
 
 for _ in {1..100}; do
@@ -155,6 +172,7 @@ fi
 
 # Update-owned Stay Awake state must be cleared before the restart helper can
 # reboot the machine, rather than relying on an EXIT trap during shutdown.
+write_stub sudo 'case $1 in -v | -n) exit 0 ;; esac; exec "$@"'
 write_stub omarchy-snapshot 'exit 0'
 write_stub omarchy-update-keyring 'exit 0'
 write_stub omarchy-toggle-idle '
@@ -177,12 +195,12 @@ else
 fi'
 
 rm -f "$test_home/.local/state/omarchy/indicators/stay-awake"
-OMARCHY_UPDATE_LOGGED=1 run_with_lock_env "$ROOT/bin/omarchy-update" -y
+OMARCHY_UPDATE_LOGGED=1 run_with_lock_env "$ROOT/bin/omarchy-update" --now -y
 [[ ! -f $test_home/.local/state/omarchy/indicators/stay-awake ]] || fail "update clears its Stay Awake state before restart handling"
 
 mkdir -p "$test_home/.local/state/omarchy/indicators"
 touch "$test_home/.local/state/omarchy/indicators/stay-awake"
-OMARCHY_UPDATE_LOGGED=1 EXPECT_STAY_AWAKE=1 run_with_lock_env "$ROOT/bin/omarchy-update" -y
+OMARCHY_UPDATE_LOGGED=1 EXPECT_STAY_AWAKE=1 run_with_lock_env "$ROOT/bin/omarchy-update" --now -y
 [[ -f $test_home/.local/state/omarchy/indicators/stay-awake ]] || fail "update preserves pre-existing Stay Awake state"
 pass "omarchy-update restores only its own Stay Awake state before restart handling"
 
