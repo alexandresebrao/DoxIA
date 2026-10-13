@@ -2,11 +2,13 @@
 """Gera o fundo, o emblema da barra, a imagem de unlock e a prévia do tema LiquidIA.
 
 O fundo é "vidro líquido": gotas fundidas (metaballs: blur + limiar) num
-degradê vermelho -> laranja, com brilho especular na borda de cima. O ∞ é o infinito.png do DoxIA repintado no
+degradê vermelho -> laranja, com brilho especular na borda de cima, na frente
+de um entardecer com uma casa no alto de uma montanha. O ∞ é o infinito.png do DoxIA repintado no
 mesmo degradê.
 
 Rode de novo para regenerar: python3 make-art.py
 """
+import math
 import random
 from pathlib import Path
 
@@ -62,12 +64,86 @@ def metaballs(size, blobs, blur, threshold):
     return m.point(lambda v: 0 if v < lo else 255 if v > hi else int((v - lo) * 255 / (hi - lo)))
 
 
+def ridge(xs, base, waves, peak=None):
+    """Linha de cume: base + ondas senoidais, com um pico gaussiano opcional."""
+    pts = []
+    for x in xs:
+        y = base + sum(a * math.sin(f * x / W + ph) for (a, f, ph) in waves)
+        if peak:
+            px, ph_, pw = peak
+            y -= ph_ * math.exp(-((x - px) / pw) ** 2)
+        pts.append((x, y))
+    return pts
+
+
+def landscape(size):
+    """Entardecer: céu quente, sol baixo, três serras e uma casa no pico."""
+    w, h = size
+    horizon = int(h * 0.80)
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+
+    # céu: escuro em cima, brasa no horizonte
+    sky = Image.new("RGBA", (1, 256))
+    for y in range(256):
+        t = (y / 255) ** 1.8
+        sky.putpixel((0, y), lerp(BG, (170, 58, 22), t) + (int(255 * min(1, t * 1.4)),))
+    layer.alpha_composite(sky.resize((w, horizon), Image.BILINEAR))
+
+    # sol baixo, meio escondido pelas serras
+    sx, sy = int(w * 0.63), int(h * 0.74)
+    layer.alpha_composite(radial(size, (sx, sy), 900, (255, 120, 40), 0.55))
+    layer.alpha_composite(radial(size, (sx, sy), 380, (255, 190, 110), 0.7))
+    sun = Image.new("L", size, 0)
+    ImageDraw.Draw(sun).ellipse([sx - 150, sy - 150, sx + 150, sy + 150], fill=255)
+    disc = Image.new("RGBA", size, (255, 214, 150, 0))
+    disc.putalpha(sun.filter(ImageFilter.GaussianBlur(6)))
+    layer.alpha_composite(disc)
+
+    xs = list(range(-40, w + 60, 20))
+    house_x = w * 0.80
+    serras = [
+        # (base, ondas, pico, cor, blur): do mais longe para o mais perto
+        (h * 0.70, [(70, 11, 1.0), (40, 27, 2.1), (18, 61, 0.7)], (w * 0.40, 420, 300), (96, 34, 26), 6),
+        (h * 0.80, [(80, 7, 0.4), (35, 19, 1.7), (14, 47, 2.9)], (w * 0.18, 300, 360), (58, 18, 18), 3),
+        (h * 0.92, [(40, 5, 2.4), (16, 21, 0.3), (8, 70, 1.3)], (house_x, 700, 430), (26, 9, 11), 1.5),
+    ]
+    for base, waves, peak, color, blur in serras:
+        pts = ridge(xs, base, waves, peak)
+        m = Image.new("L", size, 0)
+        ImageDraw.Draw(m).polygon(pts + [(w + 60, h + 10), (-40, h + 10)], fill=255)
+        hill = Image.new("RGBA", size, color + (0,))
+        hill.putalpha(m.filter(ImageFilter.GaussianBlur(blur)))
+        layer.alpha_composite(hill)
+        top = pts
+
+    # casa no pico da serra da frente, em silhueta, com a janela acesa
+    hy = min(y for (x, y) in top if abs(x - house_x) < 60) + 55
+    hx = int(house_x)
+    sil = Image.new("L", size, 0)
+    d = ImageDraw.Draw(sil)
+    d.rectangle([hx - 120, hy - 150, hx + 120, hy + 80], fill=255)                 # corpo, enterrado no cume
+    d.polygon([(hx - 160, hy - 140), (hx, hy - 285), (hx + 160, hy - 140)], fill=255)  # telhado
+    d.rectangle([hx + 62, hy - 270, hx + 96, hy - 190], fill=255)                  # chaminé
+    house = Image.new("RGBA", size, (26, 9, 11, 0))
+    house.putalpha(sil.filter(ImageFilter.GaussianBlur(1.2)))
+    layer.alpha_composite(house)
+    win = [hx - 70, hy - 105, hx - 20, hy - 50]
+    layer.alpha_composite(radial(size, ((win[0] + win[2]) // 2, (win[1] + win[3]) // 2), 110, (255, 160, 60), 0.5))
+    wm = Image.new("L", size, 0)
+    ImageDraw.Draw(wm).rectangle(win, fill=255)
+    lit = Image.new("RGBA", size, (255, 196, 110, 0))
+    lit.putalpha(wm.filter(ImageFilter.GaussianBlur(1)))
+    layer.alpha_composite(lit)
+    return layer
+
+
 def wallpaper():
     size = (W, H)
     img = Image.new("RGBA", size, BG + (255,))
     # brasa ao fundo, bem difusa
     img.alpha_composite(radial(size, (int(W * 0.78), int(H * 0.25)), 1300, (140, 30, 10), 0.55))
     img.alpha_composite(radial(size, (int(W * 0.15), int(H * 0.9)), 1100, (110, 0, 20), 0.5))
+    img.alpha_composite(landscape(size))
 
     # fio de gotas atravessando a tela em diagonal
     rnd = random.Random(7)
@@ -75,7 +151,7 @@ def wallpaper():
     for i in range(26):
         t = i / 25
         x = W * (0.05 + 0.9 * t) + rnd.uniform(-120, 120)
-        y = H * (0.82 - 0.62 * t) + 260 * __import__("math").sin(t * 7.0) + rnd.uniform(-80, 80)
+        y = H * (0.82 - 0.62 * t) + 260 * math.sin(t * 7.0) + rnd.uniform(-80, 80)
         r = rnd.uniform(90, 300) * (1.25 - abs(t - 0.5))
         blobs.append((x, y, r * rnd.uniform(0.9, 1.3), r))
     # gotas soltas
