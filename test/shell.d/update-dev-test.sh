@@ -31,6 +31,9 @@ case "$1" in
         [[ ${TEST_GIT_UPSTREAM:-origin/quattro} != "none" ]] || exit 1
         echo "${TEST_GIT_UPSTREAM:-origin/quattro}"
         ;;
+      --short)
+        echo abc1234
+        ;;
       *)
         exit 1
         ;;
@@ -38,6 +41,11 @@ case "$1" in
     ;;
   pull)
     [[ $2 == "--ff-only" ]]
+    ;;
+  diff)
+    [[ -z ${TEST_GIT_CONFLICTED:-} ]] || printf '%s\n' $TEST_GIT_CONFLICTED
+    ;;
+  checkout | reset)
     ;;
   *)
     exit 1
@@ -60,9 +68,24 @@ pass "package-backed updates skip the dev checkout step"
 
 : >"$git_log"
 run_dev_update "$checkout"
-grep -Fx -- "-C $checkout pull --ff-only" "$git_log" >/dev/null ||
+grep -Fx -- "-C $checkout pull --ff-only --autostash" "$git_log" >/dev/null ||
   fail "dev checkout update pulls its upstream with fast-forward only" "$(cat "$git_log")"
+if grep -qE ' (checkout|reset)( |$)' "$git_log"; then
+  fail "a clean pull leaves the checkout alone" "$(cat "$git_log")"
+fi
 pass "dev checkout update pulls its configured upstream"
+
+# Local edits that clash with the pull come back from the autostash as
+# conflicts. The update takes upstream's version and says where the edits went.
+: >"$git_log"
+TEST_GIT_CONFLICTED="bin/a bin/b" run_dev_update "$checkout" >"$test_tmp/conflict.out"
+grep -Fx -- "-C $checkout checkout HEAD -- bin/a bin/b" "$git_log" >/dev/null ||
+  fail "conflicted files are restored from upstream" "$(cat "$git_log")"
+grep -Fx -- "-C $checkout reset -q" "$git_log" >/dev/null ||
+  fail "conflicted files are unstaged after the restore" "$(cat "$git_log")"
+grep -q 'set aside in abc1234' "$test_tmp/conflict.out" && grep -qx '  bin/a' "$test_tmp/conflict.out" ||
+  fail "the update names the stash and the files it set aside" "$(cat "$test_tmp/conflict.out")"
+pass "dev checkout update keeps upstream's version of clashing local edits"
 
 : >"$git_log"
 TEST_GIT_UPSTREAM=none run_dev_update "$checkout"
