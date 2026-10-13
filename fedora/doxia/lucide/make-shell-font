@@ -9,8 +9,12 @@ sistema continuam com a fonte original. Letras e métricas são as da fonte
 original. Roda no install-user.sh, no update.sh e no hook font-set (troca de
 fonte). Precisa do python3-fonttools.
 
+Gerar leva mais de um minuto de CPU, então só roda quando a fonte de origem
+ou os ícones mudaram: o STAMP no destino guarda o que gerou a fonte atual.
+
 Uso: make-shell-font [família de origem]   (padrão: a que o monospace resolve)
 """
+import hashlib
 import json
 import shutil
 import statistics
@@ -148,6 +152,26 @@ def build(path, old_family, lucide, lucide_codes, mapping):
     return out, len(done)
 
 
+# Tudo o que muda o resultado: a família e os arquivos de origem, e os arquivos
+# deste diretório que entram na geração (o próprio script incluso).
+def stamp(family, files):
+    digest = hashlib.sha256(family.encode())
+    for f in files:
+        st = Path(f).stat()
+        digest.update(f"{f}\0{st.st_size}\0{st.st_mtime_ns}\0".encode())
+    inputs = [Path(__file__).resolve(), here / "lucide.ttf", here / "codepoints.json", here / "nerd.tsv"]
+    inputs += sorted((here / "extra").glob("*.svg"))
+    for f in inputs:
+        digest.update(f.name.encode() + b"\0" + f.read_bytes())
+    return digest.hexdigest()
+
+
+def install_conf():
+    conf_dir = Path.home() / ".config/fontconfig/conf.d"
+    conf_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(here / "60-doxia-shell.conf", conf_dir / "60-doxia-shell.conf")
+
+
 def main():
     family = sys.argv[1] if len(sys.argv) > 1 else run("fc-match", "monospace", "family").split(",")[0].strip()
     if family == family_out:
@@ -155,6 +179,13 @@ def main():
     files = source_files(family)
     if not files:
         sys.exit(f"nenhum arquivo .ttf da família {family}")
+
+    current = stamp(family, files)
+    stamp_file = dest / "STAMP"
+    if stamp_file.is_file() and stamp_file.read_text().strip() == current and any(dest.glob("*.ttf")):
+        install_conf()
+        print("  DoxIA Shell já está em dia")
+        return
 
     lucide = TTFont(here / "lucide.ttf")
     lucide_codes = json.loads((here / "codepoints.json").read_text())
@@ -172,10 +203,10 @@ def main():
     if not built:
         sys.exit(f"{family} não tem ícones Nerd Font para trocar")
 
-    conf_dir = Path.home() / ".config/fontconfig/conf.d"
-    conf_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(here / "60-doxia-shell.conf", conf_dir / "60-doxia-shell.conf")
+    install_conf()
     run("fc-cache", "-f", str(dest))
+    # Por último: uma geração interrompida não deixa o carimbo para trás.
+    stamp_file.write_text(current + "\n")
 
 
 if __name__ == "__main__":
