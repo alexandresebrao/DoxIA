@@ -396,26 +396,55 @@ var GUARD_READERS = [
 // them everywhere, including for no arguments at all (present is true of
 // nothing, missing is not).
 //
-// `pacman -Q` resolves a name through what installed packages provide, not
-// just what they are called -- with gvim installed it reports `vim` as
-// present -- so the set has to carry provides too, or `install.editor.vim`
-// comes back and offers to install what is already there. A version
-// constraint (`bash>=1`) is not a name any set can answer, so it goes to
-// pacman itself; no shipped guard writes one.
-//
-// `pacman -Qi` wraps a long list across continuation lines whenever COLUMNS
-// is set in the environment, which a login shell may well have done, so the
-// parser follows the indented lines rather than reading the first one and
-// dropping half of what is installed.
-function guardHelpers() {
-  return 'declare -A __omarchy_pkgs=()\n'
-    + 'mapfile -t __omarchy_pkg_names < <({ pacman -Qq; LC_ALL=C pacman -Qi'
-    + " | awk '/^[A-Za-z]/ { provides = ($0 ~ /^Provides/); sub(/^[^:]*: /, \"\") }"
-    + ' provides && $0 != "None" { n = split($0, p, " ");'
-    + ' for (i = 1; i <= n; i++) { sub(/[<>=].*/, "", p[i]); print p[i] } }\'; } 2>/dev/null)\n'
-    + 'for __omarchy_pkg in "${__omarchy_pkg_names[@]}"; do __omarchy_pkgs[$__omarchy_pkg]=1; done\n'
-    + '__omarchy_pkg_has() { [[ -n ${__omarchy_pkgs[$1]-} ]] && return 0; '
-    + '[[ $1 == *[\\<\\>=]* ]] && { pacman -Q "$1" &>/dev/null; return; }; return 1; }\n'
+// The package helpers ask `rpm -q --whatprovides`, which resolves a name
+// through what installed packages provide, not just what they are called --
+// with vim-enhanced installed it reports `vim` as present. Listing everything
+// installed with its provides takes rpm seconds, but one query for every name
+// the guards spell out takes a few milliseconds, so the batch asks that once.
+// rpm answers each name it cannot resolve with `no package provides <name>`
+// and the others with the providing package, so a name it did not reject is
+// present. Output it does not recognise means the query itself failed, and
+// the answers are dropped. Anything else -- a name built at runtime, a
+// version constraint -- goes to rpm on its own, as the real helper would.
+var GUARD_PACKAGE_NAME = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/
+
+function guardPackageNames(guards) {
+  var names = []
+  var calls = /omarchy-pkg-(?:present|missing)((?:[ \t]+[^\s;|&)}]+)+)/g
+  var match
+
+  while ((match = calls.exec(guards || ""))) {
+    var words = match[1].trim().split(/\s+/)
+    for (var i = 0; i < words.length; i++) {
+      if (GUARD_PACKAGE_NAME.test(words[i]) && names.indexOf(words[i]) < 0) names.push(words[i])
+    }
+  }
+
+  return names
+}
+
+function guardHelpers(guards) {
+  var names = guardPackageNames(guards)
+  var helpers = 'declare -A __omarchy_pkgs=()\n'
+
+  if (names.length) {
+    helpers += '__omarchy_pkg_names=(' + names.join(" ") + ')\n'
+      + '__omarchy_pkg_out=$(LC_ALL=C rpm -q --whatprovides --qf \'%{NAME}\\n\' "${__omarchy_pkg_names[@]}" 2>&1)\n'
+      + '__omarchy_pkg_ok=0; [[ -n $__omarchy_pkg_out ]] && __omarchy_pkg_ok=1\n'
+      + 'while IFS= read -r __omarchy_pkg_line; do case $__omarchy_pkg_line in\n'
+      + '  "no package provides "*) __omarchy_pkgs[${__omarchy_pkg_line#no package provides }]=0 ;;\n'
+      + '  *[[:space:]]*) __omarchy_pkg_ok=0 ;;\n'
+      + 'esac; done <<<"$__omarchy_pkg_out"\n'
+      + 'if (( __omarchy_pkg_ok )); then\n'
+      + '  for __omarchy_pkg in "${__omarchy_pkg_names[@]}"; do : "${__omarchy_pkgs[$__omarchy_pkg]:=1}"; done\n'
+      + 'else\n'
+      + '  __omarchy_pkgs=()\n'
+      + 'fi\n'
+  }
+
+  return helpers
+    + '__omarchy_pkg_has() { [[ -n $1 ]] && case ${__omarchy_pkgs[$1]-} in 1) return 0 ;; 0) return 1 ;; esac; '
+    + 'rpm -q --whatprovides "$1" &>/dev/null; }\n'
     + 'omarchy-pkg-present() { local p; for p in "$@"; do __omarchy_pkg_has "$p" || return 1; done; return 0; }\n'
     + 'omarchy-pkg-missing() { local p; for p in "$@"; do __omarchy_pkg_has "$p" || return 0; done; return 1; }\n'
     + 'omarchy-cmd-present() { local c; for c in "$@"; do command -v "$c" &>/dev/null || return 1; done; return 0; }\n'
@@ -429,7 +458,7 @@ function guardHelpers() {
 // `VAR=x reader`, and every other form, and answer those wrong. Anything but
 // the plain substitution is left alone to run the real command.
 function guardPrelude(guards) {
-  var prelude = guardHelpers()
+  var prelude = guardHelpers(guards)
 
   for (var i = 0; i < GUARD_READERS.length; i++) {
     // The guards arrive already substituted, so what marks a reader as wanted

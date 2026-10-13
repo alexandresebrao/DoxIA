@@ -75,11 +75,13 @@ assertDeepEqual(
 )
 JS
 
+# The prelude asks rpm once for every package name the guards spell out, so
+# the probe names some; anything else is left to rpm one name at a time.
 prelude() {
   node -e '
     const path = require("path")
     const menu = require(path.join(process.env.ROOT, "shell/plugins/menu/MenuModel.js"))
-    process.stdout.write(menu.guardScript({ probe: { id: "probe", when: "true" } }))
+    process.stdout.write(menu.guardScript({ probe: { id: "probe", when: "omarchy-pkg-present bash vim sh xxd absent" } }))
   ' | command grep -v '^if {'
 }
 
@@ -89,39 +91,42 @@ prelude() {
 stub_dir=$(mktemp -d)
 trap 'rm -rf "$stub_dir"' EXIT
 
-# `pacman -Q` resolves a name through what installed packages provide, so gvim
-# answers for vim and bash answers for sh. A set built from `pacman -Qq` alone
-# would miss both and offer to install what is already there.
-#
-# `-Qi` wraps a long list onto indented continuation lines whenever COLUMNS is
-# set, so gvim's provides arrive the way a wrapped terminal would emit them.
-cat >"$stub_dir/pacman" <<'STUB'
+# `rpm -q --whatprovides` resolves a name through what installed packages
+# provide, so vim-enhanced answers for vim and xxd, and bash answers for sh. It
+# reads `bash>=1` as a name nothing provides. RPM_DB_ERROR stands in for a
+# query that fails outright.
+cat >"$stub_dir/rpm" <<'STUB'
 #!/bin/bash
-case "$1" in
--Qq)
-  printf '%s\n' bash gvim
-  ;;
--Qi)
-  cat <<'INFO'
-Name            : bash
-Provides        : sh
-Version         : 5.3.0-1
-Name            : gvim
-Provides        : vim=9.2.0849-1
-                  xxd
-Version         : 9.2-1
-INFO
-  ;;
--Q)
-  shift
-  for want in "$@"; do
-    case "${want%%[<>=]*}" in bash | gvim | sh | vim | xxd) ;; *) exit 1 ;; esac
-  done
-  ;;
-esac
-exit 0
+if [[ -n ${RPM_DB_ERROR:-} ]]; then
+  echo "error: cannot open Packages database in /var/lib/rpm" >&2
+  exit 1
+fi
+[[ $1 == "-q" && $2 == "--whatprovides" ]] || exit 2
+shift 2
+qf=0
+if [[ ${1:-} == "--qf" ]]; then
+  qf=1
+  shift 2
+fi
+missing=0
+for want in "$@"; do
+  case $want in
+    bash | sh) provider=bash ;;
+    vim-enhanced | vim | xxd) provider=vim-enhanced ;;
+    *) provider="" ;;
+  esac
+  if [[ -z $provider ]]; then
+    echo "no package provides $want"
+    missing=$((missing + 1))
+  elif (( qf )); then
+    echo "$provider"
+  else
+    echo "$provider-1.0-1.fc44.x86_64"
+  fi
+done
+exit "$missing"
 STUB
-chmod +x "$stub_dir/pacman"
+chmod +x "$stub_dir/rpm"
 printf '#!/bin/bash\nexit 0\n' >"$stub_dir/gvim"
 chmod +x "$stub_dir/gvim"
 
@@ -140,16 +145,27 @@ assert_helper_agrees() {
   ((real == shadowed)) || fail "$description" "$helper $*: real=$real shadowed=$shadowed"
 }
 
-# vim, sh and xxd are provided rather than installed, and xxd only appears on a
-# wrapped continuation line; bash>=1 is a version constraint no set can answer.
-pkg_cases=("bash" "vim" "sh" "xxd" "absent" "bash vim" "bash absent" "bash>=1" "vim>=1" "")
+# vim, sh and xxd are provided rather than installed, vim-enhanced and
+# bash>=1 are not among the names the batch asked about, and bash>=1 is a
+# version constraint rpm does not resolve.
+pkg_cases=("bash" "vim" "sh" "xxd" "absent" "bash vim" "bash absent" "vim-enhanced" "bash>=1" "vim>=1" "")
 for helper in omarchy-pkg-present omarchy-pkg-missing; do
   for case in "${pkg_cases[@]}"; do
     read -r -a argv <<<"$case"
-    assert_helper_agrees "guard prelude resolves packages as pacman does" "$helper" "${argv[@]}"
+    assert_helper_agrees "guard prelude resolves packages as rpm does" "$helper" "${argv[@]}"
   done
 done
-pass "guard prelude resolves packages through provides, wrapping, and constraints as pacman does"
+pass "guard prelude resolves packages through provides and constraints as rpm does"
+
+# A query that fails says nothing about what is installed. Its error must not
+# read as a list of names nothing rejected.
+for helper in omarchy-pkg-present omarchy-pkg-missing; do
+  for case in "bash" "absent" "bash vim"; do
+    read -r -a argv <<<"$case"
+    RPM_DB_ERROR=1 assert_helper_agrees "guard prelude ignores a failed rpm query" "$helper" "${argv[@]}"
+  done
+done
+pass "guard prelude falls back to the real answer when the rpm query fails"
 
 # cd is a shell builtin `command -v` finds and a PATH search does not.
 cmd_cases=("gvim" "cd" "absent" "gvim absent" "gvim cd" "")
