@@ -26,7 +26,7 @@ run_orphan_checker() {
   HOME="$test_home" PATH="$stub_bin:$PATH" "$ROOT/bin/omarchy-update-orphan-pkgs"
 }
 
-write_stub pacman 'if [[ $1 == "-Qtdq" ]]; then printf "old-lib\nunused-tool\n"; exit 0; fi; exit 1'
+write_stub dnf 'if [[ $1 == "-q" && $2 == "repoquery" && $3 == "--unneeded" ]]; then printf "old-lib\nunused-tool\n"; exit 0; fi; exit 1'
 write_stub sudo 'echo "sudo should not be called" >&2; exit 99'
 write_stub gum 'echo "gum should not be called" >&2; exit 99'
 
@@ -35,7 +35,7 @@ grep -q '^  old-lib$' "$test_tmp/noninteractive.out" || fail "orphan checker lis
 grep -q 'Re-run omarchy-update-orphan-pkgs in a terminal' "$test_tmp/noninteractive.out" || fail "orphan checker does not remove packages non-interactively"
 pass "orphan checker only reports orphans non-interactively"
 
-write_stub pacman 'if [[ $1 == "-Qtdq" ]]; then exit 0; fi; exit 1'
+write_stub dnf 'if [[ $1 == "-q" && $2 == "repoquery" && $3 == "--unneeded" ]]; then exit 0; fi; exit 1'
 run_orphan_checker >"$test_tmp/none.out" 2>"$test_tmp/none.err"
 [[ ! -s $test_tmp/none.out ]] || fail "orphan checker stays quiet when no orphans exist"
 pass "orphan checker stays quiet without orphans"
