@@ -6,7 +6,7 @@ ShellRoot {
   id: root
 
   function fail(message) {
-    console.log("RESULT fail " + message)
+    console.info("RESULT fail " + message)
     Qt.quit()
   }
 
@@ -48,7 +48,7 @@ ShellRoot {
       return
     }
 
-    console.log("RESULT pass")
+    console.info("RESULT pass")
     Qt.quit()
   }
 

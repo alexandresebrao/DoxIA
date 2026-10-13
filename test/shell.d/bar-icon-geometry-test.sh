@@ -27,7 +27,7 @@ ShellRoot {
   id: root
 
   function fail(message) {
-    console.log("RESULT fail " + message)
+    console.info("RESULT fail " + message)
     Qt.quit()
   }
 
@@ -97,7 +97,7 @@ ShellRoot {
       fail("compact status icons do not use the shared status slot")
       return
     }
-    console.log("RESULT pass")
+    console.info("RESULT pass")
     Qt.quit()
   })
 

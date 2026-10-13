@@ -45,7 +45,7 @@ ShellRoot {
   id: root
 
   function fail(message) {
-    console.log("RESULT fail " + message)
+    console.info("RESULT fail " + message)
     Qt.quit()
   }
 
@@ -71,7 +71,7 @@ ShellRoot {
         var focusHeight = focusableButton.implicitHeight
         focusableButton.hasCursor = true
         checkStable(focusableButton, focusWidth, focusHeight, "focusable hover-cursor", function() {
-          console.log("RESULT pass")
+          console.info("RESULT pass")
           Qt.quit()
         })
       })
