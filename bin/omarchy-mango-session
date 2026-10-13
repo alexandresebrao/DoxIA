@@ -20,6 +20,16 @@ else
   rm -f "$STATE_DIR/vm.conf"
 fi
 
+# hyperv_drm's preferred 1024x768 is blurry. Only on Hyper-V, so a VM moved to
+# VMware gets its own size, and only while the user set no monitor rule: mango
+# would apply this one first on new outputs.
+if [[ $(systemd-detect-virt 2>/dev/null) == "microsoft" ]] &&
+   ! grep -q '^monitor_rule=' "$HOME/.config/mango/monitors.conf" 2>/dev/null; then
+  ln -sfn "$OMARCHY_PATH/default/mango/hyperv.conf" "$STATE_DIR/hyperv.conf"
+else
+  rm -f "$STATE_DIR/hyperv.conf"
+fi
+
 # Omarchy's compose sequences (omarchy-restart-xcompose writes the file).
 export XCOMPOSEFILE="$HOME/.XCompose"
 

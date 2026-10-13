@@ -35,16 +35,6 @@ done
 # The terminal order (Kitty first) is system-wide, from install-system.sh, so
 # omarchy-default-terminal's ~/.config/xdg-terminals.list can override it.
 
-# Hyper-V guests: hyperv_drm prefers 1024x768, so the first login came up blurry
-# (the greeter: default/sddm/doxia-greeter). The session handles the cursor.
-if [[ $(</sys/class/dmi/id/sys_vendor) == "Microsoft Corporation" &&
-      $(</sys/class/dmi/id/product_name) == "Virtual Machine" ]] 2>/dev/null; then
-  echo "==> Hyper-V: 1280x720 at scale 1"
-  if ! grep -q '^monitor_rule=' ~/.config/mango/monitors.conf; then
-    printf '\n# Hyper-V: hyperv_drm prefers 1024x768.\nmonitor_rule=name:.*,width:1280,height:720,refresh:60,x:0,y:0,scale:1\n' >> ~/.config/mango/monitors.conf
-  fi
-fi
-
 echo "==> DoxIA branding (About and screensaver logos, terminal greeting)"
 mkdir -p ~/.config/omarchy/branding
 for file in about.txt screensaver.txt logo.ansi; do

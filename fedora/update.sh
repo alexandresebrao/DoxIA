@@ -201,10 +201,6 @@ echo "==> mango user config (once, for installs that started on Hyprland)"
 if [[ ! -f $HOME/.config/mango/config.conf ]]; then
   mkdir -p "$HOME/.config/mango"
   cp -n "$OMARCHY_PATH"/config/mango/*.conf "$HOME/.config/mango/"
-  if [[ $(</sys/class/dmi/id/sys_vendor) == "Microsoft Corporation" &&
-        $(</sys/class/dmi/id/product_name) == "Virtual Machine" ]] 2>/dev/null; then
-    printf '\n# Hyper-V: hyperv_drm prefers 1024x768.\nmonitor_rule=name:.*,width:1280,height:720,refresh:60,x:0,y:0,scale:1\n' >> "$HOME/.config/mango/monitors.conf"
-  fi
 fi
 
 echo "==> Theme (LiquidIA, the default)"
