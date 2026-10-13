@@ -5,8 +5,10 @@ description: Cria, edita ou remove ações do Painel Rápido do DoxIA (SUPER+ALT
 
 # Painel Rápido
 
-O app é `doxia-painel` (fonte em `$OMARCHY_PATH/fedora/doxia/painel`, GTK4 +
-libadwaita, app id `org.doxia.Painel`). Ele é genérico: **todas as ações vêm de
+O app é `doxia-painel` (fonte em `$OMARCHY_PATH/fedora/doxia/rs/painel`, Rust +
+GTK4 com o visual do shell, app id `org.doxia.Painel`; a versão Python em
+`$OMARCHY_PATH/fedora/doxia/painel` fica como reserva quando o binário não está
+instalado). Ele é genérico: **todas as ações vêm de
 `~/.config/omarchy/painel.json`**, que é pessoal e não vai para o repositório.
 Seu trabalho nesta skill é quase sempre editar esse arquivo; só mexa no código
 do app se o usuário pedir um tipo de ação que não existe.

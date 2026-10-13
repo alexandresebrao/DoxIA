@@ -2,7 +2,7 @@
 # See README.md for building and shipping them.
 [workspace]
 resolver = "3"
-members = ["doxia-theme", "atualizar"]
+members = ["doxia-theme", "atualizar", "painel"]
 
 [workspace.package]
 version = "0.1.0"

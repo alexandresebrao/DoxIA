@@ -1,0 +1,92 @@
+/* Painel Rápido, on top of doxia-theme's base.css. */
+
+button.ctl.icon {
+  min-width: 0;
+  padding: $SP6 $SP8;
+  font-size: $FS_BODY;
+}
+
+.action-row {
+  background: $SURFACE;
+  border: 1px solid $FAINT;
+  border-radius: $R_CARD;
+  min-height: 34px;
+  padding: $SP9 $SP12;
+}
+.action-row:hover { background: $HOVER_FILL; border-color: $HOVER_BORDER; }
+
+.kbd {
+  font-size: $FS_CAPTION;
+  color: $DIM;
+  border: 1px solid $FAINT;
+  border-radius: $R_ICON;
+  padding: 1px $SP6;
+}
+
+/* Multi-line fields: the entry look around a text view */
+.text-box {
+  background: $NORMAL_FILL;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+}
+.text-box:focus-within { background: $FOCUS_FILL; border-color: $FOCUS_BORDER; }
+textview.field-text, textview.field-text > text {
+  background: transparent;
+  color: $FG;
+  font-size: $FS_BODY;
+  caret-color: $FG;
+}
+textview.field-text > text selection { background: $SELECTION; }
+.hint { font-size: $FS_CAPTION; color: $DIM; }
+entry.field placeholder { color: $DIM; }
+
+searchentry.field {
+  background: $NORMAL_FILL;
+  color: $FG;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  padding: $SP7 $SP10;
+  min-height: 0;
+}
+searchentry.field:focus-within { background: $FOCUS_FILL; border-color: $FOCUS_BORDER; }
+searchentry.field image { color: $DIM; }
+
+dropdown.wide > button { padding: $SP7 $SP10; }
+dropdown.choice popover searchentry {
+  background: $NORMAL_FILL;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CTRL;
+  color: $FG;
+  margin: $SP2;
+}
+
+.status-page { padding: 40px 0; }
+.status-glyph { font-size: 32px; }
+.status-title { font-size: $FS_TITLE; font-weight: bold; }
+
+/* Jira tasks */
+.status-group {
+  background: $SURFACE;
+  border: 1px solid $FAINT;
+  border-radius: $R_CARD;
+}
+.status-head { padding: $SP9 $SP12; }
+.status-head:hover { background: $HOVER_FILL; border-radius: $R_CARD; }
+.issue-row {
+  border-top: 1px solid $FAINT;
+  padding: $SP8 $SP8 $SP8 $SP12;
+}
+.issue-row:hover { background: $HOVER_FILL; }
+.issue-title { font-size: $FS_BODY; }
+
+/* Toasts */
+.toast {
+  background: $INSET;
+  color: $FG;
+  border: 1px solid $NORMAL_BORDER;
+  border-radius: $R_CARD;
+  padding: $SP8 $SP12;
+}
+.toast-text { font-size: $FS_SMALL; }
+
+spinner { color: $ACCENT; }

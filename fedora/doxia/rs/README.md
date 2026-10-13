@@ -8,6 +8,7 @@ falls back to the shell piece while the app is not installed.
 | --- | --- | --- |
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
+| `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -29,6 +30,22 @@ in `bin/` (`omarchy-update-run`, `omarchy-update-pref`,
 `omarchy-update-check`); the window follows the JSON files described in
 `atualizar/src/model.rs`. `--prefs` opens on the preferences, and a second
 launch raises the open window.
+
+## Painel Rápido
+
+Same `painel.json`, credentials, recent pipelines, action types and shortcuts
+as the Python app (see the `/painel` skill), in the shell's look.
+`fedora/doxia/painel` stays the entry point (`doxia-painel` on the PATH, the
+launcher, SUPER+ALT+P): it execs `/usr/local/bin/doxia-painel` when installed
+and runs itself otherwise (`DOXIA_PAINEL_PY=1` forces it). HTTP goes through
+`ureq` (rustls).
+
+## VMware note
+
+With GTK's GL renderer on vmwgfx, an animated revealer overlaid on the window
+stalled the compositor's frames (screencopy hung until the app closed): the
+toasts appear without a transition. Check new animations there with a
+screenshot, or with `GSK_RENDERER=cairo` to compare.
 
 ## Shipping
 

@@ -1,0 +1,13 @@
+[package]
+name = "doxia-painel"
+description = "Painel Rápido: everyday shortcuts (Jira, GitLab, Claude, links, commands)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+gtk.workspace = true
+serde_json.workspace = true
+doxia-theme.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }

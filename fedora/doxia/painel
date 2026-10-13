@@ -20,11 +20,20 @@ O GitLab usa o token do glab (`glab auth login`). As combinações recentes das
 pipelines ficam em ~/.local/state/doxia-painel/.
 """
 
+import os
+import sys
+
+# The Rust build (fedora/doxia/rs/painel, installed by fedora/doxia/install-rs)
+# replaces this app; this file stays as the entry point (doxia-painel on the
+# PATH, the launcher, SUPER+ALT+P) and the fallback without it.
+# DOXIA_PAINEL_PY=1 forces the Python app.
+RUST_BUILD = "/usr/local/bin/doxia-painel"
+if os.environ.get("DOXIA_PAINEL_PY") != "1" and os.access(RUST_BUILD, os.X_OK):
+    os.execv(RUST_BUILD, [RUST_BUILD] + sys.argv[1:])
+
 import base64
 import json
-import os
 import subprocess
-import sys
 import threading
 import urllib.error
 import urllib.parse

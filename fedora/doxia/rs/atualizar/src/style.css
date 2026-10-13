@@ -1,15 +1,6 @@
 /* Atualizar DoxIA, on top of doxia-theme's base.css. Sizes follow
    shell/plugins/update/UpdateWindow.qml. */
 
-.header { min-height: 64px; padding: 0 $SP18; }
-.header-icon {
-  min-width: $SP36; min-height: $SP36;
-  border-radius: $R_CARD;
-  background: $FAINT;
-}
-.title { font-size: $FS_HEADING; font-weight: bold; }
-.subtitle { font-size: $FS_SMALL; color: $DIM; }
-
 /* Source rows */
 .source-row {
   background: $SURFACE;
@@ -19,13 +10,6 @@
   padding: $SP9 $SP12;
 }
 .source-row.inactive { opacity: 0.55; }
-.source-icon {
-  min-width: $SP30; min-height: $SP30;
-  border-radius: $R_ICON;
-  background: $FAINT;
-}
-.row-title { font-weight: bold; font-size: $FS_BODY; }
-.row-sub { font-size: $FS_SMALL; color: $DIM; }
 .chip { font-size: $FS_CAPTION; font-weight: bold; letter-spacing: 0.8px; }
 
 /* Banners */
@@ -91,7 +75,6 @@ progressbar.line progress {
 }
 .radio-card.checked .radio-dot { border-color: $ACCENT; }
 .radio-inner { min-width: 6px; min-height: 6px; border-radius: 99px; background: $ACCENT; }
-.desc { font-size: $FS_SMALL; color: $DIM; }
 
 .toggle-row {
   background: $NORMAL_FILL;
@@ -105,5 +88,3 @@ progressbar.line progress {
 .toggle-title { font-size: $FS_SUBTITLE; font-weight: bold; }
 .toggle-desc { font-size: $FS_CAPTION; color: $DIM; }
 
-.footer { min-height: 56px; padding: 0 $SP18; }
-.footer-note { font-size: $FS_SMALL; color: $DIM; }

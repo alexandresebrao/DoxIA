@@ -20,6 +20,26 @@ window.doxia * {
 .glyph-title { font-size: $FS_TITLE; }
 .glyph-body { font-size: $FS_BODY; }
 
+/* Page layout shared by the apps: header, rows, footer */
+.header { min-height: 64px; padding: 0 $SP18; }
+.header-icon {
+  min-width: $SP36; min-height: $SP36;
+  border-radius: $R_CARD;
+  background: $FAINT;
+}
+.title { font-size: $FS_HEADING; font-weight: bold; }
+.subtitle { font-size: $FS_SMALL; color: $DIM; }
+.source-icon {
+  min-width: $SP30; min-height: $SP30;
+  border-radius: $R_ICON;
+  background: $FAINT;
+}
+.row-title { font-weight: bold; font-size: $FS_BODY; }
+.row-sub { font-size: $FS_SMALL; color: $DIM; }
+.desc { font-size: $FS_SMALL; color: $DIM; }
+.footer { min-height: 56px; padding: 0 $SP18; }
+.footer-note { font-size: $FS_SMALL; color: $DIM; }
+
 /* Buttons (shell/Ui/Button.qml, bordered) */
 button.ctl {
   background: transparent;
