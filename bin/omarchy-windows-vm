@@ -1445,8 +1445,8 @@ To stop: omarchy-windows-vm stop"
   fi
   export KRB5_CONFIG="$KRB5_CONF"
 
-  # Detect display scale from Hyprland
-  HYPR_SCALE=$(hyprctl monitors -j | jq -r '.[] | select (.focused == true) | .scale')
+  # Detect display scale from mango
+  HYPR_SCALE=$(mmsg get all-monitors | jq -r '.monitors[] | select(.active == true) | .scale')
   SCALE_PERCENT=$(echo "$HYPR_SCALE" | awk '{print int($1 * 100)}')
 
   RDP_SCALE=""

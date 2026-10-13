@@ -38,16 +38,15 @@ ps -eo pid=,args= \
 section "Sleep lock service"
 systemctl --user status omarchy-sleep-lock.service --no-pager 2>/dev/null || true
 
-section "Hyprland screensaver clients"
-hyprctl clients -j 2>/dev/null \
-  | jq -r '.[] | select(.class == "org.omarchy.screensaver" or .initialClass == "org.omarchy.screensaver") | [.pid,.class,.initialClass,.title,.focusHistoryID] | @tsv' || true
+section "mango screensaver clients"
+mmsg get all-clients 2>/dev/null \
+  | jq -r '.clients[] | select(.appid == "org.omarchy.screensaver") | [.pid,.appid,.title,.is_focused] | @tsv' || true
 
 section "Idle inhibitors"
-hyprctl clients -j 2>/dev/null \
-  | jq -r '.[] | select(.inhibitingIdle == true or ((.tags // []) | index("noidle"))) | [.pid,.class,.title,((.tags // []) | join(",")),.inhibitingIdle] | @tsv' || true
+systemd-inhibit --list --no-pager 2>/dev/null | grep -Ei 'idle|sleep' || true
 
 section "Screensaver detector"
-if hyprctl clients -j 2>/dev/null | jq -e '.[] | select(.class == "org.omarchy.screensaver" or .initialClass == "org.omarchy.screensaver")' >/dev/null; then
+if mmsg get all-clients 2>/dev/null | jq -e '.clients[] | select(.appid == "org.omarchy.screensaver")' >/dev/null; then
   echo "running-window"
 elif pgrep -f '[o]rg.omarchy.screensaver' >/dev/null; then
   echo "running-process"

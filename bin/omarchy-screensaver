@@ -3,11 +3,11 @@
 # omarchy:summary=Run the Omarchy screensaver using random effects from TTE.
 
 screensaver_in_focus() {
-  hyprctl activewindow -j | jq -e '.class == "org.omarchy.screensaver"' >/dev/null 2>&1
+  mmsg get focusing-client 2>/dev/null | jq -e '.appid == "org.omarchy.screensaver"' >/dev/null 2>&1
 }
 
 exit_screensaver() {
-  hyprctl eval 'hl.config({ cursor = { invisible = false } })' &>/dev/null || hyprctl keyword cursor:invisible false &>/dev/null || true
+  mmsg dispatch "setoption,cursor_hide_timeout,$(omarchy-mango-option cursor_hide_timeout || echo 0)" &>/dev/null || true
   pkill -x ttfx 2>/dev/null
   pkill -f '[o]rg.omarchy.screensaver' 2>/dev/null
   exit 0
@@ -18,7 +18,8 @@ trap exit_screensaver SIGINT SIGTERM SIGHUP SIGQUIT
 
 printf '\033]11;rgb:00/00/00\007'  # Set background color to black
 
-hyprctl eval 'hl.config({ cursor = { invisible = true } })' &>/dev/null || hyprctl keyword cursor:invisible true &>/dev/null
+# mango has no invisible cursor; hide it a second after it stops moving.
+mmsg dispatch setoption,cursor_hide_timeout,1 &>/dev/null
 
 tty=$(tty 2>/dev/null)
 
