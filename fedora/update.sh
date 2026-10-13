@@ -192,9 +192,6 @@ echo "==> Keyring password window in the DoxIA style (instead of GNOME's gcr-pro
 omarchy-pkg-add gcr-libs
 bash "$OMARCHY_PATH/fedora/doxia/install-keyring-prompter"
 
-echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
-bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
-
 echo "==> mango user config (once, for installs that started on Hyprland)"
 # The window rules, Painel, scroll focus and Iniciar binds the Hyprland snippets
 # added now live in default/mango. Files already in ~/.config/mango are kept.
@@ -330,6 +327,11 @@ echo "==> DoxIA apps in Rust + GTK 4 (sudo)"
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-rs" || echo "  Not installed; the shell stands in."
 # A running doxia-shell picks up the new binary (its popups survive the restart).
 systemctl --user try-restart doxia-shell.service 2>/dev/null || true
+
+# After install-rs: which Quickshell plugins stay off depends on what the
+# installed doxia-shell can do.
+echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
+bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
 echo "==> Runtime packages installs before this one missed (sudo)"
 # perl-JSON-PP: the clipboard history capture and omarchy-menu-select/-input.

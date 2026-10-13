@@ -123,21 +123,26 @@ jq '
 mv "$shell_json.tmp" "$shell_json"
 
 # doxia-shell (fedora/doxia/rs/shell) takes over Quickshell's notification
-# service, polkit agent and lock screen. With it installed, keep them off in shell.json, so
-# Quickshell never starts them: once started, its notification server keeps
-# the bus name until Quickshell restarts and drops what it gets while its
-# plugin is unloaded. Without doxia-shell, turn them back on, or nothing would
-# show notifications or ask for passwords.
+# service and polkit agent, and from 0.5.0 its lock screen. With it installed,
+# keep them off in shell.json, so Quickshell never starts them: once started,
+# its notification server keeps the bus name until Quickshell restarts and drops
+# what it gets while its plugin is unloaded. Without doxia-shell, turn them back
+# on, or nothing would show notifications, ask for passwords or lock the screen.
+# The lock goes by what the binary can do, not by its presence: an older build
+# without one would leave nothing to answer omarchy-shell lock. Its PAM child
+# (--pam) answers 2 for an empty service without touching PAM; older builds
+# reject the option.
+taken=()
 if command -v doxia-shell >/dev/null; then
-  jq '(.disabledPlugins // []) as $off
-      | .disabledPlugins = $off + (["omarchy.notifications", "omarchy.polkit", "omarchy.lock"] - $off)' \
-    "$shell_json" > "$shell_json.tmp"
-  mv "$shell_json.tmp" "$shell_json"
-else
-  jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock"] as $taken
-      | if .disabledPlugins == null then .
-        else .disabledPlugins |= map(select(. as $id | $taken | index($id) | not))
-          | if .disabledPlugins == [] then del(.disabledPlugins) else . end end' \
-    "$shell_json" > "$shell_json.tmp"
-  mv "$shell_json.tmp" "$shell_json"
+  taken=(omarchy.notifications omarchy.polkit)
+  pam=0
+  doxia-shell --pam "" </dev/null &>/dev/null || pam=$?
+  if (( pam == 2 )); then
+    taken+=(omarchy.lock)
+  fi
 fi
+jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock"] as $all
+    | ((.disabledPlugins // []) | map(select(. as $id | $all | index($id) | not)) + $ARGS.positional) as $off
+    | if $off == [] then del(.disabledPlugins) else .disabledPlugins = $off end' \
+  "$shell_json" --args "${taken[@]}" > "$shell_json.tmp"
+mv "$shell_json.tmp" "$shell_json"
