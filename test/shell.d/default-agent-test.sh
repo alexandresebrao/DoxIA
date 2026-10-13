@@ -91,7 +91,7 @@ cat >"$mock_bin/omarchy-test-noop" <<'SH'
 exit 0
 SH
 
-for command in gum hyprctl omarchy-webapp-remove-all omarchy-tui-remove-all omarchy-pkg-drop; do
+for command in gum hyprctl mmsg omarchy-webapp-remove-all omarchy-tui-remove-all omarchy-pkg-drop; do
   ln -s omarchy-test-noop "$mock_bin/$command"
 done
 

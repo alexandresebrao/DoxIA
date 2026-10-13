@@ -13,7 +13,7 @@ marker="$test_home/.local/state/omarchy/preinstalls-removed"
 pkg_log="$test_tmp/packages"
 mkdir -p "$mock_bin" "$test_home/.local/state/omarchy"
 
-for command in omarchy-webapp-remove-all omarchy-tui-remove-all omarchy-refresh-applications hyprctl; do
+for command in omarchy-webapp-remove-all omarchy-tui-remove-all omarchy-refresh-applications hyprctl mmsg; do
   printf '#!/bin/bash\nexit 0\n' >"$mock_bin/$command"
 done
 

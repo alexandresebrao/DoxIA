@@ -29,11 +29,13 @@ esac
 EOF
 chmod +x "$stub_dir/hyprctl"
 
-cat >"$stub_dir/omarchy-osd" <<'EOF'
+for command in omarchy-osd mmsg; do
+  cat >"$stub_dir/$command" <<'EOF'
 #!/bin/bash
 :
 EOF
-chmod +x "$stub_dir/omarchy-osd"
+  chmod +x "$stub_dir/$command"
+done
 
 stub_device() {
   local kind=$1
