@@ -15,6 +15,12 @@
 
 set -eE
 
+# Lowest CPU and disk priority, inherited by everything the update starts (dnf
+# and its scriptlets through sudo too): with only a few cores, the upgrade
+# would otherwise starve the compositor and leave the desktop unusable.
+renice -n 19 -p $$ >/dev/null 2>&1 || true
+ionice -c 2 -n 7 -p $$ >/dev/null 2>&1 || true
+
 if [[ -z ${OMARCHY_UPDATE_LOGGED:-} ]] && omarchy-cmd-present script; then
   script_command=$(printf '%q ' "$0" "$@")
   exec env OMARCHY_UPDATE_LOGGED=1 script -qefc "$script_command" "/tmp/omarchy-update.log"
