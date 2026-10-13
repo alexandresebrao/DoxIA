@@ -29,22 +29,19 @@ seed() {
 echo "==> Seeding Omarchy configs into ~/.config"
 # Skipped on purpose (they would also change KDE): autostart, fcitx5, wireplumber,
 # git, chromium, environment.d.
-for item in hypr omarchy alacritty ghostty kitty btop imv lazygit tmux starship.toml; do
+for item in mango omarchy alacritty ghostty kitty btop imv lazygit tmux starship.toml; do
   seed "config/$item" "$HOME/.config/$item"
 done
 # The terminal order (Kitty first) is system-wide, from install-system.sh, so
 # omarchy-default-terminal's ~/.config/xdg-terminals.list can override it.
 
-# Hyper-V guests: hyperv_drm prefers 1024x768 and has no hardware cursor plane,
-# so the first login came up blurry (the greeter: default/sddm/doxia-greeter).
+# Hyper-V guests: hyperv_drm prefers 1024x768, so the first login came up blurry
+# (the greeter: default/sddm/doxia-greeter). The session handles the cursor.
 if [[ $(</sys/class/dmi/id/sys_vendor) == "Microsoft Corporation" &&
       $(</sys/class/dmi/id/product_name) == "Virtual Machine" ]] 2>/dev/null; then
-  echo "==> Hyper-V: 1280x720 at scale 1 and a software cursor"
-  sed -i -e 's/^local omarchy_gdk_scale = .*/local omarchy_gdk_scale = 1/' \
-    -e 's/^local omarchy_monitor_scale = .*/local omarchy_monitor_scale = 1/' \
-    -e 's/^\(hl.monitor({ output = "", mode = \)"preferred"/\1"1280x720@60"/' ~/.config/hypr/monitors.lua
-  if ! grep -q 'no_hardware_cursors' ~/.config/hypr/input.lua; then
-    printf '\n-- Hyper-V has no hardware cursor plane.\nhl.config({\n  cursor = {\n    no_hardware_cursors = 1,\n  },\n})\n' >> ~/.config/hypr/input.lua
+  echo "==> Hyper-V: 1280x720 at scale 1"
+  if ! grep -q '^monitor_rule=' ~/.config/mango/monitors.conf; then
+    printf '\n# Hyper-V: hyperv_drm prefers 1024x768.\nmonitor_rule=name:.*,width:1280,height:720,refresh:60,x:0,y:0,scale:1\n' >> ~/.config/mango/monitors.conf
   fi
 fi
 
@@ -64,38 +61,6 @@ bash "$OMARCHY_PATH/fedora/doxia/install-update-hook"
 
 echo "==> Keyring password window in the DoxIA style (instead of GNOME's gcr-prompter)"
 bash "$OMARCHY_PATH/fedora/doxia/install-keyring-prompter"
-
-echo "==> Screen share (portal config, Chrome's sharing bar hidden behind the bar button)"
-seed fedora/doxia/hypr/xdph.conf ~/.config/hypr/xdph.conf
-if ! grep -q "special:screenshare" ~/.config/hypr/hyprland.lua; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> ~/.config/hypr/hyprland.lua
-fi
-
-echo "==> Hyprland window rules (Xwayland video bridge, services log window, Painel Rápido)"
-if ! grep -q "xwaylandvideobridge" ~/.config/hypr/hyprland.lua; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/window-rules.lua"; } >> ~/.config/hypr/hyprland.lua
-fi
-if ! grep -q "org.omarchy.services-log" ~/.config/hypr/hyprland.lua; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/services-rule.lua"; } >> ~/.config/hypr/hyprland.lua
-fi
-if ! grep -q "org.doxia.Painel" ~/.config/hypr/hyprland.lua; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/painel-rule.lua"; } >> ~/.config/hypr/hyprland.lua
-fi
-
-echo "==> Window focus by scroll (SUPER + mouse wheel, three-finger swipe)"
-# Older copies of the snippet lack the SUPER + wheel over the bar (brightness on
-# the computer icon): drop them so the current one is appended.
-if grep -q "scroll_focus" ~/.config/hypr/bindings.lua && ! grep -q "over_top_bar" ~/.config/hypr/bindings.lua; then
-  sed -i '/^-- SUPER + roda do mouse:/,/fingers = 3, direction = "right"/d' ~/.config/hypr/bindings.lua
-fi
-if ! grep -q "scroll_focus" ~/.config/hypr/bindings.lua; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/scroll-focus.lua"; } >> ~/.config/hypr/bindings.lua
-fi
-
-echo "==> Start menu (SUPER + ALT + SPACE opens doxia.iniciar)"
-if ! grep -q "doxia.iniciar" ~/.config/hypr/bindings.lua; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/iniciar.lua"; } >> ~/.config/hypr/bindings.lua
-fi
 
 echo "==> Menu extensions and default agent"
 seed fedora/doxia/omarchy-menu.jsonc ~/.config/omarchy/extensions/omarchy-menu.jsonc
@@ -176,7 +141,7 @@ if ! grep -q 'nautilus-grid-view' "$gtk_css"; then
 }
 CSS
 fi
-# No minimize/maximize/close or app icon in GTK title bars: Hyprland manages windows.
+# No minimize/maximize/close or app icon in GTK title bars: mango manages windows.
 for ini in ~/.config/gtk-3.0/settings.ini ~/.config/gtk-4.0/settings.ini; do
   if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
     sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
@@ -211,7 +176,7 @@ if [[ ! -f ~/.XCompose ]]; then
     bash -c 'source "$OMARCHY_PATH/install/user/xcompose.sh"'
 fi
 
-echo "==> Lock-on-sleep user unit (started only from Hyprland, never in KDE)"
+echo "==> Lock-on-sleep user unit (started only from mango, never in KDE)"
 mkdir -p ~/.config/systemd/user
 sed -e "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" \
     -e '/^\[Install\]/,$d' \
@@ -220,14 +185,6 @@ sed -e "s|/usr/bin/omarchy-|$OMARCHY_PATH/bin/omarchy-|g" \
 # No user manager yet when the installer runs this; it reads the unit on first login.
 if [[ -S ${XDG_RUNTIME_DIR:-/nonexistent}/bus ]]; then
   systemctl --user daemon-reload
-fi
-
-if ! grep -q omarchy-sleep-lock ~/.config/hypr/autostart.lua; then
-  cat >> ~/.config/hypr/autostart.lua <<'EOF'
-
--- Fedora port: lock the screen before suspend (Omarchy enables this unit globally).
-o.exec_on_start("systemctl --user start omarchy-sleep-lock.service")
-EOF
 fi
 
 echo "==> User units (Bluetooth pairing agent, crash and migration notifiers, internal monitor recovery)"
@@ -259,14 +216,8 @@ echo "==> First login: the installer's last step updates the system (fedora/doxi
 # login brings both up to date before the desktop is used.
 mkdir -p ~/.local/state/omarchy
 touch ~/.local/state/omarchy/doxia-first-boot-pending
-if ! grep -q 'fedora/doxia/first-boot' ~/.config/hypr/autostart.lua; then
-  cat >> ~/.config/hypr/autostart.lua <<'EOF'
-
--- DoxIA: finish the installation on the first login (exits at once afterwards).
-o.exec_on_start("$OMARCHY_PATH/fedora/doxia/first-boot")
-EOF
-fi
+# default/mango/autostart.conf starts it (and omarchy-sleep-lock) on every login.
 
 echo
-echo "Done. Log out of KDE and pick \"DoxIA (Hyprland uwsm)\" on the login screen."
+echo "Done. Log out of KDE and pick \"DoxIA\" on the login screen."
 echo "Super + K shows the keybindings, Super + Space opens the menu."

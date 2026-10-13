@@ -2,7 +2,7 @@
 
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
-# agent and editor, screen-share and Hyprland window rules, /etc/motd, the login session
+# agent and editor, the mango user config (once), /etc/motd, the login session
 # name, the SDDM theme, the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Thunderbird as the default mail client and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
 # added; the rest of the bar stays as it is).
@@ -195,30 +195,16 @@ bash "$OMARCHY_PATH/fedora/doxia/install-keyring-prompter"
 echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
-echo "==> Screen share picker and Hyprland window rules"
-place "$OMARCHY_PATH/fedora/doxia/hypr/xdph.conf" "$HOME/.config/hypr/xdph.conf"
-if ! grep -q "xwaylandvideobridge" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
-  { echo; cat "$doxia/hypr/window-rules.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
-fi
-if ! grep -q "org.omarchy.services-log" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
-  { echo; cat "$doxia/hypr/services-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
-fi
-if ! grep -q "org.doxia.Painel" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
-  { echo; cat "$doxia/hypr/painel-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
-fi
-if ! grep -q "special:screenshare" "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
-  { echo; cat "$OMARCHY_PATH/fedora/doxia/hypr/screenshare-rule.lua"; } >> "$HOME/.config/hypr/hyprland.lua"
-fi
-# Older copies of the snippet lack the SUPER + wheel over the bar (brightness on
-# the computer icon): drop them so the current one is appended.
-if grep -q "scroll_focus" "$HOME/.config/hypr/bindings.lua" 2>/dev/null && ! grep -q "over_top_bar" "$HOME/.config/hypr/bindings.lua"; then
-  sed -i '/^-- SUPER + roda do mouse:/,/fingers = 3, direction = "right"/d' "$HOME/.config/hypr/bindings.lua"
-fi
-if ! grep -q "scroll_focus" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
-  { echo; cat "$doxia/hypr/scroll-focus.lua"; } >> "$HOME/.config/hypr/bindings.lua"
-fi
-if ! grep -q "doxia.iniciar" "$HOME/.config/hypr/bindings.lua" 2>/dev/null; then
-  { echo; cat "$doxia/hypr/iniciar.lua"; } >> "$HOME/.config/hypr/bindings.lua"
+echo "==> mango user config (once, for installs that started on Hyprland)"
+# The window rules, Painel, scroll focus and Iniciar binds the Hyprland snippets
+# added now live in default/mango. Files already in ~/.config/mango are kept.
+if [[ ! -f $HOME/.config/mango/config.conf ]]; then
+  mkdir -p "$HOME/.config/mango"
+  cp -n "$OMARCHY_PATH"/config/mango/*.conf "$HOME/.config/mango/"
+  if [[ $(</sys/class/dmi/id/sys_vendor) == "Microsoft Corporation" &&
+        $(</sys/class/dmi/id/product_name) == "Virtual Machine" ]] 2>/dev/null; then
+    printf '\n# Hyper-V: hyperv_drm prefers 1024x768.\nmonitor_rule=name:.*,width:1280,height:720,refresh:60,x:0,y:0,scale:1\n' >> "$HOME/.config/mango/monitors.conf"
+  fi
 fi
 
 echo "==> Theme (LiquidIA, the default)"
@@ -257,7 +243,7 @@ if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
 fi
 if ! $reapply_theme; then
   echo "  keeping the current theme ($current_theme)"
-elif [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+elif [[ -n ${MANGO_INSTANCE_SIGNATURE:-} ]]; then
   omarchy-theme-set liquidia
 else
   OMARCHY_THEME_HEADLESS=1 omarchy-theme-set liquidia
@@ -334,7 +320,7 @@ fi
 # templates make, so a theme kept by hand (not reapplied above) is set again.
 theme_name=$(cat "$HOME/.local/state/omarchy/current/theme.name" 2>/dev/null || true)
 if [[ -n $theme_name && ! -f $HOME/.local/state/omarchy/current/theme/firefox.css ]]; then
-  if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+  if [[ -n ${MANGO_INSTANCE_SIGNATURE:-} ]]; then
     omarchy-theme-set "$theme_name"
   else
     OMARCHY_THEME_HEADLESS=1 omarchy-theme-set "$theme_name"
