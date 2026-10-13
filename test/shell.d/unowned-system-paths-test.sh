@@ -15,6 +15,7 @@
 set -euo pipefail
 
 source "$(dirname "$0")/base-test.sh"
+skip_unless_arch "the package ownership check, which reads omarchy-pkgs"
 
 python3 - "$ROOT" <<'PYTHON'
 import os, re, sys

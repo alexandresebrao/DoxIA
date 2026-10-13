@@ -3,6 +3,7 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+skip_unless_arch "the linux-omarchy kernel migration"
 
 migration="$ROOT/migrations/1789325478.sh"
 scratch=$(mktemp -d)

@@ -87,6 +87,10 @@ grep -F 'as_root env OMARCHY_PATH="$OMARCHY_PATH" bash -euo pipefail "$snapper_c
 ! grep -F 'NUMBER_LIMIT="5"' "$migration" >/dev/null || fail "Snapper service migration does not overwrite working custom retention"
 pass "Snapper service migration only repairs broken services idempotently"
 
+# The rest checks Arch's packaging and installer, in the omarchy-pkgs and
+# omarchy-iso checkouts. DoxIA has neither.
+skip_unless_arch "the omarchy-pkgs and omarchy-iso Snapper coverage"
+
 # Checkouts differ per machine, so allow an explicit pointer at the sibling repo.
 # Accepts either the omarchy-pkgs checkout or its pkgbuilds/ directory.
 find_omarchy_pks_root() {

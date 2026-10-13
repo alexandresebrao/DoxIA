@@ -88,6 +88,8 @@ if missing or bad:
 PY
 pass "default bar widget ids resolve to manifests and entry points"
 
+# The PKGBUILDs live in omarchy-pkgs, Arch's packaging, which DoxIA does not have.
+if on_arch; then
 ROOT="$ROOT" python3 <<'PY'
 import os
 import sys
@@ -182,7 +184,10 @@ if errors:
   print("\n".join(errors), file=sys.stderr)
   sys.exit(1)
 PY
-pass "package-owned defaults live outside config"
+  pass "package-owned defaults live outside config"
+else
+  pass "not Arch Linux; skipping the omarchy-pkgs PKGBUILD coverage"
+fi
 
 grep -F 'dofile((os.getenv("OMARCHY_PATH") or "/usr/share/omarchy") .. "/default/hypr/bootstrap.lua")' "$ROOT/config/hypr/hyprland.lua" >/dev/null
 grep -F 'require("default.hypr.omarchy")' "$ROOT/config/hypr/hyprland.lua" >/dev/null

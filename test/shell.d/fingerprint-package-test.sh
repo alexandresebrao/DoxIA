@@ -8,6 +8,7 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+skip_unless_arch "the libfprint-git swap, which drives pacman"
 
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT

@@ -7,6 +7,7 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
+skip_unless_arch "the libfprint package migration, which drives pacman"
 
 migration="$ROOT/migrations/1785090473.sh"
 scratch=$(mktemp -d)

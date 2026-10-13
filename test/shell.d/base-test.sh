@@ -76,6 +76,23 @@ require_compositor() {
   exit 0
 }
 
+# DoxIA runs on Fedora, but some code and tests still serve Arch: pacman package
+# swaps, kernel migrations, and the omarchy-pkgs and omarchy-iso checkouts that
+# hold Arch's packaging. Those tests stay so they keep their meaning on Arch, and
+# skip elsewhere rather than fail on what the system never has.
+on_arch() {
+  [[ -f /etc/arch-release ]]
+}
+
+skip_unless_arch() {
+  local description="$1"
+
+  on_arch && return 0
+
+  pass "not Arch Linux; skipping $description"
+  exit 0
+}
+
 run_node_test() {
   require_command node
 
