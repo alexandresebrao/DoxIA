@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Enable, disable, or toggle a Hyprland input device
+# omarchy:summary=Enable, disable, or toggle the touchpad or touchscreen
 # omarchy:args=<touchpad|touchscreen> [on|off|toggle]
 # omarchy:hidden=true
 
@@ -11,64 +11,55 @@ usage() {
   echo "Usage: omarchy-toggle-input-device <touchpad|touchscreen> [on|off|toggle]" >&2
 }
 
+# mango turns these off per kind, not per device: disable_trackpad covers every
+# touchpad, touch_enable every touchscreen. The disabled options live in
+# ~/.local/state/omarchy/toggles/mango/input.conf, which config.conf sources,
+# so they survive reloads and logins.
 case "$KIND" in
-  touchpad) LABEL="Touchpad" ICON="touchpad" ;;
-  touchscreen) LABEL="Tela sensível ao toque" ICON="touch" ;;
+  touchpad) LABEL="Touchpad" ICON="touchpad" OPTION="disable_trackpad=1" ;;
+  touchscreen) LABEL="Tela sensível ao toque" ICON="touch" OPTION="touch_enable=0" ;;
   *)
     usage
     exit 1
     ;;
 esac
 
-# The persisted disable is the device name stored as plain data; on every
-# reload default/hypr/disabled-input-device.lua reads it back and disables the
-# device. Names come from USB descriptors and must not be interpolated into
-# shell or Lua. The path is hardcoded to ~/.local/state like the sibling
-# toggle tools, so it keeps working when XDG_STATE_HOME diverges.
-NAME_FILE="$HOME/.local/state/omarchy/toggles/hypr/$KIND-disabled-name"
+TOGGLES_FILE="$HOME/.local/state/omarchy/toggles/mango/input.conf"
 
-device="$("omarchy-hw-$KIND")"
-
-require_device() {
-  if [[ -z $device ]]; then
-    echo "No $KIND device found" >&2
-    exit 1
-  fi
-
-  if [[ $device == *[[:cntrl:]]* ]]; then
-    echo "Invalid $KIND device name" >&2
-    exit 1
-  fi
+disabled() {
+  grep -Fxqs "$OPTION" "$TOGGLES_FILE"
 }
 
-apply_device() {
-  local enabled=$1
-  local quoted=${device//\\/\\\\}
-  quoted=${quoted//\"/\\\"}
-  hyprctl eval "hl.device({ name = \"$quoted\", enabled = $enabled })" >/dev/null
+apply() {
+  mmsg dispatch reload_config >/dev/null 2>&1 || true
 }
 
 enable() {
-  # Clear the persisted state before requiring a usable device, so a device
-  # that stops reporting a valid name can never wedge the disable in place.
-  rm -f "$NAME_FILE"
-  require_device
-  apply_device true
+  if [[ -f $TOGGLES_FILE ]]; then
+    sed -i "/^${OPTION}\$/d" "$TOGGLES_FILE"
+  fi
+  apply
   omarchy-osd -i "$ICON" -m "$LABEL ativado"
 }
 
 disable() {
-  require_device
-  apply_device false
-  mkdir -p "$(dirname "$NAME_FILE")"
-  printf '%s\n' "$device" >"$NAME_FILE"
+  if [[ -z $("omarchy-hw-$KIND") ]]; then
+    echo "No $KIND device found" >&2
+    exit 1
+  fi
+
+  if ! disabled; then
+    mkdir -p "$(dirname "$TOGGLES_FILE")"
+    printf '%s\n' "$OPTION" >>"$TOGGLES_FILE"
+  fi
+  apply
   omarchy-osd -i "$ICON" -m "$LABEL desativado"
 }
 
 case "$ACTION" in
   on) enable ;;
   off) disable ;;
-  toggle) if [[ -f $NAME_FILE ]]; then enable; else disable; fi ;;
+  toggle) if disabled; then enable; else disable; fi ;;
   *)
     usage
     exit 1
