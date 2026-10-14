@@ -26,7 +26,6 @@ dnf copr disable -y sdegler/hyprland 2>/dev/null || true
 # Only for hyprpicker (the capture and color-picker binds); Hyprland itself
 # is no longer installed.
 dnf copr enable -y mineiro/hyprland
-dnf copr enable -y errornointernet/quickshell
 dnf copr enable -y brycensranch/gpu-screen-recorder-git
 
 echo "==> mango (the DoxIA build, from this repository's releases)"
@@ -42,7 +41,14 @@ echo "==> scenefx (the DoxIA build, on VMware only)"
 bash "$omarchy_path/fedora/doxia/install-scenefx"
 
 echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
-bash "$omarchy_path/fedora/doxia/install-rs" || echo "  Not installed; the shell stands in."
+# doxia-shell is the shell; only when it couldn't be downloaded does
+# Quickshell (the Omarchy shell in shell/) stand in.
+quickshell=()
+if ! bash "$omarchy_path/fedora/doxia/install-rs"; then
+  echo "  Not installed; Quickshell stands in."
+  dnf copr enable -y errornointernet/quickshell
+  quickshell=(quickshell qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia)
+fi
 
 echo "==> Installing packages"
 packages=(
@@ -53,9 +59,9 @@ packages=(
   # color picker and the nightlight
   wlr-randr wlrctl hyprpicker gammastep
 
-  # Omarchy shell (bar, menu, notifications, OSD, lock, polkit) runs on Quickshell
-  quickshell qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia
+  # doxia-shell's layer surfaces (bar, menus, notifications, OSD, lock)
   gtk4-layer-shell
+  "${quickshell[@]}"
 
   # Terminal + default apps
   kitty nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
@@ -102,7 +108,7 @@ dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 
 # Fedora's own quickshell (0.2.x) and uwsm can win over the COPR builds on first
 # install; Omarchy 4 needs quickshell >= 0.3.1.
-dnf upgrade -y --refresh quickshell uwsm
+dnf upgrade -y --refresh "${quickshell[@]:0:1}" uwsm
 
 # Not every spin enables these presets (the Workstation one does).
 systemctl enable tuned.service tuned-ppd.service

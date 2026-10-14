@@ -333,6 +333,27 @@ systemctl --user try-restart doxia-shell.service 2>/dev/null || true
 echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
+# doxia-shell doing everything, Quickshell goes, with the Qt pieces
+# install-system.sh added for it that nothing else needs (marked as
+# dependencies, dnf takes the unused ones along). The one still running
+# from this session ends at the shell restart after the update.
+if omarchy-cmd-doxia-shell-full; then
+  if rpm -q quickshell &>/dev/null; then
+    echo "==> Quickshell, replaced by doxia-shell (sudo)"
+    sudo bash -s <<'ROOT'
+set -euo pipefail
+qt=()
+for package in qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia; do
+  rpm -q "$package" &>/dev/null && qt+=("$package")
+done
+(( ${#qt[@]} )) && dnf mark dependency "${qt[@]}" >/dev/null
+dnf remove -y quickshell
+dnf copr disable -y errornointernet/quickshell 2>/dev/null || true
+ROOT
+  fi
+  rm -f "$HOME/.config/fontconfig/conf.d/60-doxia-shell.conf"
+fi
+
 echo "==> Runtime packages installs before this one missed (sudo)"
 # perl-JSON-PP: the clipboard history capture and omarchy-menu-select/-input.
 rpm -q perl-JSON-PP &>/dev/null || sudo dnf install -y perl-JSON-PP

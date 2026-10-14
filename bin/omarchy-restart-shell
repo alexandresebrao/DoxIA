@@ -18,9 +18,10 @@ if omarchy-cmd-doxia-shell-full; then
     echo "Refusing to restart the shell while the session is locked." >&2
     exit 1
   fi
-  if [[ -f $CONFIG_DIR/shell.qml ]]; then
-    while timeout 5 quickshell kill -p "$CONFIG_DIR" --any-display >/dev/null 2>&1; do :; done
-  fi
+  # Its launcher, on TERM, stops it and doesn't relaunch it; a Quickshell
+  # outliving its package goes too.
+  pkill -TERM -f 'bin/omarchy-launch-shell$' 2>/dev/null || true
+  pkill -TERM -f "quickshell -n -p $CONFIG_DIR" 2>/dev/null || true
   systemctl --user restart doxia-shell.service || exit 1
   for (( attempt = 0; attempt < 50; attempt++ )); do
     if [[ $(omarchy-shell shell ping 2>/dev/null) == "ok" ]]; then
