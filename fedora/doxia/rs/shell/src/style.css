@@ -361,3 +361,15 @@ button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }
 .fortivpn-status { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.66); }
 .fortivpn-glyph { font-size: $FS_TITLE; }
 .dim { color: alpha($POPUP_TEXT, 0.66); }
+.agents-help { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.66); background: alpha($URGENT, 0.10); border: 1px solid alpha($URGENT, 0.35); border-radius: $R_CTRL; padding: 8px 12px; }
+.agents-row { font-size: $FS_BODY; }
+.agents-value { font-size: $FS_CAPTION; }
+.agents-value.alarm { color: $URGENT; }
+.agents-caption { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.64); }
+.agents-meter { color: $POPUP_TEXT; }
+.agents-day, .agents-day-value { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.64); }
+.agents-day.today, .agents-day-value.today { color: $POPUP_TEXT; font-weight: bold; }
+.agents-day-value { font-weight: bold; }
+.agents-model { border-radius: 4px; background: alpha($POPUP_TEXT, 0.05); color: $POPUP_TEXT; }
+.agents-model-name { font-size: $FS_SMALL; }
+.agents-model-value { font-size: $FS_SMALL; font-weight: bold; color: alpha($POPUP_TEXT, 0.64); }

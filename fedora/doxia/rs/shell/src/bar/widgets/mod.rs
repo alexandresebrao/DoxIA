@@ -1,6 +1,7 @@
 // The widgets a layout entry can name. An id the bar does not know yet
 // takes no space.
 
+mod agents;
 mod audio;
 mod bluetooth;
 mod calendar;
@@ -38,6 +39,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "omarchy.tray" => Some(tray::build(ctx, entry)),
     "doxia.services" => Some(services::build(ctx)),
     "doxia.fortivpn" => Some(fortivpn::build(ctx, entry)),
+    "omarchy.agents" => Some(agents::build(ctx, entry)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),
     "omarchy.system-update" => Some(system::system_update(ctx)),
     id @ ("omarchy.audio" | "omarchy.power" | "omarchy.monitor" | "omarchy.network" | "omarchy.bluetooth") => member(ctx, id, entry).map(Member::standalone),
