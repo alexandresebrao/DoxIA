@@ -223,14 +223,35 @@ pub fn accent() -> String {
   color_value(&theme_dir().join("colors.toml"), "accent").unwrap_or(Rgb(0.79, 0.8, 0.8)).css()
 }
 
-fn rounding() -> u32 {
-  Command::new("omarchy-mango-option")
-    .arg("border_radius")
+// A mango option as omarchy-mango-option reads it. The script takes over a
+// tenth of a second and every card and panel asks, so an answer is kept for
+// two seconds: a startup building them all runs it once, and a changed
+// config is still seen by the next theme reload.
+fn mango_option(name: &str) -> Option<String> {
+  thread_local! {
+    static CACHE: std::cell::RefCell<std::collections::HashMap<String, (std::time::Instant, Option<String>)>> = Default::default();
+  }
+  let fresh = CACHE.with(|c| c.borrow().get(name).filter(|(at, _)| at.elapsed() < std::time::Duration::from_secs(2)).map(|(_, v)| v.clone()));
+  if let Some(value) = fresh {
+    return value;
+  }
+  let value = Command::new("omarchy-mango-option")
+    .arg(name)
     .output()
     .ok()
     .and_then(|o| String::from_utf8(o.stdout).ok())
-    .and_then(|s| s.trim().parse().ok())
-    .unwrap_or(0)
+    .map(|s| s.trim().to_string());
+  CACHE.with(|c| c.borrow_mut().insert(name.to_string(), (std::time::Instant::now(), value.clone())));
+  value
+}
+
+fn rounding() -> u32 {
+  mango_option("border_radius").and_then(|s| s.parse().ok()).unwrap_or(0)
+}
+
+// Half of mango's outer gap: what the bar and popups keep off the edges.
+fn outer_gap() -> i32 {
+  mango_option("gap_outer_horizontal").and_then(|s| s.parse::<f64>().ok()).map(|g| (g / 2.0).round() as i32).unwrap_or(5)
 }
 
 // The base controls, then the app's own stylesheet, then the color
@@ -666,14 +687,7 @@ pub fn bar_style() -> BarStyle {
   let pick = |key: &str, fallback: Rgb| shell.get("bar", key).and_then(rgba_of).unwrap_or(rgba(fallback, 1.0));
   let Rgb(r, g, b) = shell.get("bar", "background").and_then(Rgb::hex).unwrap_or(bg);
   let font = |key: &str, mult: f64| shell.num("font", key).filter(|n| *n > 0.0).unwrap_or((base * mult).round().max(1.0));
-  let gaps_out = Command::new("omarchy-mango-option")
-    .arg("gap_outer_horizontal")
-    .output()
-    .ok()
-    .and_then(|o| String::from_utf8(o.stdout).ok())
-    .and_then(|s| s.trim().parse::<f64>().ok())
-    .map(|g| (g / 2.0).round() as i32)
-    .unwrap_or(5);
+  let gaps_out = outer_gap();
   BarStyle {
     size_horizontal: token("size-horizontal", 26.0),
     size_vertical: token("size-vertical", 28.0),
@@ -822,13 +836,6 @@ pub fn placement() -> Placement {
   } else {
     shell.num("bar", "size-horizontal").unwrap_or(26.0)
   };
-  let gap = Command::new("omarchy-mango-option")
-    .arg("gap_outer_horizontal")
-    .output()
-    .ok()
-    .and_then(|o| String::from_utf8(o.stdout).ok())
-    .and_then(|s| s.trim().parse::<f64>().ok())
-    .map(|g| (g / 2.0).round() as i32)
-    .unwrap_or(5);
+  let gap = outer_gap();
   Placement { bar_edge, clearance: (size * scale).round() as i32 + gap, gap }
 }
