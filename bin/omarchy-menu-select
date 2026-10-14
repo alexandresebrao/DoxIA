@@ -86,7 +86,7 @@ payload=$(perl -MEncode=decode -MJSON::PP=encode_json,decode_json -e '
   print encode_json($payload)
 ' "$prompt" "$options_json" "$selection_file" "$done_file" "$menu_width" "$menu_maxheight")
 
-omarchy-shell shell summon omarchy.menu "$payload" >/dev/null
+omarchy-shell shell summon doxia.menu "$payload" >/dev/null
 
 while [[ ! -e $done_file ]]; do
   sleep 0.05

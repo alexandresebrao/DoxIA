@@ -46,7 +46,7 @@ pub struct Reminders {
 
 impl Reminders {
   pub fn new(app: &gtk::Application) -> Rc<Reminders> {
-    let window = popup::window(app, "omarchy-reminders", "reminders-window");
+    let window = popup::window(app, "doxia-reminders", "reminders-window");
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     let text = label("", "menu-header");
     text.set_xalign(0.0);

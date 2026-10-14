@@ -59,7 +59,9 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 
 - `osd`: `show <json>` (the omarchy-osd payload), `close`, `state`, `ping`.
   Drawn like `shell/plugins/osd` on an overlay layer surface (namespace
-  `omarchy-osd`, no keyboard, clicks pass through).
+  `doxia-osd`, no keyboard, clicks pass through). Every surface's namespace
+  is `doxia-*`; mango's layer rules (`default/mango/windows.conf`, the
+  themes' `mango-looknfeel.conf`) name them next to Quickshell's.
 - `notifications`: the `org.freedesktop.Notifications` server and its popups,
   with the IPC of `shell/plugins/notifications` (`dndState`, `toggleDnd`,
   `setDnd`, `showHistory`, `clear`, `dismissAll`, `dismissOne`, `invokeLast`,
@@ -109,9 +111,10 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   `disabledPlugins` like the other two.
 
 - `shell` (the plugin surface): `summon`, `toggle`, `hide` and `call` for
-  the plugins doxia-shell has taken over, `omarchy.menu`, `doxia.iniciar`,
-  `omarchy.clipboard`, `omarchy.emojis`, `omarchy.image-picker` and
-  `omarchy.reminders`; for any
+  the plugins doxia-shell has taken over, `doxia.menu`, `doxia.iniciar`,
+  `doxia.clipboard`, `doxia.emojis`, `doxia.image-picker` and
+  `doxia.reminders` (Quickshell's `omarchy.*` names for them still work, and
+  `bin/omarchy-shell` hands `doxia.*` on to Quickshell under those); for any
   other plugin, or a call without one (`ping`,
   `listPlugins`), it answers "Target not found." and the call goes on to
   Quickshell. Both plugins stay enabled there: the menu's bar button is a

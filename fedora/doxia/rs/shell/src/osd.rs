@@ -109,7 +109,7 @@ impl Osd {
     window.add_css_class("osd-window");
     window.init_layer_shell();
     // omarchy-* so mango's layer rules for the shell apply.
-    window.set_namespace(Some("omarchy-osd"));
+    window.set_namespace(Some("doxia-osd"));
     window.set_layer(Layer::Overlay);
     window.set_keyboard_mode(KeyboardMode::None);
     window.set_anchor(Edge::Bottom, true);

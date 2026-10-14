@@ -96,7 +96,7 @@ fn main() -> glib::ExitCode {
     // Quickshell's plugin surface for the plugins taken over (the menus,
     // the pickers and the reminder prompt so far); any other plugin, or a
     // call with none, stays Quickshell's.
-    let omarchy_menu = menu::OmarchyMenu::new(app);
+    let menu = menu::Menu::new(app);
     let iniciar = iniciar::Iniciar::new(app);
     let clipboard = clipboard::Clipboard::new(app);
     let emojis = emojis::Emojis::new(app);
@@ -109,12 +109,14 @@ fn main() -> glib::ExitCode {
       Box::new(move |method, args| {
         let not_ours = || Some("Target not found.".to_string());
         match args.first().map(String::as_str) {
-          Some("omarchy.menu") => omarchy_menu.ipc(method, &args[1..]),
+          // The omarchy.* names are Quickshell's, still sent by older
+          // callers; bin/omarchy-shell hands doxia.* to Quickshell as those.
+          Some("doxia.menu" | "omarchy.menu") => menu.ipc(method, &args[1..]),
           Some("doxia.iniciar") => iniciar.ipc(method, &args[1..]),
-          Some("omarchy.clipboard") => clipboard.ipc(method, &args[1..]),
-          Some("omarchy.emojis") => emojis.ipc(method, &args[1..]),
-          Some("omarchy.image-picker") => images.plugin_ipc(method, &args[1..]),
-          Some("omarchy.reminders") => reminders.ipc(method, &args[1..]),
+          Some("doxia.clipboard" | "omarchy.clipboard") => clipboard.ipc(method, &args[1..]),
+          Some("doxia.emojis" | "omarchy.emojis") => emojis.ipc(method, &args[1..]),
+          Some("doxia.image-picker" | "omarchy.image-picker") => images.plugin_ipc(method, &args[1..]),
+          Some("doxia.reminders" | "omarchy.reminders") => reminders.ipc(method, &args[1..]),
           _ => not_ours(),
         }
       }),

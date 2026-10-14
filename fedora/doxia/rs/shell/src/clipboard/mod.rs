@@ -73,7 +73,7 @@ pub struct Clipboard {
 
 impl Clipboard {
   pub fn new(app: &gtk::Application) -> Rc<Clipboard> {
-    let window = popup::window(app, "omarchy-clipboard", "clipboard-window");
+    let window = popup::window(app, "doxia-clipboard", "clipboard-window");
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     let content = gtk::Box::new(gtk::Orientation::Vertical, SPACING);
     let header = label("", "menu-header");

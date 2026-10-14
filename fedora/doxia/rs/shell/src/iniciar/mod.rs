@@ -255,7 +255,7 @@ impl Iniciar {
       icon: Icon::Emblem,
       sub: None,
       mode: None,
-      act: Some(Act::Shell("omarchy-shell shell summon omarchy.menu '{\"menu\":\"root\"}'".into())),
+      act: Some(Act::Shell("omarchy-shell shell summon doxia.menu '{\"menu\":\"root\"}'".into())),
       disabled: false,
     }
   }

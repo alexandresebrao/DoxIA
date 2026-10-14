@@ -39,7 +39,7 @@ refresh_indicator() {
 }
 
 open_interactive() {
-  omarchy-shell shell summon omarchy.reminders "{}"
+  omarchy-shell shell summon doxia.reminders "{}"
 }
 
 show_reminders() {

@@ -172,7 +172,7 @@ impl Background {
     window.add_css_class("doxia");
     window.add_css_class("background-window");
     window.init_layer_shell();
-    window.set_namespace(Some("omarchy-background"));
+    window.set_namespace(Some("doxia-background"));
     window.set_layer(Layer::Background);
     window.set_keyboard_mode(KeyboardMode::None);
     window.set_monitor(Some(monitor));

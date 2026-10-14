@@ -94,7 +94,7 @@ impl Notifications {
     window.add_css_class("doxia");
     window.add_css_class("notif-window");
     window.init_layer_shell();
-    window.set_namespace(Some("omarchy-notifications"));
+    window.set_namespace(Some("doxia-notifications"));
     window.set_layer(Layer::Overlay);
     window.set_keyboard_mode(KeyboardMode::None);
     window.set_exclusive_zone(-1);

@@ -532,7 +532,7 @@ impl Lock {
     }
     let view = self.build_view(false);
     view.window.init_layer_shell();
-    view.window.set_namespace(Some("omarchy-lock-preview"));
+    view.window.set_namespace(Some("doxia-lock-preview"));
     view.window.set_layer(Layer::Overlay);
     view.window.set_keyboard_mode(KeyboardMode::Exclusive);
     view.window.set_exclusive_zone(-1);

@@ -128,7 +128,7 @@ impl State {
   }
 }
 
-pub struct OmarchyMenu {
+pub struct Menu {
   window: gtk::Window,
   root: gtk::Box,
   card: Rc<popup::Card>,
@@ -181,9 +181,9 @@ fn folded(totals: &[i32], available: i32) -> i32 {
   totals[full - 1] + ROW_SPACING + PEEK
 }
 
-impl OmarchyMenu {
-  pub fn new(app: &gtk::Application) -> Rc<OmarchyMenu> {
-    let window = popup::window(app, "omarchy-menu", "menu-window");
+impl Menu {
+  pub fn new(app: &gtk::Application) -> Rc<Menu> {
+    let window = popup::window(app, "doxia-menu", "menu-window");
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     root.set_hexpand(true);
     root.set_vexpand(true);
@@ -218,7 +218,7 @@ impl OmarchyMenu {
     root.append(&card.overlay);
     window.set_child(Some(&root));
 
-    let menu = Rc::new_cyclic(|me: &std::rc::Weak<OmarchyMenu>| {
+    let menu = Rc::new_cyclic(|me: &std::rc::Weak<Menu>| {
       let me = me.clone();
       let confirm = popup::Confirm::new("Desinstalar", MARGIN, move |yes| {
         if let Some(me) = me.upgrade() {
@@ -226,7 +226,7 @@ impl OmarchyMenu {
         }
       });
       card.overlay.add_overlay(&confirm.widget);
-      OmarchyMenu {
+      Menu {
         window,
         root,
         card,

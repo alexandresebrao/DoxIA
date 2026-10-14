@@ -91,7 +91,7 @@ impl Polkit {
     window.add_css_class("doxia");
     window.add_css_class("polkit-window");
     window.init_layer_shell();
-    window.set_namespace(Some("omarchy-polkit"));
+    window.set_namespace(Some("doxia-polkit"));
     window.set_layer(Layer::Overlay);
     window.set_keyboard_mode(KeyboardMode::Exclusive);
     window.set_exclusive_zone(-1);

@@ -138,7 +138,7 @@ Item {
 
   // Com o emblema do tema (o ∞ do DoxIA) tingido como os ícones simbólicos.
   function omarchyMenuItem() {
-    var item = commandItem("DoxIA Express", Color.currentThemePath + "/emblem.png", "omarchy-shell shell summon omarchy.menu '{\"menu\":\"root\"}'")
+    var item = commandItem("DoxIA Express", Color.currentThemePath + "/emblem.png", "omarchy-shell shell summon doxia.menu '{\"menu\":\"root\"}'")
     item.tint = true
     return item
   }

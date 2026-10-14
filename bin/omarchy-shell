@@ -65,6 +65,11 @@ if [[ ${DOXIA_SHELL:-1} != "0" ]]; then
   fi
 fi
 
+# doxia-shell's plugins (doxia.menu, ...) are Quickshell's omarchy.* ones.
+if [[ $1 == "shell" && ${3:-} =~ ^doxia\.(menu|clipboard|emojis|image-picker|reminders)$ ]]; then
+  set -- "$1" "$2" "omarchy.${3#doxia.}" "${@:4}"
+fi
+
 # The -- keeps function names that shadow qs subcommands (e.g. show) as
 # positionals. qs reports connection failures with a nonzero exit, but IPC-level
 # failures (unknown target/function, bad arguments) go to stdout with exit 0.

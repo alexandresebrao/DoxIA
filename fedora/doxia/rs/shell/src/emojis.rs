@@ -65,7 +65,7 @@ pub struct Emojis {
 
 impl Emojis {
   pub fn new(app: &gtk::Application) -> Rc<Emojis> {
-    let window = popup::window(app, "omarchy-emojis", "emojis-window");
+    let window = popup::window(app, "doxia-emojis", "emojis-window");
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     let content = gtk::Box::new(gtk::Orientation::Vertical, SPACING);
     let header = label("", "menu-header");

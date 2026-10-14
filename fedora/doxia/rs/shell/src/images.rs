@@ -134,7 +134,7 @@ fn path_slice(cr: &cairo::Context, x: f64, y: f64, w: f64, h: f64) {
 
 impl Images {
   pub fn new(app: &gtk::Application) -> Rc<Images> {
-    let window = popup::window(app, "omarchy-image-selector", "images-window");
+    let window = popup::window(app, "doxia-image-selector", "images-window");
     let area = gtk::DrawingArea::new();
     area.set_hexpand(true);
     area.set_vexpand(true);
