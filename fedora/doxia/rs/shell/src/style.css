@@ -346,3 +346,14 @@ button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }
 .network-status.failed { color: $URGENT; }
 .network-lock { font-size: $FS_SMALL; color: alpha($POPUP_TEXT, 0.66); }
 .copyable:hover { color: $ACCENT; }
+.service-dot { font-size: 11px; color: alpha($POPUP_TEXT, 0.3); }
+.service-dot.running { color: #5fb878; }
+.service-dot.failed { color: $URGENT; }
+.service-dot.busy { color: $ACCENT; }
+.service-name { font-size: $FS_BODY; font-weight: bold; }
+.service-type { font-size: $FS_CAPTION; opacity: 0.75; border: 1px solid alpha($POPUP_TEXT, 0.35); border-radius: $R_CTRL; padding: 0 5px; }
+.service-state { font-size: $FS_CAPTION; opacity: 0.6; }
+.service-state.failed { color: $URGENT; opacity: 1; }
+.service-line-icon { font-size: $FS_BODY; opacity: 0.6; min-width: 16px; }
+.panel-action.start { color: #5fb878; }
+.panel-action.stop, .panel-action.failed { color: $URGENT; }
