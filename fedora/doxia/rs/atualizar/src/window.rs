@@ -21,7 +21,6 @@ const G_CUBE: &str = "\u{f1b2}";
 const G_ARCHIVE: &str = "\u{f187}";
 const G_BRANCH: &str = "\u{f126}";
 const G_POWER: &str = "\u{f011}";
-const G_TIMES: &str = "\u{f00d}";
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum View {
@@ -1168,6 +1167,37 @@ fn command_box(lines: &[String], commands: bool) -> gtk::Box {
   b
 }
 
+// The check (or cross) inside a finished step's dot, drawn: a font glyph
+// that small came out faint and off center. In the CSS color (.dot-mark).
+fn dot_mark(done: bool) -> gtk::DrawingArea {
+  let area = gtk::DrawingArea::new();
+  area.add_css_class("dot-mark");
+  area.set_content_width(14);
+  area.set_content_height(14);
+  area.set_draw_func(move |a, cr, w, h| {
+    let (w, h) = (w as f64, h as f64);
+    let at = |x: f64, y: f64| (x * w / 14.0, y * h / 14.0);
+    let c = a.color();
+    cr.set_source_rgba(c.red() as f64, c.green() as f64, c.blue() as f64, c.alpha() as f64);
+    cr.set_line_width(1.8 * w / 14.0);
+    cr.set_line_cap(gtk::cairo::LineCap::Round);
+    cr.set_line_join(gtk::cairo::LineJoin::Round);
+    let points: &[&[(f64, f64)]] = if done {
+      &[&[(3.6, 7.3), (6.0, 9.6), (10.4, 4.8)]]
+    } else {
+      &[&[(4.6, 4.6), (9.4, 9.4)], &[(9.4, 4.6), (4.6, 9.4)]]
+    };
+    for line in points {
+      for (i, (x, y)) in line.iter().enumerate() {
+        let (x, y) = at(*x, *y);
+        if i == 0 { cr.move_to(x, y) } else { cr.line_to(x, y) }
+      }
+    }
+    let _ = cr.stroke();
+  });
+  area
+}
+
 fn step_list(steps: &[Value]) -> gtk::Box {
   let col = vbox(2);
   for step in steps {
@@ -1182,9 +1212,7 @@ fn step_list(steps: &[Value]) -> gtk::Box {
     dot.add_css_class(st);
     dot.set_valign(gtk::Align::Center);
     if st == "done" || st == "fail" {
-      let g = label(if st == "done" { G_CHECK } else { G_TIMES }, &["dot-glyph"]);
-      g.set_xalign(0.5);
-      dot.set_center_widget(Some(&g));
+      dot.set_center_widget(Some(&dot_mark(st == "done")));
     }
     row.append(&dot);
     let l = label(model::text(step, "label"), &["step-label", st]);
