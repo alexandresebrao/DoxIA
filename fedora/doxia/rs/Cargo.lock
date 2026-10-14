@@ -111,6 +111,7 @@ version = "0.10.4"
 dependencies = [
  "doxia-theme",
  "gtk4",
+ "pangocairo",
  "serde_json",
  "ureq",
 ]

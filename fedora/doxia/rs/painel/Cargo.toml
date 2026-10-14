@@ -10,4 +10,5 @@ publish.workspace = true
 gtk.workspace = true
 serde_json.workspace = true
 doxia-theme.workspace = true
+pangocairo = "0.22"
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }

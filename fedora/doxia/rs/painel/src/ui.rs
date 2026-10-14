@@ -77,11 +77,33 @@ pub fn glyph_button(glyph: &str, text: &str) -> gtk::Button {
   b
 }
 
-// Just a glyph, for the header.
+// A glyph drawn with its ink centered in the widget. A label centers the
+// character, and Lucide's glyphs sit off center in theirs (by a pixel or two,
+// a different amount each). Font and color come from the widget's CSS.
+pub fn glyph_area(glyph: &str) -> gtk::DrawingArea {
+  let area = gtk::DrawingArea::new();
+  let glyph = glyph.to_string();
+  area.set_draw_func(move |area, cr, w, h| {
+    let layout = area.create_pango_layout(Some(&glyph));
+    // In Pango units, not whole pixels: rounding twice can leave a pixel.
+    let (ink, _) = layout.extents();
+    let unit = |v: i32| v as f64 / gtk::pango::SCALE as f64;
+    let c = area.color();
+    cr.set_source_rgba(c.red() as f64, c.green() as f64, c.blue() as f64, c.alpha() as f64);
+    cr.move_to((w as f64 - unit(ink.width())) / 2.0 - unit(ink.x()), (h as f64 - unit(ink.height())) / 2.0 - unit(ink.y()));
+    pangocairo::functions::show_layout(cr, &layout);
+  });
+  area
+}
+
+// Just a glyph, for the header: a circle with the glyph centered in it. No
+// expand flags on the glyph (they would spread to the header): the button
+// gives its child all of its inside anyway.
 pub fn icon_button(glyph: &str, tooltip: &str) -> gtk::Button {
-  let b = gtk::Button::with_label(glyph);
+  let b = gtk::Button::new();
   b.add_css_class("ctl");
   b.add_css_class("icon");
+  b.set_child(Some(&glyph_area(glyph)));
   b.set_tooltip_text(Some(tooltip));
   b.set_valign(gtk::Align::Center);
   b
@@ -125,12 +147,11 @@ impl Frame {
     let back = icon_button(G_BACK, "Voltar (Esc)");
     header.append(&back);
 
-    let icon = gtk::CenterBox::new();
-    icon.add_css_class("header-icon");
+    let icon = glyph_area(glyph);
+    for c in ["header-icon", "glyph-heading", "c-accent"] {
+      icon.add_css_class(c);
+    }
     icon.set_valign(gtk::Align::Center);
-    let g = label(glyph, &["glyph-heading", "c-accent"]);
-    g.set_xalign(0.5);
-    icon.set_center_widget(Some(&g));
     header.append(&icon);
 
     let titles = vbox(2);
