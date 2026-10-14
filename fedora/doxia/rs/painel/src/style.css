@@ -1,8 +1,11 @@
 /* Painel Rápido, on top of doxia-theme's base.css. */
 
+/* A circle: a fixed square, no padding, the glyph centered in it. */
 button.ctl.icon {
-  min-width: 0;
-  padding: $SP6 $SP8;
+  min-width: $SP30;
+  min-height: $SP30;
+  padding: 0;
+  border-radius: 999px;
   font-size: $FS_BODY;
 }
 
