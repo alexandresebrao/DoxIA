@@ -355,6 +355,12 @@ done
 if (( ${#missing[@]} )); then
   dnf install -y --setopt=install_weak_deps=False "${missing[@]}"
 fi
+# Left from the Hyprland installs: its UseIn names wlroots, so under mango it
+# took the global shortcuts and input capture portals mango-portals.conf
+# leaves unset, next to the wlr portal doing the real work.
+if rpm -q xdg-desktop-portal-hyprland &>/dev/null; then
+  dnf remove -y --setopt=clean_requirements_on_remove=False xdg-desktop-portal-hyprland
+fi
 ROOT
 
 echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"
