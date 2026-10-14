@@ -384,6 +384,19 @@ pub fn system_update(ctx: &Rc<Ctx>) -> gtk::Widget {
       });
     }
   };
+  if ctx.first_screen {
+    if let Some(bar) = ctx.bar.upgrade() {
+      let (r, c) = (reload.clone(), check.clone());
+      bar.add_ipc("omarchy.system-update", Box::new(move |method, _| {
+        match method {
+          "refresh" | "clear" => r(),
+          "check" => c(),
+          _ => return None,
+        }
+        Some("ok".into())
+      }));
+    }
+  }
   // One checker for the whole shell, not one per screen.
   if ctx.first_screen {
     check();

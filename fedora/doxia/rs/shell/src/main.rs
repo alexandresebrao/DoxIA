@@ -115,10 +115,19 @@ fn main() -> glib::ExitCode {
     let reminders = reminders::Reminders::new(app);
     let i = images.clone();
     ipc.add("image-selector", Box::new(move |method, args| i.selector_ipc(method, args)));
+    // The bar, made further down: its panels answer for their widgets' ids.
+    let bar_slot: Rc<std::cell::RefCell<Option<Rc<bar::Bar>>>> = Rc::default();
+    let bs = bar_slot.clone();
     ipc.add(
       "shell",
       Box::new(move |method, args| {
         let not_ours = || Some("Target not found.".to_string());
+        let bar = bs.borrow().clone();
+        if method == "togglePanelAt" {
+          let bar = bar?;
+          let index = args.get(1).and_then(|i| i.trim().parse::<usize>().ok()).unwrap_or(0);
+          return Some(bar.toggle_panel_at(args.first().map(String::as_str).unwrap_or(""), index));
+        }
         match args.first().map(String::as_str) {
           // The omarchy.* names are Quickshell's, still sent by older
           // callers; bin/omarchy-shell hands doxia.* to Quickshell as those.
@@ -128,6 +137,7 @@ fn main() -> glib::ExitCode {
           Some("doxia.emojis" | "omarchy.emojis") => emojis.ipc(method, &args[1..]),
           Some("doxia.image-picker" | "omarchy.image-picker") => images.plugin_ipc(method, &args[1..]),
           Some("doxia.reminders" | "omarchy.reminders") => reminders.ipc(method, &args[1..]),
+          Some(id) => bar.and_then(|b| b.shell_call(method, id)).or_else(not_ours),
           _ => not_ours(),
         }
       }),
@@ -162,12 +172,19 @@ fn main() -> glib::ExitCode {
     // The bar, while it is being built: only with DOXIA_BAR=1, next to
     // Quickshell's.
     let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app, &ipc));
+    *bar_slot.borrow_mut() = bar.clone();
     if bar.is_some() {
+      let media = mpris::get();
+      ipc.add("media", Box::new(move |method, _| media.ipc(method)));
       let night = nightlight::get();
       ipc.add("nightlight", Box::new(move |method, _| night.ipc(method)));
     }
     if let Some(b) = bar.clone() {
       ipc.add("doxia.bar", Box::new(move |method, _| b.ipc(method)));
+    }
+    if let Some(b) = bar.clone() {
+      // Quickshell's name for it, which the scripts use.
+      ipc.add("omarchy.bar", Box::new(move |method, _| b.ipc(method)));
     }
 
     // Theme switches: colors through the CSS, the bar's size and edge

@@ -305,6 +305,22 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Member {
       p();
     })
   };
+  if ctx.first_screen {
+    if let Some(bar) = ctx.bar.upgrade() {
+      let (p, r) = (Rc::downgrade(&panel), right.clone());
+      bar.add_ipc("omarchy.power", Box::new(move |method, _| {
+        let panel = p.upgrade()?;
+        match method {
+          "togglePercentage" => r(),
+          "open" | "show" => panel.open(),
+          "close" | "hide" => panel.close(),
+          "toggle" => panel.toggle(),
+          _ => return None,
+        }
+        Some("ok".into())
+      }));
+    }
+  }
   Member { id: "omarchy.power".into(), title: "Bateria".into(), button, slot, panel, wheel: None, right: Some(right) }
 }
 

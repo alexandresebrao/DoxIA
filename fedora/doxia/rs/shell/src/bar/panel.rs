@@ -47,6 +47,7 @@ pub struct Panel {
   on_close: RefCell<Vec<Box<dyn Fn()>>>,
   on_key: RefCell<Option<Box<dyn Fn(gdk::Key, gdk::ModifierType) -> bool>>>,
   on_tab: RefCell<Option<Box<dyn Fn(bool)>>>,
+  bar: RefCell<Weak<super::Bar>>,
 }
 
 impl Panel {
@@ -126,8 +127,22 @@ impl Panel {
       on_close: RefCell::default(),
       on_key: RefCell::default(),
       on_tab: RefCell::default(),
+      bar: RefCell::new(Weak::new()),
     });
     me.connect_input();
+    // Listed for the keys and IPC that open panels.
+    if let (Some((id, region, order)), Some(bar)) = (ctx.current.borrow().clone(), ctx.bar.upgrade()) {
+      let anchor_w = anchor.as_ref().downgrade();
+      bar.register(super::Handle {
+        id,
+        region,
+        order,
+        monitor: ctx.monitor.clone(),
+        panel: Rc::downgrade(&me),
+        visible: Rc::new(move || anchor_w.upgrade().is_some_and(|a| a.is_visible())),
+      });
+    }
+    *me.bar.borrow_mut() = ctx.bar.clone();
     // Gone with the bar it belongs to (rebuilt on a new layout or theme).
     let w = me.window.downgrade();
     ctx.window.connect_destroy(move |_| {
@@ -158,9 +173,16 @@ impl Panel {
     keys.connect_key_pressed(move |_, key, _, state| {
       let Some(me) = weak.upgrade() else { return glib::Propagation::Proceed };
       if matches!(key, gdk::Key::Tab | gdk::Key::ISO_Left_Tab) {
+        let back = key == gdk::Key::ISO_Left_Tab || state.contains(gdk::ModifierType::SHIFT_MASK);
         if let Some(f) = me.on_tab.borrow().as_ref() {
-          f(key == gdk::Key::ISO_Left_Tab || state.contains(gdk::ModifierType::SHIFT_MASK));
+          f(back);
           return glib::Propagation::Stop;
+        }
+        // Alone: the next panel on the bar.
+        if let Some(bar) = me.bar.borrow().upgrade() {
+          if bar.switch_from(&me, back) {
+            return glib::Propagation::Stop;
+          }
         }
       }
       if let Some(f) = me.on_key.borrow().as_ref() {

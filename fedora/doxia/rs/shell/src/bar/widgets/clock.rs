@@ -142,13 +142,13 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
       if vertical { setting_str(&e, "verticalFormat", "HH\n—\nmm") } else { setting_str(&e, "format", "dddd HH:mm") }
     }
   };
-  let paint = {
+  let paint: Rc<dyn Fn()> = {
     let (b, format) = (button.clone(), format.clone());
-    move || {
+    Rc::new(move || {
       if let Ok(now) = glib::DateTime::now_local() {
         b.set_text(&qt_format(&now, &format()));
       }
-    }
+    })
   };
   paint();
   // On the minute, then every minute.
@@ -167,9 +167,9 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   });
 
   let calendar = super::calendar::Calendar::new(ctx, &button.widget, &slot, entry.clone());
-  let p = paint.clone();
-  button.on_press(move |b| match b {
-    3 => {
+  let cycle: Rc<dyn Fn()> = {
+    let (entry, p, format) = (entry.clone(), paint.clone(), format.clone());
+    Rc::new(move || {
       let mut e = entry.borrow_mut();
       let alt_key = if vertical { "verticalFormatAlt" } else { "formatAlt" };
       let alt_default = if vertical { "dd\nMMM\n'W'ww\n''yy" } else { "d MMMM 'W'ww yyyy" };
@@ -186,10 +186,34 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
       drop(e);
       p();
       config::update_entry(&written);
+    })
+  };
+  {
+    let (cycle, calendar) = (cycle.clone(), calendar.clone());
+    button.on_press(move |b| match b {
+      3 => cycle(),
+      2 => crate::run::shell("omarchy-menu-timezone"),
+      _ => calendar.toggle(),
+    });
+  }
+  if ctx.first_screen {
+    if let Some(bar) = ctx.bar.upgrade() {
+      let (cal, cycle, p) = (Rc::downgrade(&calendar), cycle.clone(), paint.clone());
+      bar.add_ipc("omarchy.clock", Box::new(move |method, _| {
+        let cal = cal.upgrade()?;
+        match method {
+          "refresh" => p(),
+          "cycleFormat" => cycle(),
+          "toggleWeekStart" => cal.toggle_week_start_now(),
+          "open" | "show" => cal.open(),
+          "close" | "hide" => cal.close(),
+          "toggle" => cal.toggle(),
+          _ => return None,
+        }
+        Some("ok".into())
+      }));
     }
-    2 => crate::run::shell("omarchy-menu-timezone"),
-    _ => calendar.toggle(),
-  });
+  }
   slot.widget.clone().upcast()
 }
 

@@ -24,6 +24,7 @@ mod weather_model;
 
 use super::config::entry_id;
 use super::member::Member;
+use gtk::prelude::*;
 use super::Ctx;
 use serde_json::Value;
 use std::rc::Rc;
@@ -37,7 +38,13 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "doxia.usage" => usage::build(ctx, entry),
     "doxia.media" => Some(media::build(ctx, entry)),
     "omarchy.weather" => Some(weather::build(ctx, entry)),
-    "omarchy.tray" => Some(tray::build(ctx, entry)),
+    // The tray's menus are not panels the keys open.
+    "omarchy.tray" => {
+      let place = ctx.current.borrow_mut().take();
+      let w = tray::build(ctx, entry);
+      *ctx.current.borrow_mut() = place;
+      Some(w)
+    }
     "doxia.services" => Some(services::build(ctx)),
     "doxia.fortivpn" => Some(fortivpn::build(ctx, entry)),
     "omarchy.agents" => Some(agents::build(ctx, entry)),
@@ -52,8 +59,27 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
   }
 }
 
-// A widget with a panel, alone on the bar or in a group.
+// A widget with a panel, alone on the bar or in a group: listed under its
+// own id, at the place of its entry (a group's members share the group's).
 fn member(ctx: &Rc<Ctx>, id: &str, entry: &Value) -> Option<Member> {
+  let place = ctx.current.borrow_mut().take();
+  let m = make_member(ctx, id, entry);
+  *ctx.current.borrow_mut() = place.clone();
+  if let (Some(m), Some((_, region, order)), Some(bar)) = (m.as_ref(), place, ctx.bar.upgrade()) {
+    let w = m.button.widget.downgrade();
+    bar.register(super::Handle {
+      id: id.to_string(),
+      region,
+      order,
+      monitor: ctx.monitor.clone(),
+      panel: Rc::downgrade(&m.panel),
+      visible: Rc::new(move || w.upgrade().is_some_and(|w| w.is_visible())),
+    });
+  }
+  m
+}
+
+fn make_member(ctx: &Rc<Ctx>, id: &str, entry: &Value) -> Option<Member> {
   match id {
     "omarchy.audio" => Some(audio::build(ctx)),
     "omarchy.power" => Some(power::build(ctx, entry)),

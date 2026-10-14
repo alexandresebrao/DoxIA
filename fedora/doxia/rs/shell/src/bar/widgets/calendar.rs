@@ -170,6 +170,18 @@ impl Calendar {
     self.panel.toggle();
   }
 
+  pub fn open(&self) {
+    self.panel.open();
+  }
+
+  pub fn close(&self) {
+    self.panel.close();
+  }
+
+  pub fn toggle_week_start_now(self: &Rc<Self>) {
+    self.toggle_week_start();
+  }
+
   fn setting(&self, key: &str) -> Option<Value> {
     setting(&self.entry.borrow(), key).cloned()
   }

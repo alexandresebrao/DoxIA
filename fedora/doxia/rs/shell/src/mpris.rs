@@ -136,6 +136,14 @@ impl Player {
     self.call("PlayPause", None);
   }
 
+  pub fn play(&self) {
+    self.call("Play", None);
+  }
+
+  pub fn pause(&self) {
+    self.call("Pause", None);
+  }
+
   pub fn next(&self) {
     self.call("Next", None);
   }
@@ -192,6 +200,8 @@ impl Player {
 #[derive(Default)]
 pub struct Mpris {
   players: RefCell<Vec<Rc<Player>>>,
+  // The player the media keys last switched to.
+  preferred: RefCell<String>,
   subscription: RefCell<Option<gio::SignalSubscription>>,
   listeners: RefCell<Vec<Box<dyn Fn()>>>,
 }
@@ -292,6 +302,68 @@ impl Mpris {
 
   pub fn players(&self) -> Vec<Rc<Player>> {
     self.players.borrow().clone()
+  }
+
+  // The "media" IPC target (Quickshell's shell/services/media): the
+  // keyboard's media keys and omarchy-audio-source-switch. The player they
+  // act on is the one last picked here while it still plays, else the
+  // first playing one, else one with a track; source switching walks the
+  // players with something to show (and, switching, pauses the one left
+  // and plays the next).
+  pub fn ipc(self: &Rc<Self>, method: &str) -> Option<String> {
+    let preferred = self.preferred.borrow().clone();
+    let active = self.pick(&preferred);
+    let can = |p: &Player, w: &str| p.can(w);
+    let done = |ok: bool| Some(if ok { "ok".to_string() } else { "unhandled".to_string() });
+    match method {
+      "status" => {
+        let p = active.as_ref();
+        Some(
+          serde_json::json!({
+            "hasPlayer": p.is_some(),
+            "hasMedia": p.is_some_and(|p| !p.title().is_empty() || !p.artist().is_empty()),
+            "playing": p.is_some_and(|p| p.playing()),
+            "identity": p.map(|p| p.raw_identity()).unwrap_or_default(),
+            "desktopEntry": p.map(|p| p.desktop_entry()).unwrap_or_default(),
+            "title": p.map(|p| p.title()).unwrap_or_default(),
+            "artist": p.map(|p| p.artist()).unwrap_or_default(),
+            "album": p.map(|p| p.album()).unwrap_or_default(),
+            "artUrl": p.map(|p| p.art_url()).unwrap_or_default(),
+            "canGoNext": p.is_some_and(|p| can(p, "CanGoNext")),
+            "canGoPrevious": p.is_some_and(|p| can(p, "CanGoPrevious")),
+            "canTogglePlaying": p.is_some_and(|p| can(p, "CanPlay") || can(p, "CanPause")),
+          })
+          .to_string(),
+        )
+      }
+      "playPause" => done(active.as_ref().is_some_and(|p| (can(p, "CanPlay") || can(p, "CanPause")) && { p.play_pause(); true })),
+      "next" => done(active.as_ref().is_some_and(|p| can(p, "CanGoNext") && { p.next(); true })),
+      "previous" => done(active.as_ref().is_some_and(|p| can(p, "CanGoPrevious") && { p.previous(); true })),
+      "play" => done(active.as_ref().is_some_and(|p| can(p, "CanPlay") && { p.play(); true })),
+      "pause" => done(active.as_ref().is_some_and(|p| can(p, "CanPause") && { p.pause(); true })),
+      "sourceNext" | "sourcePrevious" | "sourceSwitch" | "sourceSwitchPrevious" => {
+        let back = method.ends_with("Previous");
+        let transfer = method.starts_with("sourceSwitch");
+        let mut list: Vec<Rc<Player>> = self.players().into_iter().filter(|p| !p.title().is_empty() || !p.raw_identity().is_empty()).collect();
+        list.sort_by_key(|p| (!p.playing(), p.identity().to_lowercase()));
+        if list.is_empty() {
+          return done(false);
+        }
+        let i = active.as_ref().and_then(|a| list.iter().position(|p| p.bus_name == a.bus_name)).unwrap_or(0);
+        let n = list.len();
+        let next = list[if back { (i + n - 1) % n } else { (i + 1) % n }].clone();
+        if transfer {
+          if let Some(a) = active.filter(|a| a.playing() && a.bus_name != next.bus_name) {
+            a.pause();
+          }
+          next.play();
+        }
+        *self.preferred.borrow_mut() = next.bus_name.clone();
+        done(true)
+      }
+      "ping" => Some("ok".into()),
+      _ => None,
+    }
   }
 
   // The one to show: the chosen one, else one playing, else one with a

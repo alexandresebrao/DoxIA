@@ -36,6 +36,19 @@ pub struct Ctx {
   // The first screen's bar runs what the whole shell needs once (the
   // update check).
   pub first_screen: bool,
+  // The layout entry being built: (id, region, index). A panel made while
+  // it is set is listed for the keys and IPC that open panels.
+  pub current: RefCell<Option<(String, String, usize)>>,
+}
+
+// A panel on the bar, as the keys and IPC that open panels find it.
+pub struct Handle {
+  pub id: String,
+  pub region: String,
+  pub order: usize,
+  pub monitor: String,
+  pub panel: Weak<panel::Panel>,
+  pub visible: Rc<dyn Fn() -> bool>,
 }
 
 impl Ctx {
@@ -58,6 +71,7 @@ pub struct Bar {
   config: RefCell<BarConfig>,
   style: RefCell<BarStyle>,
   screens: RefCell<Vec<Screen>>,
+  handles: RefCell<Vec<Handle>>,
   hidden: Cell<bool>,
   monitors: RefCell<Vec<gio::FileMonitor>>,
 }
@@ -78,6 +92,7 @@ impl Bar {
       config: RefCell::new(config::load()),
       style: RefCell::new(doxia_theme::bar_style()),
       screens: RefCell::default(),
+      handles: RefCell::default(),
       hidden: Cell::new(off_flag().exists()),
       monitors: RefCell::default(),
     });
@@ -107,6 +122,85 @@ impl Bar {
       }
       _ => None,
     }
+  }
+
+  pub fn register(&self, handle: Handle) {
+    self.handles.borrow_mut().push(handle);
+  }
+
+  // The panels a key or IPC call can reach: alive and on screen, the copy
+  // on the focused screen first.
+  fn live(&self) -> Vec<(String, String, usize, String, Rc<panel::Panel>)> {
+    let focused = crate::mango::get().focused_monitor();
+    let mut out: Vec<_> = self
+      .handles
+      .borrow()
+      .iter()
+      .filter(|h| (h.visible)())
+      .filter_map(|h| h.panel.upgrade().map(|p| (h.id.clone(), h.region.clone(), h.order, h.monitor.clone(), p)))
+      .collect();
+    out.sort_by_key(|h| (h.3 != focused, h.3.clone(), h.2));
+    out
+  }
+
+  // shell summon/toggle/hide <id> for a bar widget's panel.
+  pub fn shell_call(&self, method: &str, id: &str) -> Option<String> {
+    let (_, _, _, _, panel) = self.live().into_iter().find(|h| h.0 == id)?;
+    match method {
+      "summon" => panel.open(),
+      "toggle" => panel.toggle(),
+      "hide" => panel.close(),
+      "call" => {}
+      _ => return None,
+    }
+    Some("ok".into())
+  }
+
+  // The Nth panel (1-based) in a region of the focused screen's bar, a
+  // group counting once: what the SUPER+CTRL+number keys open.
+  pub fn toggle_panel_at(&self, region: &str, index: usize) -> String {
+    let live = self.live();
+    let Some(monitor) = live.first().map(|h| h.3.clone()) else { return "unknown".into() };
+    let mut seen = Vec::new();
+    let mut slots = Vec::new();
+    for h in live.into_iter().filter(|h| h.1 == region && h.3 == monitor) {
+      if !seen.contains(&h.2) {
+        seen.push(h.2);
+        slots.push(h);
+      }
+    }
+    slots.sort_by_key(|h| h.2);
+    match index.checked_sub(1).and_then(|i| slots.get(i)) {
+      Some((id, _, _, _, panel)) => {
+        panel.toggle();
+        id.clone()
+      }
+      None => "unknown".into(),
+    }
+  }
+
+  // Tab from an open panel: the next one in its region, same screen.
+  pub fn switch_from(&self, from: &Rc<panel::Panel>, back: bool) -> bool {
+    let live = self.live();
+    let Some(me) = live.iter().find(|h| Rc::ptr_eq(&h.4, from)) else { return false };
+    let (region, monitor, order) = (me.1.clone(), me.3.clone(), me.2);
+    let mut seen = Vec::new();
+    let mut slots = Vec::new();
+    for h in live.iter().filter(|h| h.1 == region && h.3 == monitor) {
+      if !seen.contains(&h.2) {
+        seen.push(h.2);
+        slots.push(h);
+      }
+    }
+    slots.sort_by_key(|h| h.2);
+    if slots.len() < 2 {
+      return false;
+    }
+    let i = slots.iter().position(|h| h.2 == order).unwrap_or(0);
+    let n = slots.len();
+    let next = if back { (i + n - 1) % n } else { (i + 1) % n };
+    slots[next].4.open();
+    true
   }
 
   // An IPC target of a widget (its first screen's copy answers).
@@ -199,6 +293,7 @@ impl Bar {
     for s in self.screens.borrow_mut().drain(..) {
       s.window.destroy();
     }
+    self.handles.borrow_mut().clear();
     let Some(display) = gdk::Display::default() else { return };
     let monitors = display.monitors();
     for i in 0..monitors.n_items() {
@@ -254,6 +349,7 @@ impl Bar {
       style: style.clone(),
       window: window.clone(),
       first_screen,
+      current: RefCell::default(),
     });
 
     let overlay = gtk::Overlay::new();
@@ -292,10 +388,16 @@ impl Bar {
   // anchor, when one is set), under them if they grow that far.
   fn sections(self: &Rc<Self>, ctx: &Rc<Ctx>, cfg: &BarConfig) -> gtk::Widget {
     let orientation = if ctx.vertical() { gtk::Orientation::Vertical } else { gtk::Orientation::Horizontal };
-    let list = |entries: &[Value], align: gtk::Align| {
+    let build_at = |entry: &Value, region: &str, index: usize| {
+      *ctx.current.borrow_mut() = Some((config::entry_id(entry), region.to_string(), index));
+      let w = widgets::build(ctx, entry);
+      *ctx.current.borrow_mut() = None;
+      w
+    };
+    let list = |entries: &[Value], align: gtk::Align, region: &str, offset: usize| {
       let b = gtk::Box::new(orientation, 0);
-      for entry in entries {
-        if let Some(w) = widgets::build(ctx, entry) {
+      for (i, entry) in entries.iter().enumerate() {
+        if let Some(w) = build_at(entry, region, offset + i) {
           b.append(&w);
         }
       }
@@ -308,17 +410,17 @@ impl Bar {
     let anchor = cfg.layout.center.iter().position(|e| config::entry_id(e) == cfg.center_anchor);
     match anchor {
       Some(i) => {
-        center.set_start_widget(Some(&list(&cfg.layout.center[..i], gtk::Align::End)));
-        if let Some(w) = widgets::build(ctx, &cfg.layout.center[i]) {
+        center.set_start_widget(Some(&list(&cfg.layout.center[..i], gtk::Align::End, "center", 0)));
+        if let Some(w) = build_at(&cfg.layout.center[i], "center", i) {
           center.set_center_widget(Some(&w));
         }
-        center.set_end_widget(Some(&list(&cfg.layout.center[i + 1..], gtk::Align::Start)));
+        center.set_end_widget(Some(&list(&cfg.layout.center[i + 1..], gtk::Align::Start, "center", i + 1)));
       }
-      None => center.set_center_widget(Some(&list(&cfg.layout.center, gtk::Align::Center))),
+      None => center.set_center_widget(Some(&list(&cfg.layout.center, gtk::Align::Center, "center", 0))),
     }
     overlay.set_child(Some(&center));
-    let left = list(&cfg.layout.left, gtk::Align::Start);
-    let right = list(&cfg.layout.right, gtk::Align::End);
+    let left = list(&cfg.layout.left, gtk::Align::Start, "left", 0);
+    let right = list(&cfg.layout.right, gtk::Align::End, "right", 0);
     overlay.add_overlay(&left);
     overlay.add_overlay(&right);
     overlay.upcast()
