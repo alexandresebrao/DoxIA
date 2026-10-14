@@ -11,6 +11,7 @@
 
 pub mod config;
 pub mod panel;
+pub mod ui;
 pub mod widget;
 mod widgets;
 
@@ -31,6 +32,9 @@ pub struct Ctx {
   pub position: Position,
   pub style: BarStyle,
   pub window: gtk::Window,
+  // The first screen's bar runs what the whole shell needs once (the
+  // update check).
+  pub first_screen: bool,
 }
 
 impl Ctx {
@@ -49,6 +53,7 @@ struct Screen {
 
 pub struct Bar {
   app: gtk::Application,
+  ipc: Rc<crate::ipc::Ipc>,
   config: RefCell<BarConfig>,
   style: RefCell<BarStyle>,
   screens: RefCell<Vec<Screen>>,
@@ -65,9 +70,10 @@ fn off_flag() -> PathBuf {
 }
 
 impl Bar {
-  pub fn new(app: &gtk::Application) -> Rc<Bar> {
+  pub fn new(app: &gtk::Application, ipc: &Rc<crate::ipc::Ipc>) -> Rc<Bar> {
     let me = Rc::new(Bar {
       app: app.clone(),
+      ipc: ipc.clone(),
       config: RefCell::new(config::load()),
       style: RefCell::new(doxia_theme::bar_style()),
       screens: RefCell::default(),
@@ -100,6 +106,11 @@ impl Bar {
       }
       _ => None,
     }
+  }
+
+  // An IPC target of a widget (its first screen's copy answers).
+  pub fn add_ipc(&self, target: &str, handler: crate::ipc::Handler) {
+    self.ipc.add(target, handler);
   }
 
   // The theme changed: sizes and colors.
@@ -184,7 +195,7 @@ impl Bar {
     let monitors = display.monitors();
     for i in 0..monitors.n_items() {
       let Some(monitor) = monitors.item(i).and_downcast::<gdk::Monitor>() else { continue };
-      let window = self.window(&monitor);
+      let window = self.window(&monitor, i == 0);
       window.set_visible(true);
       self.screens.borrow_mut().push(Screen { window });
     }
@@ -215,7 +226,7 @@ impl Bar {
     }
   }
 
-  fn window(self: &Rc<Self>, monitor: &gdk::Monitor) -> gtk::Window {
+  fn window(self: &Rc<Self>, monitor: &gdk::Monitor, first_screen: bool) -> gtk::Window {
     let window = gtk::Window::builder().application(&self.app).decorated(false).build();
     window.add_css_class("doxia");
     window.add_css_class("bar-window");
@@ -234,6 +245,7 @@ impl Bar {
       position: cfg.position,
       style: style.clone(),
       window: window.clone(),
+      first_screen,
     });
 
     let overlay = gtk::Overlay::new();

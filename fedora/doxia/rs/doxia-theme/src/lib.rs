@@ -604,6 +604,47 @@ pub fn palette() -> Colors {
   }
 }
 
+// The [controls] state fills and the popups' text and background, for what
+// cairo draws in the bar's panels (sliders, rails).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Controls {
+  pub selected_fill: [f64; 4],
+  pub hover_fill: [f64; 4],
+  pub text: [f64; 4],
+  pub background: [f64; 4],
+}
+
+pub fn controls() -> Controls {
+  let dir = theme_dir();
+  let colors = dir.join("colors.toml");
+  let shell_path = dir.join("shell.toml");
+  let shell = Toml::read(&shell_path);
+  let fg = color_value(&colors, "foreground").unwrap_or(Rgb(0.79, 0.8, 0.8));
+  let bg = color_value(&colors, "background").unwrap_or(Rgb(0.063, 0.075, 0.082));
+  let accent = color_value(&colors, "accent").unwrap_or(fg);
+  let urgent = color_value(&colors, "red").unwrap_or(Rgb(0.65, 0.33, 0.33));
+  let token = |key: &str, fallback: Rgb| -> Rgb {
+    match controls_color(&shell_path, key).as_deref().map(str::trim) {
+      Some("foreground" | "text") => fg,
+      Some("accent") => accent,
+      Some("urgent") => urgent,
+      Some("background") => bg,
+      Some(v) => Rgb::hex(v).unwrap_or(fallback),
+      None => fallback,
+    }
+  };
+  let alpha = |key: &str, fallback: f64| shell.num("controls", key).unwrap_or(fallback).clamp(0.0, 1.0);
+  let selected = token("selected-color", fg);
+  let hover = token("hover-cursor-color", fg);
+  let text = shell.get("popups", "text").and_then(rgba_of).unwrap_or([fg.0, fg.1, fg.2, 1.0]);
+  Controls {
+    selected_fill: [selected.0, selected.1, selected.2, alpha("selected-fill-alpha", 0.18)],
+    hover_fill: [hover.0, hover.1, hover.2, alpha("hover-cursor-fill-alpha", 0.08)],
+    text,
+    background: [bg.0, bg.1, bg.2, 1.0],
+  }
+}
+
 pub fn bar_style() -> BarStyle {
   let dir = theme_dir();
   let colors = dir.join("colors.toml");

@@ -255,3 +255,21 @@ window.panel-window { background: transparent; }
 .calendar-day.outside { color: alpha($POPUP_TEXT, 0.45); }
 .calendar-day.today { font-weight: bold; border-color: $NORMAL_BORDER; }
 .calendar-month { font-size: $FS_BODY; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.71); }
+.bar-button.caption label { font-size: $FS_CAPTION; }
+.bar-button.staged label { color: $WARN; }
+.bar-button.failed label { color: $URGENT; }
+.bar-button.running label { color: $ACCENT; }
+.panel-hero-icon { font-size: 24px; color: $POPUP_TEXT; }
+.panel-hero-icon.staged { color: $WARN; }
+.panel-hero-icon.failed { color: $URGENT; }
+.panel-hero-icon.running { color: $ACCENT; }
+.panel-hero-title { font-size: $FS_TITLE; font-weight: bold; }
+.panel-hero-subtitle { font-size: $FS_CAPTION; font-weight: bold; letter-spacing: 1.2px; color: alpha($POPUP_TEXT, 0.71); }
+.panel-section { font-size: $FS_CAPTION; font-weight: bold; letter-spacing: 1.2px; color: alpha($POPUP_TEXT, 0.66); }
+.panel-separator { min-height: 1px; background: alpha($POPUP_TEXT, 0.1); }
+.panel-text { font-size: $FS_SMALL; }
+.panel-text.dim { color: alpha($POPUP_TEXT, 0.8); }
+.panel-rail { color: $POPUP_TEXT; }
+.panel-row { border-radius: $R_CTRL; padding: 4px 6px; }
+.panel-row:hover { background: $HOVER_FILL; }
+.panel-row.selected { background: $SELECTED_FILL; }

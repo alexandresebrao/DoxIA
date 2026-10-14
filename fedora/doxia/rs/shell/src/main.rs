@@ -24,8 +24,10 @@ mod ipc;
 mod lock;
 mod mango;
 mod menu;
+mod mpris;
 mod notify;
 mod osd;
+mod pipewire;
 mod popup;
 mod polkit;
 mod quickshell;
@@ -146,7 +148,7 @@ fn main() -> glib::ExitCode {
 
     // The bar, while it is being built: only with DOXIA_BAR=1, next to
     // Quickshell's.
-    let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app));
+    let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app, &ipc));
     if let Some(b) = bar.clone() {
       ipc.add("doxia.bar", Box::new(move |method, _| b.ipc(method)));
     }
