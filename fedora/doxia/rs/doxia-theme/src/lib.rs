@@ -357,6 +357,8 @@ pub fn css(app_css: &str) -> String {
     ("$TIP_BORDER", tip_border),
     ("$FG", p.fg.css()),
     ("$BG", p.bg.css()),
+    // The apps' windows: the popups' glass, so mango's blur shows behind them.
+    ("$WIN_BG", section_rgb("popups", "background", p.bg).alpha(shell.num("popups", "background-alpha").unwrap_or(1.0))),
     ("$ACCENT", p.accent.css()),
     ("$URGENT", p.urgent.css()),
     ("$OK", p.ok.css()),

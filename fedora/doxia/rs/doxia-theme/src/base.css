@@ -2,7 +2,7 @@
    current theme (lib.rs); each app's stylesheet follows, then colors.css. */
 
 window.doxia {
-  background: $BG;
+  background: $WIN_BG;
   color: $FG;
   font-size: $FS_BODY;
 }
