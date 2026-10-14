@@ -288,8 +288,10 @@ impl Panel {
   fn place(&self) {
     let (sw, sh) = self.screen_size();
     let (bw, bh) = self.bar_extent();
-    let width = self.width.get().min(sw - 2 * self.gap).max(1);
-    self.frame.set_size_request(width, -1);
+    // At least the panel's width, more when its content asks for it.
+    self.frame.set_size_request(self.width.get().min(sw - 2 * self.gap).max(1), -1);
+    let (_, natural_w, _, _) = self.frame.measure(gtk::Orientation::Horizontal, -1);
+    let width = natural_w.min(sw - 2 * self.gap).max(1);
     let (_, natural, _, _) = self.frame.measure(gtk::Orientation::Vertical, width);
     let height = natural.min(self.available_height());
     self.max_height.set(height);

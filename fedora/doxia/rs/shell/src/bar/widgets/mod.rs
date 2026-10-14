@@ -7,6 +7,8 @@ mod doxia;
 mod media;
 mod system;
 mod usage;
+mod weather;
+mod weather_model;
 
 use super::config::entry_id;
 use super::Ctx;
@@ -21,6 +23,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "doxia.screenshare" => Some(doxia::screenshare(ctx)),
     "doxia.usage" => usage::build(ctx, entry),
     "doxia.media" => Some(media::build(ctx, entry)),
+    "omarchy.weather" => Some(weather::build(ctx, entry)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),
     "omarchy.system-update" => Some(system::system_update(ctx)),
     _ => None,

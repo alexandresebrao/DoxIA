@@ -273,3 +273,41 @@ window.panel-window { background: transparent; }
 .panel-row { border-radius: $R_CTRL; padding: 4px 6px; }
 .panel-row:hover { background: $HOVER_FILL; }
 .panel-row.selected { background: $SELECTED_FILL; }
+.weather-hero-icon { font-size: 64px; }
+.weather-temp { font-size: 56px; font-weight: bold; }
+.weather-unit { font-size: 24px; }
+.weather-place label { font-size: $FS_BODY; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.71); }
+.weather-place:hover label { color: $ACCENT; }
+.weather-clear { font-size: $FS_SMALL; color: alpha($POPUP_TEXT, 0.71); padding: 0 4px; border-radius: 4px; }
+.weather-clear:hover { background: $HOVER_FILL; }
+.weather-stat-name { font-size: $FS_SMALL; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.66); }
+.weather-stat { font-size: $FS_TITLE; }
+.weather-loading { font-size: $FS_SMALL; font-style: italic; color: alpha($POPUP_TEXT, 0.66); }
+.weather-caption { font-size: $FS_CAPTION; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.71); }
+.weather-caption.link:hover { color: $ACCENT; }
+.weather-readout { font-size: $FS_SMALL; }
+.weather-readout.dim { color: alpha($POPUP_TEXT, 0.71); }
+.weather-day { padding: 6px 12px; border-radius: $R_CTRL; }
+.weather-day:hover, .weather-day.picked { background: $HOVER_FILL; }
+.weather-day-icon { font-size: 24px; }
+.weather-day-temp { font-size: $FS_BODY; }
+.weather-day-temp.low { color: alpha($POPUP_TEXT, 0.66); }
+.weather-suggestion { font-size: $FS_BODY; }
+.weather-suggestion-region { font-size: $FS_SMALL; color: alpha($POPUP_TEXT, 0.66); }
+.bar-media-glyph { font-size: 10px; color: $BAR_TEXT; }
+.bar-media-glyph.dim { color: alpha($BAR_TEXT, 0.66); }
+.bar-media-title { color: $BAR_TEXT; font-size: $FS_BODY; }
+.media-art { border-radius: 4px; background: $NORMAL_FILL; border: 1px solid $NORMAL_BORDER; }
+.media-art-glyph { font-size: 56px; color: alpha($POPUP_TEXT, 0.64); }
+.media-title { font-size: $FS_HEADING; font-weight: bold; }
+.media-artist { font-size: $FS_BODY; color: alpha($POPUP_TEXT, 0.8); }
+.media-album, .media-time, .media-source { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.64); }
+.media-control { font-size: 18px; padding: 6px 10px; }
+.media-control.big { font-size: 25px; }
+.media-control.off { color: alpha($POPUP_TEXT, 0.64); }
+.media-control:hover { color: shade($POPUP_TEXT, 1.25); }
+.media-volume-icon { font-size: $FS_TITLE; }
+.media-volume-icon.dim { color: alpha($POPUP_TEXT, 0.64); }
+.media-volume-text { font-size: $FS_CAPTION; font-weight: bold; color: alpha($POPUP_TEXT, 0.64); }
+.media-other { font-size: $FS_SMALL; }
+.media-other.bold { font-weight: bold; }
