@@ -203,9 +203,10 @@ pub fn system_update(ctx: &Rc<Ctx>) -> gtk::Widget {
       let (status, run, last) = (st.status.as_ref(), st.run.as_ref(), st.last.as_ref());
       let ph = phase(status, run, last);
       current.set(ph);
-      b.widget.set_visible(ph != Phase::None);
       let glyph = if ph == Phase::Failed { "\u{f071}" } else { "\u{f021}" };
       b.set_text(glyph);
+      // After set_text, which shows any button with text.
+      b.widget.set_visible(ph != Phase::None);
       for c in ["staged", "failed", "running"] {
         b.widget.remove_css_class(c);
       }
