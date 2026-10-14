@@ -274,8 +274,12 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   let art = gtk::Picture::new();
   art.set_content_fit(gtk::ContentFit::Cover);
   art.set_can_shrink(true);
-  let art_size = space(320.0) - 0;
+  // A fixed square, centered, with or without art: the panel takes its
+  // content's natural width, and the art must not follow it.
+  let art_size = space(320.0);
   art_frame.set_size_request(art_size, art_size);
+  art_frame.set_halign(gtk::Align::Center);
+  art_frame.set_valign(gtk::Align::Start);
   let art_fallback = ui::label(MUSIC, "media-art-glyph");
   art_frame.set_child(Some(&art_fallback));
   art.set_margin_top(space(2.0));
@@ -291,6 +295,9 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   for l in [&title, &artist, &album] {
     l.set_xalign(0.0);
     l.set_ellipsize(pango::EllipsizeMode::End);
+    // A long title ellipsizes in the panel's width instead of widening it.
+    l.set_max_width_chars(1);
+    l.set_hexpand(true);
     info.append(l);
   }
   body.append(&info);
@@ -344,6 +351,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   source.set_hexpand(true);
   source.set_xalign(0.0);
   source.set_ellipsize(pango::EllipsizeMode::End);
+  source.set_max_width_chars(1);
   source_row.append(&source);
   let open_app = {
     let (m, p) = (media.clone(), Rc::downgrade(&panel));
@@ -478,6 +486,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
           let tt = p.title();
           let l = ui::label(&if tt.is_empty() { name.clone() } else { format!("{tt}  ·  {name}") }, "media-other");
           l.set_ellipsize(pango::EllipsizeMode::End);
+          l.set_max_width_chars(1);
           l.set_xalign(0.0);
           l.set_hexpand(true);
           r.append(&l);
