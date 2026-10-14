@@ -252,6 +252,12 @@ impl Notifications {
       deadline: None,
     };
     entry.image = self.image_from_hints(&hints, &entry);
+    // No icon of its own: the one of the app that sent it.
+    if entry.image.is_empty() && card::icon_widget(&entry.app_icon).is_none() {
+      if let Some(icon) = desktop_icon(&hint_str("desktop-entry"), &entry.app) {
+        entry.app_icon = icon;
+      }
+    }
 
     if self.dnd.get() && !model::bypasses_dnd(&entry.app, urgency) {
       // Never on screen, so history is the only trace it can leave.
@@ -598,4 +604,21 @@ fn session_unlocked() -> bool {
     .stderr(std::process::Stdio::null())
     .status()
     .is_ok_and(|s| s.code() == Some(1))
+}
+
+// The sender's icon from its .desktop file: the desktop-entry hint (what
+// Flatpak apps send through the portal, with no app name), else the app name
+// as a desktop id or as the app's display name. A path or a themed name.
+fn desktop_icon(desktop_entry: &str, app: &str) -> Option<String> {
+  let strip = |id: &str| id.trim_end_matches(".desktop").to_lowercase();
+  let (entry, app) = (strip(desktop_entry), app.to_lowercase());
+  let all = gio::AppInfo::all();
+  let id_is = |want: &str| all.iter().find(|a| !want.is_empty() && a.id().is_some_and(|id| strip(&id) == want));
+  let info = id_is(&entry).or_else(|| id_is(&app)).or_else(|| all.iter().find(|a| !app.is_empty() && a.name().to_lowercase() == app))?;
+  let icon = info.icon()?;
+  if let Some(file) = icon.downcast_ref::<gio::FileIcon>() {
+    return file.file().path().map(|p| p.to_string_lossy().into_owned());
+  }
+  let theme = gtk::IconTheme::for_display(&gdk::Display::default()?);
+  icon.downcast_ref::<gio::ThemedIcon>()?.names().into_iter().find(|n| theme.has_icon(n)).map(String::from)
 }

@@ -462,10 +462,10 @@ fn notify_result(last: Option<&Value>, path: &str) {
   if result == "ok" {
     let title = if m::text(last, "mode") == "flatpak" { "Apps Flatpak atualizados" } else { "DoxIA atualizado" };
     let text = if body.is_empty() { "Sem pendências".to_string() } else { body.join(" · ") };
-    crate::run::argv(&["omarchy-notification-send", "-g", "\u{f021}", title, &text]);
+    crate::run::argv(&["omarchy-notification-send", "-i", "system-software-update", "-g", "\u{f021}", title, &text]);
   } else {
     crate::run::argv(&[
-      "omarchy-notification-send", "-u", "critical", "-g", "\u{f071}", "A atualização não terminou", &m::failure_text(Some(last)), "--exec",
+      "omarchy-notification-send", "-u", "critical", "-i", "system-software-update", "-g", "\u{f071}", "A atualização não terminou", &m::failure_text(Some(last)), "--exec",
       "omarchy-launch-update",
     ]);
   }

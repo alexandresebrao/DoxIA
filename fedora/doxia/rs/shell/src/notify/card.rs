@@ -7,7 +7,7 @@ use super::markup;
 use super::model::{self, Entry, CRITICAL};
 use gtk::prelude::*;
 
-fn icon_widget(value: &str) -> Option<gtk::Image> {
+pub fn icon_widget(value: &str) -> Option<gtk::Image> {
   if value.is_empty() || value.starts_with("image://") {
     return None;
   }
