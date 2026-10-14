@@ -42,7 +42,7 @@ Deeper instructions for common areas live next to this file. Read the
 matching guide before starting:
 
 - [`mango.md`](mango.md) - keybindings, monitors, window rules, and other mango config
-- [`plugins.md`](plugins.md) - the Omarchy shell: bar layout, widgets, plugins, idle behavior
+- [`plugins.md`](plugins.md) - the DoxIA shell: bar layout, widgets, idle behavior
 - [`theming.md`](theming.md) - themes, backgrounds, and fonts
 - [`hooks.md`](hooks.md) - automation hooks that run on system events
 - [`capture.md`](capture.md) - screenshots, screen recordings, OCR text capture, and file sharing
@@ -101,10 +101,10 @@ Omarchy is built on:
 |-----------|---------|-----------------|
 | **Fedora** | Base OS | `/etc/`, `~/.config/` |
 | **mango** | Wayland compositor/WM | `~/.config/mango/` |
-| **Omarchy shell** | Status bar + notifications (Quickshell) | `~/.config/omarchy/shell.json` |
-| **Launcher/menus** | Quickshell menu | `~/.config/omarchy/extensions/omarchy-menu.jsonc` |
+| **DoxIA shell** | Status bar + notifications (doxia-shell) | `~/.config/omarchy/shell.json` |
+| **Launcher/menus** | doxia-shell menu | `~/.config/omarchy/extensions/omarchy-menu.jsonc` |
 | **Alacritty/Foot/Kitty/Ghostty** | Terminals | `~/.config/<terminal>/` |
-| **Omarchy OSD** | On-screen display | Quickshell plugin |
+| **Omarchy OSD** | On-screen display | doxia-shell |
 
 ## Command Discovery
 
@@ -140,7 +140,6 @@ Run `omarchy --help` for the full list. The most common groups:
 | `omarchy toggle` | Toggle feature on/off | `omarchy toggle nightlight` |
 | `omarchy theme` | Theme management | `omarchy theme set <name>` |
 | `omarchy bar` | Bar layout and widgets | `omarchy bar move omarchy.clock --section right` |
-| `omarchy plugin` | Manage/clone shell plugins | `omarchy plugin clone omarchy.clock` |
 | `omarchy hook` | Install automation hooks | `omarchy hook install theme-set <script>` |
 | `omarchy install` | Install optional software / packages | `omarchy install docker dbs` |
 | `omarchy launch` | Launch apps | `omarchy launch browser` |
@@ -153,7 +152,7 @@ Run `omarchy --help` for the full list. The most common groups:
 ## Configuration Locations
 
 mango config lives in `~/.config/mango/` — see [`mango.md`](mango.md).
-The Omarchy shell (bar, notifications, plugins, idle) is configured in
+The DoxIA shell (bar, notifications, idle) is configured in
 `~/.config/omarchy/shell.json` — see [`plugins.md`](plugins.md).
 
 ### Terminals
@@ -194,7 +193,7 @@ cp ~/.config/mango/bindings.conf ~/.config/mango/bindings.conf.bak.$(date +%s)
 
 # 4. Apply changes
 # - mango: MUST validate with `mango -p`, then apply with `omarchy restart mango`
-# - Omarchy shell: shell.json and user plugin code under ~/.config/omarchy/plugins/ hot-reload on save
+# - DoxIA shell: shell.json reloads on save
 # - Menus/launcher: ~/.config/omarchy/extensions/omarchy-menu.jsonc hot-reloads on save
 # - Terminals: apply with `omarchy restart terminal` (reloads running terminals; foot picks changes up in new windows)
 ```
@@ -254,7 +253,7 @@ When user requests system changes:
 3. **Is it a theme customization?** Follow [`theming.md`](theming.md); create a NEW custom theme directory
 4. **Is it automation?** Follow [`hooks.md`](hooks.md); use `omarchy hook install` and the hook `.d` directories
 5. **Is it a package install?** Use `omarchy pkg add <pkgs...>` (or `omarchy pkg aur add <pkgs...>` for AUR-only packages)
-6. **Is it built-in shell/plugin code?** Follow [`plugins.md`](plugins.md); clone it with `omarchy plugin clone`, never edit the packaged copy
+6. **Is it the bar or idle?** Follow [`plugins.md`](plugins.md); use `omarchy bar` or edit shell.json, never the packaged code
 7. **Unsure if command exists?** Run `omarchy commands` (or `omarchy <group> --help` for one group)
 
 ### Reminder Requests

@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-# omarchy-git-url-check decides which URLs omarchy-theme-install and
-# omarchy-plugin-add are willing to hand to `git clone`. git resolves a remote
+# omarchy-git-url-check decides which URLs omarchy-theme-install is willing
+# to hand to `git clone`. git resolves a remote
 # helper -- a program it runs at clone time -- from exactly two URL shapes,
 # `<helper>::<address>` and `<scheme>://<address>`, so those are the two shapes
 # asserted here, alongside every legitimate form a user is likely to paste.

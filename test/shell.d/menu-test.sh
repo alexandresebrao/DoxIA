@@ -253,74 +253,9 @@ assertEqual(
   'omarchy-bar transparent toggle',
   'menu exposes Menu Bar transparency as a toggle'
 )
-assertDeepEqual(
-  defaultItems.filter(item => item.parent === 'setup.plugin').map(item => item.label),
-  ['Ativar plugin', 'Desativar plugin', 'Adicionar plugin', 'Clonar plugin', 'Remover plugin'],
-  'menu manages plugins from Setup > Plugins'
-)
-assert(
-  ['enable', 'disable', 'clone', 'remove'].every(
-    verb => defaultById[`setup.plugin.${verb}`].action === `omarchy-menu-plugin ${verb}`
-  ),
-  'menu picks a plugin the way it already picks a theme or a timezone'
-)
-assert(
-  !defaultById['setup.plugin.enable'].when && !defaultById['setup.plugin.disable'].when,
-  'menu always offers Enable and Disable, which cover the built-in plugins too'
-)
-assert(
-  defaultById['setup.plugin.remove'].when.includes('.config/omarchy/plugins'),
-  'menu hides Remove until a plugin the user installed exists to delete'
-)
-assert(
-  defaultById['setup.plugin.add'].action.includes('omarchy-plugin-add'),
-  'menu adds a plugin through the CLI, where the trust warning and clone output are visible'
-)
-
-const pluginPicker = fs.readFileSync(path.join(root, 'bin/omarchy-menu-plugin'), 'utf8')
-assert(
-  /enable\).*\(\.enabled \| not\)/.test(pluginPicker) && /disable\).*\.canDisable and \.enabled/.test(pluginPicker),
-  'plugin picker offers what each verb can act on'
-)
-assert(
-  /remove\).*\(\.firstParty \| not\)/.test(pluginPicker)
-    && /clone\).*\.firstParty/.test(pluginPicker)
-    && !/kinds|bar-widget|A_BAR_OPTION|NOT_A_BAR_OPTION|BAR_ICON/.test(pluginPicker),
-  'plugin picker leaves plugin-kind decisions to its data and the plugin command'
-)
-
-const pluginAdd = fs.readFileSync(path.join(root, 'bin/omarchy-plugin-add'), 'utf8')
-const pluginEnable = fs.readFileSync(path.join(root, 'bin/omarchy-plugin-enable'), 'utf8')
-assert(
-  /Now using \$id as the bar/.test(pluginEnable)
-    && /omarchy-plugin-enable "\$id" "\$\{ENABLE_PLACEMENT\[@\]\}"/.test(pluginAdd),
-  'plugin enable reports a bar as replacing the one in use, whether enabled or freshly added'
-)
-assert(
-  /\.barWidget\.defaultSection \/\/ "center"/.test(pluginAdd)
-    && /gum choose[\s\S]*?--selected "\$default_section"/.test(pluginAdd),
-  'interactive plugin add selects the manifest placement or center fallback by default'
-)
-assert(
-  /"omarchy-plugin-\$1" "\$id"/.test(pluginPicker),
-  'plugin picker delegates enable and disable without interpreting plugin kinds'
-)
-// Icons ride along as "<glyph>\tlabel\tsubtext"; the menu shows the glyph,
-// renders the subtext under the label, and hands back "label\tsubtext" so the
-// picker can act on the id without resolving a display name. What the picker
-// then does with the row it gets back is checked in menu-plugin-test.sh.
-assert(
-  /\.name \+ \\"\\\\t\\" \+ \.id/.test(pluginPicker)
-    && /id=\$\(cut -f2 <<<"\$selection"\)/.test(pluginPicker),
-  'plugin picker shows the id as row subtext and acts on the id the selection hands back'
-)
 assert(
   /var icon = parts\.length > 1 \? parts\.shift\(\) : ""\s*\n\s*var label = parts\.shift\(\) \|\| ""\s*\n\s*var detail = parts\.join\("\\t"\)/.test(menuQml),
   'menu select mode reads a leading icon and a trailing subtext off an option'
-)
-assert(
-  /omarchy-launch-floating-terminal-with-presentation "omarchy-plugin-remove/.test(pluginPicker),
-  'plugin picker removes where the confirmation and backup path are visible'
 )
 
 // A font installed since the shell started should show up without a restart.
