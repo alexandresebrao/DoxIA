@@ -52,7 +52,7 @@ fn main() -> glib::ExitCode {
   // What this build takes over from Quickshell, for fedora/doxia/apply-bar
   // (builds before 0.7.0 reject the option).
   if args.get(1).map(String::as_str) == Some("--features") {
-    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background");
+    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background bar");
     return glib::ExitCode::SUCCESS;
   }
   if args.get(1).map(String::as_str) == Some("--pam") {
@@ -116,11 +116,12 @@ fn main() -> glib::ExitCode {
     let reminders = reminders::Reminders::new(app);
     let i = images.clone();
     ipc.add("image-selector", Box::new(move |method, args| i.selector_ipc(method, args)));
-    // The network panel's QR code and speed tests, with the bar.
-    let dev_bar = std::env::var("DOXIA_BAR").as_deref() == Ok("1");
-    let wifiqr = dev_bar.then(|| overlays::WifiQr::new(app));
-    let speedtest = dev_bar.then(|| overlays::SpeedTest::new(app, false));
-    let disk_speedtest = dev_bar.then(|| overlays::SpeedTest::new(app, true));
+    // The bar, unless DOXIA_BAR=0 leaves it to Quickshell; with it, the
+    // network panel's QR code and speed tests.
+    let with_bar = std::env::var("DOXIA_BAR").as_deref() != Ok("0");
+    let wifiqr = with_bar.then(|| overlays::WifiQr::new(app));
+    let speedtest = with_bar.then(|| overlays::SpeedTest::new(app, false));
+    let disk_speedtest = with_bar.then(|| overlays::SpeedTest::new(app, true));
 
     // The bar, made further down: its panels answer for their widgets' ids.
     let bar_slot: Rc<std::cell::RefCell<Option<Rc<bar::Bar>>>> = Rc::default();
@@ -179,9 +180,12 @@ fn main() -> glib::ExitCode {
       ipc.add("idle", Box::new(move |method, _| idle.ipc(method)));
     }
 
-    // The bar, while it is being built: only with DOXIA_BAR=1, next to
-    // Quickshell's.
-    let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app, &ipc));
+    // The bar, in place of Quickshell's: shell.json's bar.id picks the empty
+    // doxia.bar plugin there (fedora/doxia/plugins/doxia.bar).
+    let bar = with_bar.then(|| bar::Bar::new(app, &ipc));
+    if bar.is_some() {
+      crate::quickshell::take_bar();
+    }
     *bar_slot.borrow_mut() = bar.clone();
     if bar.is_some() {
       let media = mpris::get();

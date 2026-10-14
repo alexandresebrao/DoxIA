@@ -135,6 +135,7 @@ mv "$shell_json.tmp" "$shell_json"
 # lists it (0.7.0 on); before that, the lock's PAM child (--pam) answers 2
 # for an empty service without touching PAM, and older builds reject it.
 taken=()
+features=""
 if command -v doxia-shell >/dev/null; then
   taken=(omarchy.notifications omarchy.polkit)
   features=$(doxia-shell --features 2>/dev/null) || features=""
@@ -153,4 +154,14 @@ jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboa
     | ((.disabledPlugins // []) | map(select(. as $id | $all | index($id) | not)) + $ARGS.positional) as $off
     | if $off == [] then del(.disabledPlugins) else .disabledPlugins = $off end' \
   "$shell_json" --args "${taken[@]}" > "$shell_json.tmp"
+mv "$shell_json.tmp" "$shell_json"
+
+# From 0.8.0 doxia-shell draws the bar. Quickshell always loads one, so
+# bar.id picks the doxia.bar plugin, which draws nothing, in its place; with
+# an older doxia-shell (or none) Quickshell's own comes back.
+if [[ " $features " == *" bar "* ]]; then
+  jq 'if (.bar | type) == "object" then .bar.id = "doxia.bar" else . end' "$shell_json" > "$shell_json.tmp"
+else
+  jq 'if .bar.id? == "doxia.bar" then del(.bar.id) else . end' "$shell_json" > "$shell_json.tmp"
+fi
 mv "$shell_json.tmp" "$shell_json"

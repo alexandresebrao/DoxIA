@@ -12,17 +12,41 @@ use std::path::PathBuf;
 
 // True when shell.json changed (the service was on until now).
 pub fn disable(id: &str) -> bool {
+  edit(|obj| {
+    let list = obj.entry("disabledPlugins").or_insert_with(|| Value::Array(vec![]));
+    let Some(list) = list.as_array_mut() else { return false };
+    if list.iter().any(|v| v.as_str() == Some(id)) {
+      return false;
+    }
+    list.push(Value::String(id.into()));
+    true
+  })
+}
+
+// Quickshell always loads a bar: bar.id picks the doxia.bar plugin, which
+// draws nothing, in place of its own (back to it while the plugin is not
+// installed). True when shell.json changed.
+pub fn take_bar() -> bool {
+  edit(|obj| {
+    let Some(bar) = obj.get_mut("bar").and_then(Value::as_object_mut) else { return false };
+    if bar.get("id").and_then(Value::as_str) == Some("doxia.bar") {
+      return false;
+    }
+    bar.insert("id".into(), Value::String("doxia.bar".into()));
+    true
+  })
+}
+
+// Changes shell.json when `change` says it did.
+fn edit(change: impl FnOnce(&mut serde_json::Map<String, Value>) -> bool) -> bool {
   let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
   let path = home.join(".config/omarchy/shell.json");
   let Ok(text) = std::fs::read_to_string(&path) else { return false };
   let Ok(mut config) = serde_json::from_str::<Value>(&text) else { return false };
   let Some(obj) = config.as_object_mut() else { return false };
-  let list = obj.entry("disabledPlugins").or_insert_with(|| Value::Array(vec![]));
-  let Some(list) = list.as_array_mut() else { return false };
-  if list.iter().any(|v| v.as_str() == Some(id)) {
+  if !change(obj) {
     return false;
   }
-  list.push(Value::String(id.into()));
   let Ok(out) = serde_json::to_string_pretty(&config) else { return false };
   let tmp = path.with_extension("json.tmp");
   std::fs::write(&tmp, out + "\n").is_ok() && std::fs::rename(&tmp, &path).is_ok()
