@@ -15,6 +15,7 @@ mod apps;
 mod background;
 mod bar;
 mod battery;
+mod bluez;
 mod card;
 mod clipboard;
 mod emojis;
