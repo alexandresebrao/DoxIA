@@ -335,6 +335,9 @@ impl Panel {
     let (_, natural, _, _) = self.frame.measure(gtk::Orientation::Vertical, width);
     let height = natural.min(self.available_height());
     self.max_height.set(height);
+    // Fixed gives its children their minimum size, which for a scrolled
+    // body is next to nothing: ask for the measured one.
+    self.frame.set_size_request(width, height);
     let (ax, ay, aw, ah) = self
       .anchor
       .upgrade()
