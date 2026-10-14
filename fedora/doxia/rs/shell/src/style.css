@@ -311,3 +311,12 @@ window.panel-window { background: transparent; }
 .media-volume-text { font-size: $FS_CAPTION; font-weight: bold; color: alpha($POPUP_TEXT, 0.64); }
 .media-other { font-size: $FS_SMALL; }
 .media-other.bold { font-weight: bold; }
+.tray-item picture.symbolic { filter: brightness(0) invert(1); }
+.tray-menu-row { padding: 0; min-height: 26px; }
+.tray-menu-mark { min-width: 22px; font-size: $FS_SMALL; }
+.tray-menu-text { font-size: $FS_SMALL; margin-right: 8px; }
+.tray-menu-sub { font-size: $FS_SMALL; margin-right: 10px; }
+.tray-menu-rule { opacity: 0.45; }
+.tray-manage-title { font-size: $FS_BODY; font-weight: bold; }
+.tray-manage-empty { font-size: $FS_SMALL; font-style: italic; color: alpha($POPUP_TEXT, 0.66); }
+.tray-manage-name { font-size: $FS_SMALL; }

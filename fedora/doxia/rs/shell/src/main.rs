@@ -33,6 +33,7 @@ mod polkit;
 mod quickshell;
 mod reminders;
 mod run;
+mod sni;
 mod upower;
 mod watch;
 
