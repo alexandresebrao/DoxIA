@@ -209,3 +209,49 @@ window.doxia .emoji-cell { font-family: "Noto Color Emoji", "DoxIA Shell"; font-
 .clipboard-row.selected .clipboard-row-text { color: $MENU_SEL_TEXT; }
 .clipboard-preview { border-left: 1px solid alpha($MENU_TEXT, 0.28); }
 .clipboard-preview-text { font-size: $FS_TITLE; color: $MENU_TEXT; }
+
+/* The bar (bar/): its widgets in [bar] text and "active" colors. */
+window.bar-window { background: transparent; }
+.bar-button label { color: $BAR_TEXT; font-size: $FS_BODY; }
+.bar-button.bar-icon label { font-size: $BAR_ICON_FONT; }
+.bar-button.bar-status label { font-size: $FS_CAPTION; }
+.bar-button.active label { color: $BAR_ACTIVE; }
+.bar-button.dimmed { opacity: 0.45; }
+.bar-button.bar-screenshare label { color: #e5252a; }
+.bar-emblem { opacity: 0.9; }
+.bar-emblem:hover { opacity: 1; }
+.bar-emblem-glyph { font-family: "omarchy"; color: $BAR_TEXT; }
+.bar-workspace { font-size: $BAR_ICON_FONT; color: alpha($BAR_TEXT, 0.55); border-radius: 999px; }
+.bar-workspace.number { font-size: $BAR_ICON_FONT_NUMBER; }
+.bar-workspace.occupied { color: $BAR_TEXT; font-weight: 500; }
+.bar-workspace.focused { color: $ACCENT; font-weight: 500; }
+.bar-workspace:hover:not(.focused) { background: alpha($BAR_TEXT, 0.1); }
+tooltip.background {
+  background: $TIP_BG;
+  border: 1px solid $TIP_BORDER;
+  border-radius: $R_CTRL;
+  color: $TIP_TEXT;
+}
+tooltip.background label { padding: 3px 4px; font-size: $FS_BODY; }
+
+/* The bar's panels (bar/panel.rs): the card is drawn, the rest is text. */
+window.panel-window { background: transparent; }
+.panel-content, .panel-tabs { color: $POPUP_TEXT; }
+.panel-action { font-size: $FS_TITLE; padding: 2px 8px; border-radius: $R_CTRL; color: $POPUP_TEXT; }
+.panel-action:hover { background: $HOVER_FILL; color: $ACCENT; }
+.calendar-hero-icon { font-size: 48px; }
+.calendar-hero-date { font-size: 52px; font-weight: bold; }
+.calendar-hero.link:hover label { color: $ACCENT; }
+.calendar-caption { font-size: $FS_SMALL; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.66); }
+.calendar-small { font-size: $FS_SMALL; }
+.calendar-track { color: $POPUP_TEXT; }
+.calendar-week-head { font-size: $FS_CAPTION; font-weight: bold; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.5); border-radius: $R_CTRL; }
+.calendar-week-head:hover { background: $HOVER_FILL; color: $ACCENT; }
+.calendar-weekday { font-size: $FS_CAPTION; font-weight: bold; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.66); }
+.calendar-week { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.5); }
+.calendar-rule { background: alpha($POPUP_TEXT, 0.1); }
+.calendar-day { font-size: $FS_BODY; border-radius: $R_CTRL; border: 1px solid transparent; }
+.calendar-day.weekend { color: alpha($POPUP_TEXT, 0.69); }
+.calendar-day.outside { color: alpha($POPUP_TEXT, 0.45); }
+.calendar-day.today { font-weight: bold; border-color: $NORMAL_BORDER; }
+.calendar-month { font-size: $FS_BODY; letter-spacing: 1px; color: alpha($POPUP_TEXT, 0.71); }

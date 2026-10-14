@@ -13,6 +13,7 @@
 
 mod apps;
 mod background;
+mod bar;
 mod battery;
 mod card;
 mod clipboard;
@@ -21,6 +22,7 @@ mod images;
 mod iniciar;
 mod ipc;
 mod lock;
+mod mango;
 mod menu;
 mod notify;
 mod osd;
@@ -29,6 +31,8 @@ mod polkit;
 mod quickshell;
 mod reminders;
 mod run;
+mod upower;
+mod watch;
 
 use gtk::prelude::*;
 use gtk::{gio, glib};
@@ -140,11 +144,21 @@ fn main() -> glib::ExitCode {
       notifications.register(&conn);
     }
 
+    // The bar, while it is being built: only with DOXIA_BAR=1, next to
+    // Quickshell's.
+    let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app));
+    if let Some(b) = bar.clone() {
+      ipc.add("doxia.bar", Box::new(move |method, _| b.ipc(method)));
+    }
+
     // Theme switches: colors through the CSS, the bar's size and edge
     // through the popups' margins.
     glib::timeout_add_seconds_local(2, move || {
       if styler.reload(false) {
         notifications.place();
+        if let Some(b) = bar.as_ref() {
+          b.restyle();
+        }
       }
       glib::ControlFlow::Continue
     });

@@ -9,7 +9,7 @@ use gtk::prelude::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-fn rounded(cr: &cairo::Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
+pub fn rounded(cr: &cairo::Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
   let r = r.min(w / 2.0).min(h / 2.0).max(0.0);
   let pi = std::f64::consts::PI;
   cr.new_sub_path();

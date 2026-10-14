@@ -318,7 +318,22 @@ pub fn css(app_css: &str) -> String {
     0,
   );
 
+  // The bar ([bar], [tooltip]); its sizes come from bar_style().
+  let bar_text = shell.get("bar", "text").and_then(css_color).unwrap_or_else(|| p.fg.css());
+  let bar_active = shell.get("bar", "active").and_then(css_color).unwrap_or_else(|| p.urgent.css());
+  let tip_bg = section_rgb("tooltip", "background", p.bg).alpha(shell.num("tooltip", "background-alpha").unwrap_or(1.0));
+  let tip_text = shell.get("tooltip", "text").and_then(css_color).unwrap_or_else(|| p.fg.css());
+  let tip_border = section_rgb("tooltip", "border", p.fg).alpha(shell.num("tooltip", "border-alpha").unwrap_or(1.0));
+  let bar = bar_style();
+
   let vars = [
+    ("$BAR_TEXT", bar_text),
+    ("$BAR_ACTIVE", bar_active),
+    ("$BAR_ICON_FONT_NUMBER", format!("{}px", (bar.icon_font as f64 * 1.1).round())),
+    ("$BAR_ICON_FONT", format!("{}px", bar.icon_font)),
+    ("$TIP_BG", tip_bg),
+    ("$TIP_TEXT", tip_text),
+    ("$TIP_BORDER", tip_border),
     ("$FG", p.fg.css()),
     ("$BG", p.bg.css()),
     ("$ACCENT", p.accent.css()),
@@ -492,17 +507,147 @@ pub struct Card {
 // the border (usually hyprland.active-border-foreground) at border-alpha,
 // 2px wide, mango's corner rounding.
 pub fn menu_card() -> Card {
+  surface_card("menu")
+}
+
+// A shell.toml section's card: [menu], [popups] (the bar's panels) or
+// [tooltip]. Each falls back as Color.qml and the QML that draws it do:
+// the menu's border to the foreground, 2px; the popups' to the accent, 2px
+// at the spacing scale; the tooltip's to the foreground, 1px.
+pub fn surface_card(section: &str) -> Card {
   let dir = theme_dir();
   let colors = dir.join("colors.toml");
   let shell = Toml::read(&dir.join("shell.toml"));
   let fg = color_value(&colors, "foreground").unwrap_or(Rgb(0.79, 0.8, 0.8));
   let bg = color_value(&colors, "background").unwrap_or(Rgb(0.063, 0.075, 0.082));
-  let Rgb(r, g, b) = shell.get("menu", "background").and_then(Rgb::hex).unwrap_or(bg);
-  let fill = [r, g, b, shell.num("menu", "background-alpha").unwrap_or(1.0)];
-  let border_alpha = shell.num("menu", "border-alpha").unwrap_or(1.0);
-  let border = paint(&shell, shell.get("menu", "border").unwrap_or(""), [fg.0, fg.1, fg.2, 1.0], border_alpha, 0);
-  let border_width = shell.num("menu", "border-width").unwrap_or(2.0).max(0.0);
+  let accent = color_value(&colors, "accent").unwrap_or(fg);
+  let Rgb(r, g, b) = shell.get(section, "background").and_then(Rgb::hex).unwrap_or(bg);
+  let fill = [r, g, b, shell.num(section, "background-alpha").unwrap_or(1.0)];
+  let (border_default, width_default) = match section {
+    "popups" => (accent, (2.0 * spacing_scale(&shell)).round().max(1.0)),
+    "tooltip" => (fg, 1.0),
+    _ => (fg, 2.0),
+  };
+  let border_alpha = shell.num(section, "border-alpha").unwrap_or(1.0);
+  let Rgb(br, bg_, bb) = border_default;
+  let border = paint(&shell, shell.get(section, "border").unwrap_or(""), [br, bg_, bb, 1.0], border_alpha, 0);
+  let border_width = shell.num(section, "border-width").unwrap_or(width_default).max(0.0);
   Card { fill, border, border_width, radius: rounding() as f64 }
+}
+
+// Style.qml's effectiveSpacingScale: [spacing] scale, times the font scale
+// unless scale-with-font is false.
+fn spacing_scale(shell: &Toml) -> f64 {
+  let base = shell.num("font", "base-size").filter(|n| *n >= 1.0).unwrap_or(12.0);
+  let with_font = shell.get("spacing", "scale-with-font") != Some("false");
+  shell.num("spacing", "scale").unwrap_or(1.0) * if with_font { base / 12.0 } else { 1.0 }
+}
+
+// The bar's look (Style.qml's bar sizes, Color.qml's bar colors): the cross
+// size for a horizontal and a vertical bar, the icon slot, the canvas and
+// font of its glyphs and the status slot, each scaled with the font unless
+// [bar] scale-with-font is false; its fill, text and "active" colors; the
+// corner rounding and the spacing scale.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BarStyle {
+  pub size_horizontal: i32,
+  pub size_vertical: i32,
+  pub icon_slot: i32,
+  pub icon_canvas: i32,
+  pub icon_font: i32,
+  pub status_slot: i32,
+  pub background: [f64; 4],
+  pub text: [f64; 4],
+  pub active: [f64; 4],
+  pub accent: [f64; 4],
+  pub radius: f64,
+  pub spacing: f64,
+  pub gaps_out: i32,
+  pub font_body: f64,
+  pub font_caption: f64,
+}
+
+impl BarStyle {
+  // Style.space: a spacing length at the scale, at least 1px.
+  pub fn space(&self, px: f64) -> i32 {
+    if px <= 0.0 { 0 } else { ((px * self.spacing).round() as i32).max(1) }
+  }
+}
+
+// The theme's palette (colors.toml) as RGBA, for what cairo draws.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Colors {
+  pub foreground: [f64; 4],
+  pub background: [f64; 4],
+  pub accent: [f64; 4],
+  pub red: [f64; 4],
+  pub green: [f64; 4],
+  pub yellow: [f64; 4],
+  pub blue: [f64; 4],
+}
+
+pub fn palette() -> Colors {
+  let colors = theme_dir().join("colors.toml");
+  let get = |key: &str, fallback: &str| {
+    let Rgb(r, g, b) = color_value(&colors, key).or_else(|| Rgb::hex(fallback)).unwrap();
+    [r, g, b, 1.0]
+  };
+  let fg = get("foreground", "#c9cccc");
+  Colors {
+    foreground: fg,
+    background: get("background", "#101315"),
+    accent: color_value(&colors, "accent").map(|Rgb(r, g, b)| [r, g, b, 1.0]).unwrap_or_else(|| get("red", "#ee0000")),
+    red: get("red", "#e5484d"),
+    green: get("green", "#5ba352"),
+    yellow: get("yellow", "#f2c230"),
+    blue: get("blue", "#1f6bff"),
+  }
+}
+
+pub fn bar_style() -> BarStyle {
+  let dir = theme_dir();
+  let colors = dir.join("colors.toml");
+  let shell = Toml::read(&dir.join("shell.toml"));
+  let fg = color_value(&colors, "foreground").unwrap_or(Rgb(0.79, 0.8, 0.8));
+  let bg = color_value(&colors, "background").unwrap_or(Rgb(0.063, 0.075, 0.082));
+  let accent = color_value(&colors, "accent").unwrap_or(fg);
+  let urgent = color_value(&colors, "red").or_else(|| color_value(&colors, "color1")).unwrap_or(Rgb(0.65, 0.33, 0.33));
+  let base = shell.num("font", "base-size").filter(|n| *n >= 1.0).unwrap_or(12.0);
+  let font_scale = (base / 12.0).max(1.0 / 12.0);
+  let scale = if shell.get("bar", "scale-with-font") == Some("false") { 1.0 } else { font_scale };
+  let token = |key: &str, fallback: f64| {
+    let n = shell.num("bar", key).filter(|n| *n > 0.0).unwrap_or(fallback);
+    ((n * scale).round() as i32).max(1)
+  };
+  let rgba = |c: Rgb, a: f64| [c.0, c.1, c.2, a];
+  let pick = |key: &str, fallback: Rgb| shell.get("bar", key).and_then(rgba_of).unwrap_or(rgba(fallback, 1.0));
+  let Rgb(r, g, b) = shell.get("bar", "background").and_then(Rgb::hex).unwrap_or(bg);
+  let font = |key: &str, mult: f64| shell.num("font", key).filter(|n| *n > 0.0).unwrap_or((base * mult).round().max(1.0));
+  let gaps_out = Command::new("omarchy-mango-option")
+    .arg("gap_outer_horizontal")
+    .output()
+    .ok()
+    .and_then(|o| String::from_utf8(o.stdout).ok())
+    .and_then(|s| s.trim().parse::<f64>().ok())
+    .map(|g| (g / 2.0).round() as i32)
+    .unwrap_or(5);
+  BarStyle {
+    size_horizontal: token("size-horizontal", 26.0),
+    size_vertical: token("size-vertical", 28.0),
+    icon_slot: token("icon-slot", 27.0),
+    icon_canvas: token("icon-canvas", 16.0),
+    icon_font: token("icon-font", 13.0),
+    status_slot: token("status-slot", 21.0),
+    background: [r, g, b, shell.num("bar", "background-alpha").unwrap_or(1.0)],
+    text: pick("text", fg),
+    active: pick("active", urgent),
+    accent: rgba(accent, 1.0),
+    radius: rounding() as f64,
+    spacing: spacing_scale(&shell),
+    gaps_out,
+    font_body: font("body", 1.0),
+    font_caption: font("caption", 0.833),
+  }
 }
 
 // The image picker's colors (Color.qml's imagePicker): the scrim, the
