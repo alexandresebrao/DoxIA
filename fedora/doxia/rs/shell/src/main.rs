@@ -185,12 +185,8 @@ fn main() -> glib::ExitCode {
       ipc.add("idle", Box::new(move |method, _| idle.ipc(method)));
     }
 
-    // The bar, in place of Quickshell's: shell.json's bar.id picks the empty
-    // doxia.bar plugin there (fedora/doxia/plugins/doxia.bar).
+    // The bar.
     let bar = with_bar.then(|| bar::Bar::new(app, &ipc));
-    if bar.is_some() {
-      crate::quickshell::take_bar();
-    }
     *bar_slot.borrow_mut() = bar.clone();
     if bar.is_some() {
       let media = mpris::get();

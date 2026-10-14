@@ -351,17 +351,11 @@ impl Background {
     });
   }
 
-  // The theme's colors reach Quickshell (the bar, until it moves here) and
-  // doxia-shell's own CSS together.
+  // The theme's colors reach doxia-shell's CSS as the reveal starts.
   fn apply_theme(&self) {
-    let Some((colors, shell)) = self.st.borrow_mut().theme.take() else { return };
-    let _ = std::process::Command::new("omarchy-shell")
-      .args(["shell", "applyTheme", &colors, &shell])
-      .env("DOXIA_SHELL", "0")
-      .stdout(std::process::Stdio::null())
-      .stderr(std::process::Stdio::null())
-      .spawn()
-      .map(|mut c| std::thread::spawn(move || c.wait()));
+    if self.st.borrow_mut().theme.take().is_none() {
+      return;
+    }
     (self.themed)();
   }
 }

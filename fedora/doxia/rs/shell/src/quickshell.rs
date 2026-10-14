@@ -23,20 +23,6 @@ pub fn disable(id: &str) -> bool {
   })
 }
 
-// Quickshell always loads a bar: bar.id picks the doxia.bar plugin, which
-// draws nothing, in place of its own (back to it while the plugin is not
-// installed). True when shell.json changed.
-pub fn take_bar() -> bool {
-  edit(|obj| {
-    let Some(bar) = obj.get_mut("bar").and_then(Value::as_object_mut) else { return false };
-    if bar.get("id").and_then(Value::as_str) == Some("doxia.bar") {
-      return false;
-    }
-    bar.insert("id".into(), Value::String("doxia.bar".into()));
-    true
-  })
-}
-
 // Changes shell.json when `change` says it did.
 fn edit(change: impl FnOnce(&mut serde_json::Map<String, Value>) -> bool) -> bool {
   let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
