@@ -373,3 +373,6 @@ button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }
 .agents-model { border-radius: 4px; background: alpha($POPUP_TEXT, 0.05); color: $POPUP_TEXT; }
 .agents-model-name { font-size: $FS_SMALL; }
 .agents-model-value { font-size: $FS_SMALL; font-weight: bold; color: alpha($POPUP_TEXT, 0.64); }
+.bar-button.silenced label { color: alpha($BAR_TEXT, 0.6); }
+.bar-omarchy label { font-family: "omarchy"; }
+.bar-omarchy-workspace { color: $BAR_TEXT; font-size: $FS_BODY; }

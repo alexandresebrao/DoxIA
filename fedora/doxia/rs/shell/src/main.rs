@@ -163,7 +163,7 @@ fn main() -> glib::ExitCode {
     // Quickshell's.
     let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app, &ipc));
     if bar.is_some() {
-      let night = nightlight::Nightlight::new();
+      let night = nightlight::get();
       ipc.add("nightlight", Box::new(move |method, _| night.ipc(method)));
     }
     if let Some(b) = bar.clone() {

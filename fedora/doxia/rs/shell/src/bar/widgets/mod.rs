@@ -9,6 +9,7 @@ pub mod clock;
 mod doxia;
 mod fortivpn;
 mod group;
+mod indicators;
 mod media;
 mod monitor;
 mod network;
@@ -40,6 +41,9 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "doxia.services" => Some(services::build(ctx)),
     "doxia.fortivpn" => Some(fortivpn::build(ctx, entry)),
     "omarchy.agents" => Some(agents::build(ctx, entry)),
+    "omarchy.indicators" => Some(indicators::build(ctx, entry)),
+    "omarchy.menu" => Some(system::menu_button(ctx)),
+    "omarchy.workspaces" => Some(system::omarchy_workspaces(ctx)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),
     "omarchy.system-update" => Some(system::system_update(ctx)),
     id @ ("omarchy.audio" | "omarchy.power" | "omarchy.monitor" | "omarchy.network" | "omarchy.bluetooth") => member(ctx, id, entry).map(Member::standalone),

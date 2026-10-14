@@ -470,3 +470,80 @@ mod tests {
     assert_eq!(phase(None, None, Some(&json!({"seen": false, "result": "failed"}))), Phase::Failed);
   }
 }
+
+// omarchy.menu (shell/plugins/menu/BarWidget.qml): the Omarchy glyph; a
+// click opens the menu, a right click a terminal.
+pub fn menu_button(ctx: &Rc<Ctx>) -> gtk::Widget {
+  let button = Button::new(ctx, Kind::Text, "\u{e900}");
+  button.widget.add_css_class("bar-omarchy");
+  let pad = (7.5 * ctx.style.spacing).round() as i32;
+  button.label.set_margin_start(pad);
+  button.label.set_margin_end(pad);
+  button.on_press(|b| {
+    if b == 3 {
+      crate::run::shell("xdg-terminal-exec");
+    } else {
+      crate::run::argv(&["omarchy-shell", "shell", "toggle", "doxia.menu", "{\"menu\":\"root\"}"]);
+    }
+  });
+  Slot::new(ctx, &button.widget).widget.clone().upcast()
+}
+
+// 1..5 always, and any tag up to 10 with windows or on screen.
+pub fn omarchy_workspace_ids(tags: &[mango::Tag]) -> Vec<u32> {
+  let mut ids: Vec<u32> = (1..=5).collect();
+  for t in tags {
+    if t.index > 0 && t.index <= 10 && (t.clients > 0 || t.active) && !ids.contains(&t.index) {
+      ids.push(t.index);
+    }
+  }
+  ids.sort();
+  ids
+}
+
+// omarchy.workspaces (shell/plugins/bar/widgets/Workspaces.qml): the tags of
+// this bar's screen as numbers, the active one as a dot, empty ones dim.
+pub fn omarchy_workspaces(ctx: &Rc<Ctx>) -> gtk::Widget {
+  let vertical = ctx.vertical();
+  let row = gtk::Box::new(if vertical { gtk::Orientation::Vertical } else { gtk::Orientation::Horizontal }, if vertical { ctx.style.space(2.0) } else { ctx.style.space(1.0) });
+  row.add_css_class("bar-omarchy-workspaces");
+  if !vertical {
+    row.set_margin_end((1.5 * ctx.style.spacing).round() as i32);
+  }
+  let (size, width) = (ctx.bar_size(), ctx.style.space(20.0));
+  let monitor = ctx.monitor.clone();
+  let render = {
+    let (row, monitor) = (row.clone(), monitor.clone());
+    move || {
+      crate::popup::clear(&row);
+      let tags = mango::get().tags(&monitor);
+      for id in omarchy_workspace_ids(&tags) {
+        let tag = tags.iter().find(|t| t.index == id);
+        let focused = tag.is_some_and(|t| t.active);
+        let occupied = tag.is_some_and(|t| t.clients > 0);
+        let text = if focused { "\u{f14fb}".to_string() } else if id == 10 { "0".into() } else { id.to_string() };
+        let l = gtk::Label::new(Some(&text));
+        l.add_css_class("bar-omarchy-workspace");
+        l.set_opacity(if occupied || focused { 1.0 } else { 0.5 });
+        if vertical { l.set_size_request(size, -1) } else { l.set_size_request(width, size) }
+        l.set_cursor_from_name(Some("pointer"));
+        let m = monitor.clone();
+        super::super::widget::on_press(&l, move |_| {
+          if !m.is_empty() {
+            mango::dispatch(&["focusmon", &m]);
+          }
+          mango::dispatch(&["view", &id.to_string()]);
+        });
+        row.append(&l);
+      }
+    }
+  };
+  render();
+  let w = row.downgrade();
+  mango::get().connect(move || {
+    if w.upgrade().is_some() {
+      render();
+    }
+  });
+  Slot::new(ctx, &row).widget.clone().upcast()
+}

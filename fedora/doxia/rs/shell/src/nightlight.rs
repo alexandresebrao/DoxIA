@@ -25,12 +25,24 @@ pub struct Nightlight {
   listeners: RefCell<Vec<Box<dyn Fn()>>>,
 }
 
-impl Nightlight {
-  pub fn new() -> Rc<Nightlight> {
+thread_local! {
+  static NIGHTLIGHT: RefCell<Option<Rc<Nightlight>>> = const { RefCell::new(None) };
+}
+
+// One for the shell: the IPC target and the bar's indicator share it.
+pub fn get() -> Rc<Nightlight> {
+  NIGHTLIGHT.with(|n| {
+    if let Some(n) = n.borrow().as_ref() {
+      return n.clone();
+    }
     let me = Rc::new(Nightlight::default());
+    *n.borrow_mut() = Some(me.clone());
     me.refresh();
     me
-  }
+  })
+}
+
+impl Nightlight {
 
   pub fn enabled(&self) -> bool {
     self.temperature.get().is_some_and(|t| t < IDENTITY)
