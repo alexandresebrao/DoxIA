@@ -123,8 +123,9 @@ jq '
 mv "$shell_json.tmp" "$shell_json"
 
 # doxia-shell (fedora/doxia/rs/shell) takes over Quickshell's notification
-# service and polkit agent, from 0.5.0 its lock screen and from 0.7.0 its
-# clipboard watchers. With it installed, keep them off in shell.json, so
+# service and polkit agent, from 0.5.0 its lock screen, from 0.7.0 its
+# clipboard watchers and from 0.9.0 the idle timers (two would launch the
+# screensaver and lock twice). With it installed, keep them off in shell.json, so
 # Quickshell never starts them: once started, its notification server keeps
 # the bus name until Quickshell restarts and drops what it gets while its
 # plugin is unloaded, and two clipboard watchers would record every copy
@@ -144,13 +145,13 @@ if command -v doxia-shell >/dev/null; then
     doxia-shell --pam "" </dev/null &>/dev/null || pam=$?
     (( pam == 2 )) && features="lock"
   fi
-  for feature in lock clipboard battery background; do
+  for feature in lock clipboard battery background idle; do
     if [[ " $features " == *" $feature "* ]]; then
       taken+=("omarchy.$feature")
     fi
   done
 fi
-jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboard", "omarchy.battery", "omarchy.background"] as $all
+jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboard", "omarchy.battery", "omarchy.background", "omarchy.idle"] as $all
     | ((.disabledPlugins // []) | map(select(. as $id | $all | index($id) | not)) + $ARGS.positional) as $off
     | if $off == [] then del(.disabledPlugins) else .disabledPlugins = $off end' \
   "$shell_json" --args "${taken[@]}" > "$shell_json.tmp"

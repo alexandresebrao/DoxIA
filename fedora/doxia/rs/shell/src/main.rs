@@ -52,7 +52,7 @@ fn main() -> glib::ExitCode {
   // What this build takes over from Quickshell, for fedora/doxia/apply-bar
   // (builds before 0.7.0 reject the option).
   if args.get(1).map(String::as_str) == Some("--features") {
-    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background bar");
+    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background bar idle");
     return glib::ExitCode::SUCCESS;
   }
   if args.get(1).map(String::as_str) == Some("--pam") {
@@ -172,9 +172,9 @@ fn main() -> glib::ExitCode {
       notifications.register(&conn);
     }
 
-    // Idle (screensaver, then lock), while it is being tried: only with
-    // DOXIA_IDLE=1, which takes it from Quickshell.
-    if std::env::var("DOXIA_IDLE").as_deref() == Ok("1") {
+    // Idle (screensaver, then lock), taken from Quickshell unless
+    // DOXIA_IDLE=0 leaves it there.
+    if std::env::var("DOXIA_IDLE").as_deref() != Ok("0") {
       crate::quickshell::disable("omarchy.idle");
       let idle = idle::Idle::new();
       ipc.add("idle", Box::new(move |method, _| idle.ipc(method)));
