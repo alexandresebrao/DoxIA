@@ -35,15 +35,24 @@ if [[ ! -s $HOME/.sdkman/bin/sdkman-init.sh ]]; then
   curl -fsSL "https://get.sdkman.io?rcupdate=false" | bash >/dev/null
 fi
 
-# pnpm in every Node.js version: nvm installs what default-packages lists with each
-# nvm install (the window's included), and the versions already there get it now.
+# pnpm in every Node.js version it runs on: nvm installs what default-packages lists
+# with each nvm install (the window's included), and the versions already there get
+# it now. Versions older than pnpm's engines.node (>=18 for pnpm 12) are left alone;
+# the minimum is asked once, and an offline npm view just means trying each version.
 grep -qx pnpm "$nvm_dir/default-packages" 2>/dev/null || echo pnpm >> "$nvm_dir/default-packages"
+pnpm_min_node=""
 for node in "$nvm_dir"/versions/node/*/; do
   [[ -x $node/bin/node && ! -e $node/bin/pnpm ]] || continue
-  echo "  pnpm for Node.js $(basename "$node")"
-  # Current pnpm doesn't run on old Node.js versions (v13 and earlier): skip them.
+  version=$(basename "$node")
+  major=${version#v}
+  major=${major%%.*}
+  [[ -n $pnpm_min_node ]] ||
+    pnpm_min_node=$(PATH="$node/bin:$PATH" npm view pnpm engines.node 2>/dev/null |
+      sed -nE 's/.*>= *([0-9]+).*/\1/p') || true
+  [[ -n $pnpm_min_node ]] && (( major < pnpm_min_node )) && continue
+  echo "  pnpm for Node.js $version"
   PATH="$node/bin:$PATH" npm install -g --silent pnpm ||
-    echo "  pnpm doesn't install on Node.js $(basename "$node"), skipped"
+    echo "  pnpm doesn't install on Node.js $version, skipped"
 done
 
 # nvm and SDKMAN! are shell functions that don't run under set -u.
