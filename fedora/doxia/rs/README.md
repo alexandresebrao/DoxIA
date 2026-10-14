@@ -211,7 +211,7 @@ screenshot, or with `GSK_RENDERER=cairo` to compare.
 ## Shipping
 
 ```bash
-sudo dnf install cargo gtk4-devel
+sudo dnf install cargo gtk4-devel gtk4-layer-shell-devel pam-devel
 fedora/doxia/rs/package          # tests, builds, packs; prints the archive and its sha256
 gh release create doxia-rs-<version> fedora/doxia/rs/dist/doxia-rs-<version>-x86_64.tar.gz \
   --target fedora --latest=false
