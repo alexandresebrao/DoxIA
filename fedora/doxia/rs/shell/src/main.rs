@@ -52,7 +52,7 @@ fn main() -> glib::ExitCode {
   // What this build takes over from Quickshell, for fedora/doxia/apply-bar
   // (builds before 0.7.0 reject the option).
   if args.get(1).map(String::as_str) == Some("--features") {
-    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background bar idle");
+    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background bar idle shell");
     return glib::ExitCode::SUCCESS;
   }
   if args.get(1).map(String::as_str) == Some("--pam") {

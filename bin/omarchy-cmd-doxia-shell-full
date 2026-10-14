@@ -3,12 +3,13 @@
 # omarchy:summary=Succeed when doxia-shell does everything Quickshell did
 # omarchy:hidden=true
 
-# From 0.9.0 doxia-shell (fedora/doxia/rs/shell) draws the bar and runs the
-# idle timers, the last pieces Quickshell had: with it installed, Quickshell
-# no longer starts. Without it (an install that couldn't download it, say),
-# or with an older one, Quickshell stays the shell. DOXIA_SHELL=0 says no
-# (the tests' throwaway shells).
+# From 0.10.0 doxia-shell (fedora/doxia/rs/shell) lists "shell": it draws
+# everything Quickshell did (the bar and idle timers were last, in 0.9.0) and
+# answers the shell's own calls (ping, applyTheme), so Quickshell no longer
+# starts. Without it (an install that couldn't download it, say), or with an
+# older one, Quickshell stays the shell. DOXIA_SHELL=0 says no (the tests'
+# throwaway shells).
 
 [[ ${DOXIA_SHELL:-1} != "0" ]] || exit 1
 features=$(doxia-shell --features 2>/dev/null) || exit 1
-[[ " $features " == *" bar "* && " $features " == *" idle "* ]]
+[[ " $features " == *" shell "* ]]
