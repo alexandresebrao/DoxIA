@@ -18,11 +18,23 @@ if [[ -z $upstream ]]; then
 fi
 
 echo -e "\e[32m\nUpdate Omarchy dev checkout\e[0m"
-# --autostash keeps uncommitted local edits across the pull. When they clash with
+# --autostash keeps uncommitted local edits across the update. When they clash with
 # upstream, git still exits 0 but leaves conflict markers, which the update scripts
 # would then run: put the upstream version of those files back, and leave the local
 # edits in the stash.
-git -C "$OMARCHY_PATH" pull --ff-only --autostash
+git -C "$OMARCHY_PATH" fetch --quiet
+if git -C "$OMARCHY_PATH" merge-base --is-ancestor HEAD '@{upstream}'; then
+  git -C "$OMARCHY_PATH" merge --ff-only --autostash '@{upstream}'
+else
+  # Local commits not upstream yet: replay them on top. Only a real conflict
+  # stops the update, and then the checkout is put back as it was.
+  echo "Rebasing local commits onto $upstream"
+  if ! git -C "$OMARCHY_PATH" rebase --autostash '@{upstream}'; then
+    git -C "$OMARCHY_PATH" rebase --abort || true
+    echo -e "\e[31mLocal commits conflict with $upstream; resolve by hand with git rebase $upstream\e[0m" >&2
+    exit 1
+  fi
+fi
 conflicted=$(git -C "$OMARCHY_PATH" diff --name-only --diff-filter=U)
 if [[ -n $conflicted ]]; then
   mapfile -t files <<<"$conflicted"
