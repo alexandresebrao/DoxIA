@@ -2,7 +2,7 @@
 
 # One-time system setup for the FortiVPN bar widget. Run it with sudo:
 #
-#   sudo ~/.config/omarchy/plugins/doxia.fortivpn/setup-system.sh [import-name]
+#   sudo "$OMARCHY_PATH/fedora/doxia/plugins/doxia.fortivpn/setup-system.sh" [import-name]
 #
 # - Installs a root-owned copy of helper.sh as /usr/local/libexec/omarchy-fortivpn-helper,
 #   which is the only thing that reads or writes /etc/openfortivpn/<name>.conf.

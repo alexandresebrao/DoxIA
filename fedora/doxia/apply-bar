@@ -1,23 +1,22 @@
 #!/bin/bash
 
-# Puts the DoxIA bar in place for the current user: copies the plugins in
-# fedora/doxia/plugins to ~/.config/omarchy/plugins (replacing older copies) and
-# adds their widgets to ~/.config/omarchy/shell.json where they are missing:
+# Puts the DoxIA bar in place for the current user: adds doxia-shell's own
+# widgets to ~/.config/omarchy/shell.json where they are missing:
 # the ∞ menu button and workspace icons on the left, Now Playing centered with
 # the screen share indicator after it, CPU/memory/battery usage on the right and
 # the services panel (doxia.services) and FortiVPN (doxia.fortivpn) between the
-# agents and network icons (the Omarchy indicators group is removed), and enables
-# the Start menu (doxia.iniciar, opened by the ∞ button and SUPER+ALT+SPACE).
+# agents and network icons (the Omarchy indicators group is removed).
 # A clock still in the center moves to the right corner showing date and time,
 # and the Painel Rápido button (doxia.painel) leaves the bar: the Painel Rápido
 # app (fedora/doxia/painel) goes on the PATH as doxia-painel, in the launcher and
 # on SUPER+ALT+P.
-# The panel's svc script goes on the PATH and its /servicos Claude Code skill to
-# ~/.claude/skills.
+# The panel's svc script (fedora/doxia/plugins/doxia.services) goes on the PATH
+# and its /servicos Claude Code skill to ~/.claude/skills. The copies of the
+# old Quickshell widgets in ~/.config/omarchy/plugins are removed.
 # The bar floats (bar.floating) unless shell.json says otherwise.
 # Widgets already placed (or moved) stay where they are, and the old Xi widgets
-# become their DoxIA versions, as do the old alexandre.* plugins (their copies are
-# removed). Run by install-user.sh and fedora/update.sh.
+# become their DoxIA versions, as do the old alexandre.* plugins. Run by
+# install-user.sh and fedora/update.sh.
 
 set -euo pipefail
 
@@ -25,18 +24,15 @@ omarchy_path=$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")
 plugins=$HOME/.config/omarchy/plugins
 shell_json=$HOME/.config/omarchy/shell.json
 
-mkdir -p "$plugins"
-for name in alexandre.media alexandre.screenshare alexandre.services alexandre.fortivpn alexandre.painel; do
+for name in alexandre.media alexandre.screenshare alexandre.services alexandre.fortivpn alexandre.painel \
+  doxia.bar doxia.emblem doxia.fortivpn doxia.iniciar doxia.media doxia.painel doxia.screenshare \
+  doxia.services doxia.usage doxia.workspaces; do
   rm -rf "${plugins:?}/$name"
 done
-for plugin in "$omarchy_path"/fedora/doxia/plugins/*/; do
-  name=$(basename "$plugin")
-  rm -rf "${plugins:?}/$name"
-  cp -a "$plugin" "$plugins/$name"
-done
+rmdir "$plugins" 2>/dev/null || true
 
 mkdir -p "$HOME/.local/bin"
-ln -sfn "$plugins/doxia.services/svc" "$HOME/.local/bin/svc"
+ln -sfn "$omarchy_path/fedora/doxia/plugins/doxia.services/svc" "$HOME/.local/bin/svc"
 ln -sfn "$omarchy_path/fedora/doxia/painel" "$HOME/.local/bin/doxia-painel"
 mkdir -p "$HOME/.local/share/applications"
 cat > "$HOME/.local/share/applications/org.doxia.Painel.desktop" <<DESKTOP
@@ -116,9 +112,10 @@ jq '
           else . + [{id: "doxia.fortivpn"}] end)
       end
   )
-  # The Start menu (doxia.iniciar) is a menu, not a bar widget: listing it under
-  # plugins is what enables it.
-  | .plugins = ((.plugins // []) | if any(.[]; .id == "doxia.iniciar") then . else . + [{id: "doxia.iniciar"}] end)
+  # The Quickshell plugin list (the Start menu was one) and the empty bar that
+  # stood in for the Quickshell one: doxia-shell needs neither.
+  | .plugins = ((.plugins // []) | map(select(.id != "doxia.iniciar")))
+  | if .bar.id? == "doxia.bar" then del(.bar.id) else . end
 ' "$shell_json" > "$shell_json.tmp"
 mv "$shell_json.tmp" "$shell_json"
 
@@ -155,14 +152,4 @@ jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboa
     | ((.disabledPlugins // []) | map(select(. as $id | $all | index($id) | not)) + $ARGS.positional) as $off
     | if $off == [] then del(.disabledPlugins) else .disabledPlugins = $off end' \
   "$shell_json" --args "${taken[@]}" > "$shell_json.tmp"
-mv "$shell_json.tmp" "$shell_json"
-
-# From 0.8.0 doxia-shell draws the bar. Quickshell always loads one, so
-# bar.id picks the doxia.bar plugin, which draws nothing, in its place; with
-# an older doxia-shell (or none) Quickshell's own comes back.
-if [[ " $features " == *" bar "* ]]; then
-  jq 'if (.bar | type) == "object" then .bar.id = "doxia.bar" else . end' "$shell_json" > "$shell_json.tmp"
-else
-  jq 'if .bar.id? == "doxia.bar" then del(.bar.id) else . end' "$shell_json" > "$shell_json.tmp"
-fi
 mv "$shell_json.tmp" "$shell_json"

@@ -5,8 +5,8 @@ description: Adiciona, edita ou remove serviços de desenvolvimento (node ou jav
 
 # Painel de serviços
 
-O painel é o plugin `doxia.services` do Quickshell em
-`~/.config/omarchy/plugins/doxia.services/`. Ele só lê
+O painel é o widget `doxia.services` da barra do doxia-shell, e o script
+fica em `$OMARCHY_PATH/fedora/doxia/plugins/doxia.services/`. Ele só lê
 `~/.config/omarchy/services.json` (relido a cada poll, sem reiniciar nada) e
 chama o script `svc` (também em `~/.local/bin/svc`).
 
