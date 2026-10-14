@@ -369,13 +369,17 @@ impl Mpris {
   // The one to show: the chosen one, else one playing, else one with a
   // track, else any.
   pub fn pick(&self, selected: &str) -> Option<Rc<Player>> {
-    let players = self.players.borrow();
-    players
-      .iter()
-      .find(|p| p.bus_name == selected)
-      .or_else(|| players.iter().find(|p| p.playing()))
-      .or_else(|| players.iter().find(|p| !p.title().is_empty()))
-      .or_else(|| players.first())
-      .cloned()
+    pick_from(&self.players.borrow(), selected)
   }
+}
+
+// The selected player, else the first playing one, else one with a track.
+pub fn pick_from(players: &[Rc<Player>], selected: &str) -> Option<Rc<Player>> {
+  players
+    .iter()
+    .find(|p| p.bus_name == selected)
+    .or_else(|| players.iter().find(|p| p.playing()))
+    .or_else(|| players.iter().find(|p| !p.title().is_empty()))
+    .or_else(|| players.first())
+    .cloned()
 }

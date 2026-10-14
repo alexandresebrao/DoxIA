@@ -3,9 +3,9 @@
 // with nothing playing, a music glyph that opens Spotify. Its panel has the
 // album art, the track, a seekable progress bar, the controls, the
 // player's volume (its PipeWire stream, which the audio panel moves too)
-// and, with several players, the choice between them. Right click plays or
-// pauses, middle click skips. IPC target "doxia.media" (open, close, show,
-// hide, toggle, playPause, next, previous).
+// and, with several music players (browsers are left out), the choice
+// between them. Right click plays or pauses, middle click skips. IPC target
+// "doxia.media" (open, close, show, hide, toggle, playPause, next, previous).
 
 use super::super::config::setting;
 use super::super::panel::Panel;
@@ -49,6 +49,20 @@ pub fn stream_matches(node: &pipewire::Node, identity: &str, desktop: &str) -> b
   keys.iter().filter(|k| !k.is_empty()).any(|k| {
     names.iter().map(|n| n.to_lowercase()).filter(|n| !n.is_empty()).any(|n| n.contains(k.as_str()) || k.contains(n.as_str()))
   })
+}
+
+// The music players: browsers publish one per tab with sound (a video, a
+// call), which is not what this widget is for.
+const BROWSERS: [&str; 9] = ["chromium", "chrome", "firefox", "brave", "msedge", "edge", "vivaldi", "opera", "plasma-browser-integration"];
+
+fn is_browser(p: &Player) -> bool {
+  let bus = p.bus_name.trim_start_matches("org.mpris.MediaPlayer2.").to_lowercase();
+  let entry = p.desktop_entry().to_lowercase();
+  BROWSERS.iter().any(|b| bus.starts_with(b) || entry.contains(b))
+}
+
+fn music_players() -> Vec<Rc<Player>> {
+  mpris::get().players().into_iter().filter(|p| !is_browser(p)).collect()
 }
 
 struct Media {
@@ -317,7 +331,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
     let (progress, progress_box, volume, vol_icon, vol_text, volume_row) = (progress.clone(), progress_box.clone(), volume.clone(), vol_icon.clone(), vol_text.clone(), volume_row.clone());
     let (source, open_app, others) = (source.clone(), open_app.clone(), others.clone());
     Rc::new(move || {
-      let player = mpris::get().pick(&media.selected.borrow());
+      let player = mpris::pick_from(&music_players(), &media.selected.borrow());
       *media.player.borrow_mut() = player.clone();
       let (t, a) = player.as_ref().map(|p| (p.title(), p.artist())).unwrap_or_default();
       let has_media = !t.is_empty() || !a.is_empty();
@@ -408,7 +422,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
 
       // Other players, to pick from.
       crate::popup::clear(&others);
-      let players = mpris::get().players();
+      let players = music_players();
       others.set_visible(players.len() > 1);
       if players.len() > 1 {
         others.append(&ui::separator());
