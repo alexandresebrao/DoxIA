@@ -8,6 +8,8 @@ mod doxia;
 mod group;
 mod media;
 mod monitor;
+mod network;
+mod network_model;
 mod power;
 mod system;
 mod tray;
@@ -33,7 +35,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "omarchy.tray" => Some(tray::build(ctx, entry)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),
     "omarchy.system-update" => Some(system::system_update(ctx)),
-    id @ ("omarchy.audio" | "omarchy.power" | "omarchy.monitor") => member(ctx, id, entry).map(Member::standalone),
+    id @ ("omarchy.audio" | "omarchy.power" | "omarchy.monitor" | "omarchy.network") => member(ctx, id, entry).map(Member::standalone),
     "omarchy.group" => group::build(ctx, entry, |id, e| member(ctx, id, e)),
     _ => None,
   }
@@ -45,6 +47,7 @@ fn member(ctx: &Rc<Ctx>, id: &str, entry: &Value) -> Option<Member> {
     "omarchy.audio" => Some(audio::build(ctx)),
     "omarchy.power" => Some(power::build(ctx, entry)),
     "omarchy.monitor" => Some(monitor::build(ctx)),
+    "omarchy.network" => Some(network::build(ctx)),
     _ => None,
   }
 }

@@ -339,3 +339,10 @@ window.panel-window { background: transparent; }
 .power-info-value { font-size: $FS_SMALL; }
 button.ctl.profile { padding: 8px 10px; font-size: $FS_SMALL; }
 button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }
+.network-signal { font-size: $FS_TITLE; min-width: 22px; }
+.network-ssid { font-size: $FS_BODY; }
+.network-ssid.bold { font-weight: bold; }
+.network-status { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.66); }
+.network-status.failed { color: $URGENT; }
+.network-lock { font-size: $FS_SMALL; color: alpha($POPUP_TEXT, 0.66); }
+.copyable:hover { color: $ACCENT; }
