@@ -5,7 +5,7 @@ resolver = "3"
 members = ["doxia-theme", "atualizar", "painel", "shell"]
 
 [workspace.package]
-version = "0.10.4"
+version = "0.10.5"
 edition = "2024"
 license = "MIT"
 publish = false
