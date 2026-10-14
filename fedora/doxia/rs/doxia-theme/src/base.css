@@ -142,6 +142,11 @@ dropdown.choice popover > contents {
   border-radius: $R_CTRL;
   padding: $SP2;
 }
+/* The list and its scroller over the box: GTK's own colors (dark in a dark
+   GTK mode, whatever the theme) would cover it. */
+dropdown.choice popover scrolledwindow,
+dropdown.choice popover listview { background: transparent; color: $FG; }
+dropdown.choice popover > arrow { background: $BG; border: 1px solid $NORMAL_BORDER; }
 dropdown.choice popover listview row { padding: $SP6 $SP10; border-radius: $R_CTRL; color: $FG; }
 dropdown.choice popover listview row:hover { background: $HOVER_FILL; }
 dropdown.choice popover listview row:selected { background: $SELECTED_FILL; }
