@@ -320,3 +320,17 @@ window.panel-window { background: transparent; }
 .tray-manage-title { font-size: $FS_BODY; font-weight: bold; }
 .tray-manage-empty { font-size: $FS_SMALL; font-style: italic; color: alpha($POPUP_TEXT, 0.66); }
 .tray-manage-name { font-size: $FS_SMALL; }
+.panel-tab { min-height: 28px; border-radius: $R_CTRL; background: alpha($POPUP_TEXT, 0.04); }
+.panel-tab:hover { background: alpha($POPUP_TEXT, 0.10); }
+.panel-tab.current { background: alpha($ACCENT, 0.28); }
+.panel-tab-glyph { font-size: $FS_TITLE; }
+.panel-tab-title { font-size: $FS_BODY; opacity: 0.7; }
+.panel-tab-title.current { opacity: 1; font-weight: bold; }
+.cursor { box-shadow: inset 0 0 0 1px $HOVER_BORDER; border-radius: $R_CTRL; }
+.audio-percent { font-size: $FS_CAPTION; font-weight: bold; color: alpha($POPUP_TEXT, 0.71); }
+.audio-slider-row { padding: 2px 0; border-radius: $R_CTRL; }
+.audio-device-glyph { font-size: $FS_TITLE; }
+.audio-device { font-size: $FS_BODY; }
+.audio-device.bold, .audio-stream-name.bold { font-weight: bold; }
+.audio-stream-name { font-size: $FS_BODY; }
+.audio-stream { padding: 4px 6px; border-radius: $R_CTRL; }

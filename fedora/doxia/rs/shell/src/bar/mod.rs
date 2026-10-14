@@ -10,6 +10,7 @@
 // "omarchy.bar": syncHidden, reservedTop.
 
 pub mod config;
+pub mod member;
 pub mod panel;
 pub mod ui;
 pub mod widget;
@@ -111,6 +112,13 @@ impl Bar {
   // An IPC target of a widget (its first screen's copy answers).
   pub fn add_ipc(&self, target: &str, handler: crate::ipc::Handler) {
     self.ipc.add(target, handler);
+  }
+
+  // The OSD, as Quickshell's summon("omarchy.osd") does for the wheel on the
+  // volume and brightness icons.
+  pub fn osd(&self, icon: &str, value: f64) {
+    let payload = serde_json::json!({ "icon": icon, "value": value.round() as i64 }).to_string();
+    self.ipc.invoke("osd", "show", &[payload]);
   }
 
   // The theme changed: sizes and colors.

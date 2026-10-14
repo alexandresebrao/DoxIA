@@ -1,9 +1,11 @@
 // The widgets a layout entry can name. An id the bar does not know yet
 // takes no space.
 
+mod audio;
 mod calendar;
 pub mod clock;
 mod doxia;
+mod group;
 mod media;
 mod system;
 mod tray;
@@ -12,6 +14,7 @@ mod weather;
 mod weather_model;
 
 use super::config::entry_id;
+use super::member::Member;
 use super::Ctx;
 use serde_json::Value;
 use std::rc::Rc;
@@ -28,6 +31,16 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "omarchy.tray" => Some(tray::build(ctx, entry)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),
     "omarchy.system-update" => Some(system::system_update(ctx)),
+    "omarchy.audio" => member(ctx, "omarchy.audio", entry).map(Member::standalone),
+    "omarchy.group" => group::build(ctx, entry, |id, e| member(ctx, id, e)),
+    _ => None,
+  }
+}
+
+// A widget with a panel, alone on the bar or in a group.
+fn member(ctx: &Rc<Ctx>, id: &str, _entry: &Value) -> Option<Member> {
+  match id {
+    "omarchy.audio" => Some(audio::build(ctx)),
     _ => None,
   }
 }

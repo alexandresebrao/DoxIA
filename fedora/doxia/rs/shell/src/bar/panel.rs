@@ -46,6 +46,7 @@ pub struct Panel {
   on_open: RefCell<Vec<Box<dyn Fn()>>>,
   on_close: RefCell<Vec<Box<dyn Fn()>>>,
   on_key: RefCell<Option<Box<dyn Fn(gdk::Key, gdk::ModifierType) -> bool>>>,
+  on_tab: RefCell<Option<Box<dyn Fn(bool)>>>,
 }
 
 impl Panel {
@@ -124,6 +125,7 @@ impl Panel {
       on_open: RefCell::default(),
       on_close: RefCell::default(),
       on_key: RefCell::default(),
+      on_tab: RefCell::default(),
     });
     me.connect_input();
     // Gone with the bar it belongs to (rebuilt on a new layout or theme).
@@ -155,6 +157,12 @@ impl Panel {
     let weak = Rc::downgrade(self);
     keys.connect_key_pressed(move |_, key, _, state| {
       let Some(me) = weak.upgrade() else { return glib::Propagation::Proceed };
+      if matches!(key, gdk::Key::Tab | gdk::Key::ISO_Left_Tab) {
+        if let Some(f) = me.on_tab.borrow().as_ref() {
+          f(key == gdk::Key::ISO_Left_Tab || state.contains(gdk::ModifierType::SHIFT_MASK));
+          return glib::Propagation::Stop;
+        }
+      }
       if let Some(f) = me.on_key.borrow().as_ref() {
         if f(key, state) {
           return glib::Propagation::Stop;
@@ -183,6 +191,11 @@ impl Panel {
     *self.on_key.borrow_mut() = Some(Box::new(f));
   }
 
+  // Tab and Shift+Tab (true): a group's tabs.
+  pub fn connect_tab(&self, f: impl Fn(bool) + 'static) {
+    *self.on_tab.borrow_mut() = Some(Box::new(f));
+  }
+
   // Before every opening (to refresh what it shows).
   pub fn connect_open(&self, f: impl Fn() + 'static) {
     self.on_open.borrow_mut().push(Box::new(f));
@@ -195,6 +208,11 @@ impl Panel {
   // A group's tabs move the mark to the group's slot.
   pub fn set_slot(&self, slot: &Rc<Slot>) {
     *self.slot.borrow_mut() = Rc::downgrade(slot);
+  }
+
+  // A group's panels open under the group's icon.
+  pub fn set_anchor(&self, anchor: &impl IsA<gtk::Widget>) {
+    self.anchor.set(Some(anchor.as_ref()));
   }
 
   pub fn set_width(&self, width: i32) {

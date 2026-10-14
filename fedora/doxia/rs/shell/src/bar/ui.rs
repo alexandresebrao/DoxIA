@@ -345,3 +345,115 @@ impl Slider {
     *self.on_right.borrow_mut() = Some(Rc::new(f));
   }
 }
+
+// The keyboard cursor of a panel (CursorSurface + PanelKeyCatcher): rows in
+// order, each with what Enter does, what Left/Right do (a volume step) and
+// what m does. Up/Down walk them; the pointer over a row puts the cursor
+// there; the first key only shows it.
+#[derive(Clone)]
+pub struct CursorRow {
+  pub widget: gtk::Widget,
+  pub activate: Option<Rc<dyn Fn()>>,
+  pub adjust: Option<Rc<dyn Fn(f64)>>,
+  pub mute: Option<Rc<dyn Fn()>>,
+}
+
+#[derive(Default)]
+pub struct Cursor {
+  rows: std::cell::RefCell<Vec<CursorRow>>,
+  index: Cell<Option<usize>>,
+  shown: Cell<bool>,
+}
+
+impl Cursor {
+  pub fn new() -> Rc<Cursor> {
+    Rc::new(Cursor::default())
+  }
+
+  pub fn clear(&self) {
+    self.rows.borrow_mut().clear();
+  }
+
+  pub fn reset(&self) {
+    self.shown.set(false);
+    self.index.set(None);
+    self.paint();
+  }
+
+  pub fn add(self: &Rc<Self>, row: CursorRow) {
+    let i = self.rows.borrow().len();
+    let motion = gtk::EventControllerMotion::new();
+    let weak = Rc::downgrade(self);
+    motion.connect_enter(move |_, _, _| {
+      if let Some(me) = weak.upgrade() {
+        me.shown.set(true);
+        me.index.set(Some(i));
+        me.paint();
+      }
+    });
+    row.widget.add_controller(motion);
+    self.rows.borrow_mut().push(row);
+    self.paint();
+  }
+
+  fn paint(&self) {
+    for (i, r) in self.rows.borrow().iter().enumerate() {
+      if self.shown.get() && self.index.get() == Some(i) { r.widget.add_css_class("cursor") } else { r.widget.remove_css_class("cursor") }
+    }
+  }
+
+  fn current(&self) -> Option<CursorRow> {
+    self.index.get().and_then(|i| self.rows.borrow().get(i).cloned())
+  }
+
+  // Keys: true when used.
+  pub fn key(&self, key: gtk::gdk::Key) -> bool {
+    use gtk::gdk::Key;
+    let n = self.rows.borrow().len();
+    if n == 0 {
+      return false;
+    }
+    let moving = matches!(key, Key::Up | Key::Down | Key::k | Key::j | Key::Left | Key::Right | Key::h | Key::l);
+    if moving && !self.shown.get() {
+      self.shown.set(true);
+      if self.index.get().is_none() {
+        self.index.set(Some(0));
+      }
+      self.paint();
+      return true;
+    }
+    match key {
+      Key::Down | Key::j => self.index.set(Some(self.index.get().map(|i| (i + 1).min(n - 1)).unwrap_or(0))),
+      Key::Up | Key::k => self.index.set(Some(self.index.get().map(|i| i.saturating_sub(1)).unwrap_or(0))),
+      Key::Left | Key::h | Key::Right | Key::l => {
+        let step = if matches!(key, Key::Left | Key::h) { -0.05 } else { 0.05 };
+        if let Some(f) = self.current().and_then(|r| r.adjust) {
+          f(step);
+        }
+        return true;
+      }
+      Key::Return | Key::KP_Enter | Key::space => {
+        if !self.shown.get() {
+          return false;
+        }
+        if let Some(f) = self.current().and_then(|r| r.activate) {
+          f();
+        }
+        return true;
+      }
+      Key::m | Key::M => {
+        if let Some(f) = self.current().and_then(|r| r.mute) {
+          f();
+        }
+        return true;
+      }
+      _ => return false,
+    }
+    self.paint();
+    if let Some(r) = self.current() {
+      // Keep it in view inside a scrolled panel.
+      r.widget.grab_focus();
+    }
+    true
+  }
+}

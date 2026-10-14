@@ -37,6 +37,11 @@ impl Ipc {
     self.targets.borrow_mut().insert(target.to_string(), handler);
   }
 
+  // A call from inside the shell (a bar widget showing the OSD).
+  pub fn invoke(&self, target: &str, method: &str, args: &[String]) -> String {
+    self.call(target, method, args)
+  }
+
   fn call(&self, target: &str, method: &str, args: &[String]) -> String {
     match self.targets.borrow().get(target) {
       None => "Target not found.".into(),
