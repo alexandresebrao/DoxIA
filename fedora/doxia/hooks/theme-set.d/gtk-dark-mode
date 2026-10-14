@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Depois da troca de tema: o modo claro/escuro do tema também nos settings.ini
+# do GTK 3/4. Lá a chave gtk-application-prefer-dark-theme vale mais que o
+# color-scheme do gsettings (o omarchy-theme-set-gnome só muda este), e uma
+# sobra do KDE (true) deixava escuro, num tema claro, o que o CSS dos apps não
+# pinta: a lista de um select, por exemplo.
+
+mode=$(omarchy-theme-color mode)
+[[ $mode == "light" ]] && dark=false || dark=true
+
+for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+  if [[ -f $ini ]] && grep -q '^gtk-application-prefer-dark-theme=' "$ini"; then
+    sed -i "s/^gtk-application-prefer-dark-theme=.*/gtk-application-prefer-dark-theme=$dark/" "$ini"
+  fi
+done
