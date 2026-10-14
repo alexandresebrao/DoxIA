@@ -6,7 +6,7 @@ use super::super::Ctx;
 use crate::mango;
 use gtk::gdk_pixbuf::Pixbuf;
 use gtk::prelude::*;
-use gtk::{gdk, glib};
+use gtk::glib;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -26,19 +26,24 @@ pub fn emblem(ctx: &Rc<Ctx>) -> gtk::Widget {
   holder.add_css_class("bar-emblem");
   holder.set_cursor_from_name(Some("pointer"));
   holder.set_tooltip_text(Some("Iniciar"));
-  let picture = gtk::Picture::new();
-  picture.set_can_shrink(false);
-  picture.set_halign(gtk::Align::Center);
-  picture.set_valign(gtk::Align::Center);
-  picture.set_hexpand(true);
   match Pixbuf::from_file_at_scale(theme_file("emblem.png"), -1, height * 2, true) {
     Ok(pixbuf) => {
+      // Drawn from a pixbuf twice the size, so it stays sharp on scaled
+      // screens; a Picture would ask for the texture's own (double) size.
       let width = (pixbuf.width() as f64 * height as f64 / pixbuf.height().max(1) as f64).round() as i32;
-      let scaled = pixbuf.scale_simple(width * 2, height * 2, gtk::gdk_pixbuf::InterpType::Bilinear).unwrap_or(pixbuf);
-      picture.set_paintable(Some(&gdk::Texture::for_pixbuf(&scaled)));
-      picture.set_size_request(width, height);
+      let area = gtk::DrawingArea::new();
+      area.set_content_width(width);
+      area.set_content_height(height);
+      area.set_halign(gtk::Align::Center);
+      area.set_valign(gtk::Align::Center);
+      area.set_hexpand(true);
+      area.set_draw_func(move |_, cr, w, h| {
+        cr.scale(w as f64 / pixbuf.width() as f64, h as f64 / pixbuf.height() as f64);
+        cr.set_source_pixbuf(&pixbuf, 0.0, 0.0);
+        let _ = cr.paint();
+      });
       if ctx.vertical() { holder.set_size_request(size, height + 14) } else { holder.set_size_request(width + 14, size) }
-      holder.append(&picture);
+      holder.append(&area);
     }
     Err(_) => {
       let glyph = gtk::Label::new(Some("\u{e900}"));

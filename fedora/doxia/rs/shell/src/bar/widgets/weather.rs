@@ -231,6 +231,8 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   let palette = doxia_theme::palette();
 
   let button = Button::new(ctx, Kind::Status, "");
+  // BarIconButton in a status slot: the icon font, not the caption one.
+  button.widget.add_css_class("bar-weather");
   button.widget.set_visible(false);
   let slot = Slot::new(ctx, &button.widget);
   let panel = Panel::centered(ctx, &button.widget, &slot, space(480.0));
@@ -793,6 +795,8 @@ impl Chart {
       let _ = cr.stroke();
       let marker = |i: usize| {
         let Some(v) = t[i] else { return };
+        // A label leaves a current point the arc would draw a line from.
+        cr.new_path();
         cr.arc(x_at(i), y_at(v), 4.0, 0.0, std::f64::consts::TAU);
         cr.set_source_rgba(temp_color[0], temp_color[1], temp_color[2], 1.0);
         let _ = cr.fill_preserve();

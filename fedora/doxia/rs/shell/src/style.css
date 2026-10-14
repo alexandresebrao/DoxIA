@@ -215,6 +215,7 @@ window.bar-window { background: transparent; }
 .bar-button label { color: $BAR_TEXT; font-size: $FS_BODY; }
 .bar-button.bar-icon label { font-size: $BAR_ICON_FONT; }
 .bar-button.bar-status label { font-size: $FS_CAPTION; }
+.bar-button.bar-weather label { font-size: $BAR_ICON_FONT; }
 .bar-button.active label { color: $BAR_ACTIVE; }
 .bar-button.dimmed { opacity: 0.45; }
 .bar-button.bar-screenshare label { color: #e5252a; }
