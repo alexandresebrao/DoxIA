@@ -56,9 +56,12 @@ impl Panel {
     Panel::build(ctx, anchor, slot, width, false)
   }
 
-  // A panel centered on the bar rather than under its widget (the calendar).
+  // A panel centered on the bar rather than under its widget (the calendar,
+  // the weather), while its widget sits in the bar's middle: at a side it
+  // opens under it like the others.
   pub fn centered(ctx: &Ctx, anchor: &impl IsA<gtk::Widget>, slot: &Rc<Slot>, width: i32) -> Rc<Panel> {
-    Panel::build(ctx, anchor, slot, width, true)
+    let middle = ctx.current.borrow().as_ref().is_none_or(|(_, region, _)| region == "center");
+    Panel::build(ctx, anchor, slot, width, middle)
   }
 
   fn build(ctx: &Ctx, anchor: &impl IsA<gtk::Widget>, slot: &Rc<Slot>, width: i32, center_on_bar: bool) -> Rc<Panel> {
