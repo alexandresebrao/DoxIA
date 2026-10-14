@@ -9,7 +9,7 @@ falls back to the shell piece while the app is not installed.
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
-| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent, the lock screen, the Omarchy menu and the Start menu so far |
+| `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent, the lock screen, the Omarchy menu, the Start menu and the pickers (clipboard, emojis, images) so far |
 
 The apps run as their own processes, so the update reloading or restarting
 the shell no longer closes them: that is what started this, when the update
@@ -109,8 +109,9 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   `disabledPlugins` like the other two.
 
 - `shell` (the plugin surface): `summon`, `toggle`, `hide` and `call` for
-  the plugins doxia-shell has taken over, `omarchy.menu` and
-  `doxia.iniciar`; for any other plugin, or a call without one (`ping`,
+  the plugins doxia-shell has taken over, `omarchy.menu`, `doxia.iniciar`,
+  `omarchy.clipboard`, `omarchy.emojis` and `omarchy.image-picker`; for any
+  other plugin, or a call without one (`ping`,
   `listPlugins`), it answers "Target not found." and the call goes on to
   Quickshell. Both plugins stay enabled there: the menu's bar button is a
   Quickshell widget, and either menu still opens from Quickshell when
@@ -135,6 +136,26 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   the QML one read the desktop entries without them, so GNOME-only entries
   such as Yelp no longer show. Each submenu opens level with the row that
   opened it, as the QML meant to.
+
+- The pickers, sharing the menu's card and keys (`popup.rs`):
+  - `emojis.rs`, replacing `shell/plugins/emojis`: the grid of the plugin's
+    `emojis.json`, filtered by keyword, inserted with
+    `omarchy-menu-emoji-insert`.
+  - `clipboard/`, replacing `shell/plugins/clipboard`: the history in
+    `~/.local/state/omarchy/clipboard-history.json` (`clipboard/model.rs` is
+    `ClipboardHistory.js`) and the picker that pastes, copies or opens from
+    it. doxia-shell also runs the plugin's watchers (`wl-paste --watch
+    capture.sh`), so it turns `omarchy.clipboard` off in shell.json and ends
+    Quickshell's watchers before starting its own; two sets would record
+    every copy twice. `apply-bar` keeps it off, or back on without
+    doxia-shell, like the services above.
+  - `images.rs`, replacing `shell/plugins/image-picker`: the carousel of
+    `omarchy-menu-images` (theme, background and boot screen switchers),
+    drawn with cairo, as the `image-selector` IPC target (`open`, `preload`,
+    `cancel`) as well as the plugin.
+
+- `doxia-shell --features` lists what the build takes over, for
+  `apply-bar` (builds before 0.7.0 reject the option).
 
 - Commands the menus start run in a scope of their own
   (`systemd-run --user --scope`, `run.rs`): doxia-shell is a service, and

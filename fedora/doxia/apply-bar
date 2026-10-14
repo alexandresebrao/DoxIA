@@ -123,25 +123,33 @@ jq '
 mv "$shell_json.tmp" "$shell_json"
 
 # doxia-shell (fedora/doxia/rs/shell) takes over Quickshell's notification
-# service and polkit agent, and from 0.5.0 its lock screen. With it installed,
-# keep them off in shell.json, so Quickshell never starts them: once started,
-# its notification server keeps the bus name until Quickshell restarts and drops
-# what it gets while its plugin is unloaded. Without doxia-shell, turn them back
-# on, or nothing would show notifications, ask for passwords or lock the screen.
-# The lock goes by what the binary can do, not by its presence: an older build
-# without one would leave nothing to answer omarchy-shell lock. Its PAM child
-# (--pam) answers 2 for an empty service without touching PAM; older builds
-# reject the option.
+# service and polkit agent, from 0.5.0 its lock screen and from 0.7.0 its
+# clipboard watchers. With it installed, keep them off in shell.json, so
+# Quickshell never starts them: once started, its notification server keeps
+# the bus name until Quickshell restarts and drops what it gets while its
+# plugin is unloaded, and two clipboard watchers would record every copy
+# twice. Without doxia-shell, turn them back on, or nothing would show
+# notifications, ask for passwords, lock the screen or keep the clipboard
+# history. What the installed binary can do decides, not its presence: an
+# older build would leave the rest unanswered. `doxia-shell --features`
+# lists it (0.7.0 on); before that, the lock's PAM child (--pam) answers 2
+# for an empty service without touching PAM, and older builds reject it.
 taken=()
 if command -v doxia-shell >/dev/null; then
   taken=(omarchy.notifications omarchy.polkit)
-  pam=0
-  doxia-shell --pam "" </dev/null &>/dev/null || pam=$?
-  if (( pam == 2 )); then
-    taken+=(omarchy.lock)
+  features=$(doxia-shell --features 2>/dev/null) || features=""
+  if [[ -z $features ]]; then
+    pam=0
+    doxia-shell --pam "" </dev/null &>/dev/null || pam=$?
+    (( pam == 2 )) && features="lock"
   fi
+  for feature in lock clipboard; do
+    if [[ " $features " == *" $feature "* ]]; then
+      taken+=("omarchy.$feature")
+    fi
+  done
 fi
-jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock"] as $all
+jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboard"] as $all
     | ((.disabledPlugins // []) | map(select(. as $id | $all | index($id) | not)) + $ARGS.positional) as $off
     | if $off == [] then del(.disabledPlugins) else .disabledPlugins = $off end' \
   "$shell_json" --args "${taken[@]}" > "$shell_json.tmp"

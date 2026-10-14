@@ -143,11 +143,11 @@ window.menu-window { background: $MENU_SCRIM; }
 .menu-divider { min-height: 1px; background: alpha($MENU_TEXT, 0.2); }
 .menu-empty-icon { font-size: $FS_DISPLAY_LARGE; color: alpha($MENU_SEL_TEXT, 0.8); }
 .menu-empty { font-size: $FS_TITLE; color: alpha($MENU_TEXT, 0.7); }
-.menu-confirm { background: alpha($BG, 0.7); border-radius: $R_CTRL; }
-.menu-confirm-text { font-size: $FS_TITLE; color: $MENU_TEXT; }
-.menu-confirm-button { padding: 8px 0; border-radius: $R_CTRL; color: $MENU_TEXT; }
-.menu-confirm-button.selected { background: $MENU_SEL_BG; color: $MENU_SEL_TEXT; }
-.menu-confirm-button.destructive.selected { background: alpha($URGENT, 0.35); }
+.popup-confirm { background: alpha($BG, 0.7); border-radius: $R_CTRL; }
+.popup-confirm-text { font-size: $FS_TITLE; color: $MENU_TEXT; }
+.popup-confirm-button { padding: 8px 0; border-radius: $R_CTRL; color: $MENU_TEXT; }
+.popup-confirm-button.selected { background: $MENU_SEL_BG; color: $MENU_SEL_TEXT; }
+.popup-confirm-button.destructive.selected { background: alpha($URGENT, 0.35); }
 
 /* The Start menu, like fedora/doxia/plugins/doxia.iniciar/Iniciar.qml: the
    menu's colors in Windows 98 relief: the theme border, a light top/left and
@@ -193,3 +193,19 @@ window.iniciar-window { background: transparent; }
 .iniciar-field-label, .iniciar-field-text { font-size: $FS_BODY; color: $MENU_TEXT; }
 .iniciar-field { background: $IN_FIELD; border-style: solid; border-width: 1px 0 0 1px; border-color: $IN_LIGHT; }
 .iniciar-hint { font-size: $FS_SMALL; color: alpha($MENU_TEXT, 0.55); }
+
+/* The emoji and clipboard pickers, like Emojis.qml and Clipboard.qml: the
+   menu's card, header and selected color. */
+window.emojis-window, window.clipboard-window { background: $MENU_SCRIM; }
+window.images-window { background: transparent; }
+gridview.emoji-grid, gridview.emoji-grid > child { background: transparent; padding: 0; margin: 0; }
+gridview.emoji-grid > child { border-radius: $R_CTRL; }
+gridview.emoji-grid > child:selected { background: $MENU_SEL_BG; }
+window.doxia .emoji-cell { font-family: "Noto Color Emoji", "DoxIA Shell"; font-size: 24px; }
+.clipboard-row { border-radius: $R_CTRL; padding: 8px 12px; }
+.clipboard-row.selected { background: $MENU_SEL_BG; }
+.clipboard-row-text { font-size: $FS_TITLE; color: $MENU_TEXT; }
+.clipboard-row-text.dim { color: alpha($MENU_TEXT, 0.72); }
+.clipboard-row.selected .clipboard-row-text { color: $MENU_SEL_TEXT; }
+.clipboard-preview { border-left: 1px solid alpha($MENU_TEXT, 0.28); }
+.clipboard-preview-text { font-size: $FS_TITLE; color: $MENU_TEXT; }

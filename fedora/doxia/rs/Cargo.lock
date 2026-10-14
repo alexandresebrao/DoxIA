@@ -92,7 +92,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-atualizar"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -101,7 +101,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-painel"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-shell"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "doxia-theme",
  "gio-unix",
@@ -123,7 +123,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-theme"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "gtk4",
  "serde_json",

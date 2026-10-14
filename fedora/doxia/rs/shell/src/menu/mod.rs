@@ -11,10 +11,9 @@
 pub mod model;
 
 use crate::apps::{self, App};
-use crate::card;
+use crate::popup::{self, label};
 use gtk::prelude::*;
-use gtk::{gdk, gio, glib, graphene, pango};
-use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+use gtk::{gdk, gio, glib, pango};
 use model::{Guards, Item, Kind, Menu as Tree, Row};
 use serde_json::Value;
 use std::cell::RefCell;
@@ -111,8 +110,8 @@ struct State {
   pointer_origin: Option<(f64, f64)>,
   pointer_live: bool,
 
+  // The app Delete asked to uninstall: (desktop id, name).
   confirm: Option<(String, String)>,
-  confirm_index: usize,
 }
 
 impl State {
@@ -132,25 +131,16 @@ impl State {
 pub struct OmarchyMenu {
   window: gtk::Window,
   root: gtk::Box,
-  card: gtk::Overlay,
-  surface: card::Surface,
+  card: Rc<popup::Card>,
   header: gtk::Label,
   scroller: gtk::ScrolledWindow,
   list: gtk::Box,
   empty: gtk::Box,
   empty_label: gtk::Label,
-  confirm: gtk::Box,
-  confirm_label: gtk::Label,
-  confirm_buttons: [gtk::Label; 2],
+  confirm: Rc<popup::Confirm>,
   im: gtk::IMMulticontext,
   gaps: i32,
   st: RefCell<State>,
-}
-
-fn label(text: &str, class: &str) -> gtk::Label {
-  let l = gtk::Label::new(Some(text));
-  l.add_css_class(class);
-  l
 }
 
 fn omarchy_path() -> String {
@@ -193,28 +183,12 @@ fn folded(totals: &[i32], available: i32) -> i32 {
 
 impl OmarchyMenu {
   pub fn new(app: &gtk::Application) -> Rc<OmarchyMenu> {
-    let window = gtk::Window::builder().application(app).decorated(false).build();
-    window.add_css_class("doxia");
-    window.add_css_class("menu-window");
-    window.init_layer_shell();
-    window.set_namespace(Some("omarchy-menu"));
-    window.set_layer(Layer::Overlay);
-    window.set_keyboard_mode(KeyboardMode::Exclusive);
-    for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
-      window.set_anchor(edge, true);
-    }
-    window.set_exclusive_zone(-1);
-
+    let window = popup::window(app, "omarchy-menu", "menu-window");
     let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
     root.set_hexpand(true);
     root.set_vexpand(true);
 
     let content = gtk::Box::new(gtk::Orientation::Vertical, SPACING);
-    content.set_margin_top(MARGIN);
-    content.set_margin_bottom(MARGIN);
-    content.set_margin_start(MARGIN);
-    content.set_margin_end(MARGIN);
-
     let header = label("", "menu-header");
     header.set_xalign(0.0);
     header.set_ellipsize(pango::EllipsizeMode::End);
@@ -237,62 +211,35 @@ impl OmarchyMenu {
     stack.add_overlay(&empty);
     content.append(&stack);
 
-    let surface = card::Surface::new(doxia_theme::menu_card());
-    let card = gtk::Overlay::new();
-    card.add_css_class("menu-card");
-    card.set_child(Some(&surface.area));
-    card.add_overlay(&content);
-    card.set_halign(gtk::Align::Center);
-    card.set_valign(gtk::Align::Center);
-    card.set_vexpand(true);
-
-    // Uninstall confirmation over the card, like shell/Ui/ConfirmDialog.qml.
-    let confirm = gtk::Box::new(gtk::Orientation::Vertical, 14);
-    confirm.add_css_class("menu-confirm");
-    confirm.set_valign(gtk::Align::Fill);
-    confirm.set_halign(gtk::Align::Fill);
-    let inner = gtk::Box::new(gtk::Orientation::Vertical, 14);
-    inner.set_valign(gtk::Align::Center);
-    inner.set_vexpand(true);
-    inner.set_margin_start(MARGIN);
-    inner.set_margin_end(MARGIN);
-    let confirm_label = label("", "menu-confirm-text");
-    confirm_label.set_wrap(true);
-    confirm_label.set_justify(gtk::Justification::Center);
-    inner.append(&confirm_label);
-    let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    buttons.set_halign(gtk::Align::Center);
-    let confirm_buttons = [label("Cancelar", "menu-confirm-button"), label("Desinstalar", "menu-confirm-button")];
-    for b in &confirm_buttons {
-      b.set_width_request(88);
-      buttons.append(b);
-    }
-    confirm_buttons[1].add_css_class("destructive");
-    inner.append(&buttons);
-    confirm.append(&inner);
-    confirm.set_visible(false);
-    card.add_overlay(&confirm);
-
-    root.append(&card);
+    let card = Rc::new(popup::Card::new(&content, MARGIN));
+    card.overlay.set_halign(gtk::Align::Center);
+    card.overlay.set_valign(gtk::Align::Center);
+    card.overlay.set_vexpand(true);
+    root.append(&card.overlay);
     window.set_child(Some(&root));
 
-    let im = gtk::IMMulticontext::new();
-    let menu = Rc::new(OmarchyMenu {
-      window,
-      root,
-      card,
-      surface,
-      header,
-      scroller,
-      list,
-      empty,
-      empty_label,
-      confirm,
-      confirm_label,
-      confirm_buttons,
-      im,
-      gaps: gaps_out(),
-      st: RefCell::new(State { active: "root".into(), dmenu_width: 300, ..Default::default() }),
+    let menu = Rc::new_cyclic(|me: &std::rc::Weak<OmarchyMenu>| {
+      let me = me.clone();
+      let confirm = popup::Confirm::new("Desinstalar", MARGIN, move |yes| {
+        if let Some(me) = me.upgrade() {
+          me.answer_confirm(yes);
+        }
+      });
+      card.overlay.add_overlay(&confirm.widget);
+      OmarchyMenu {
+        window,
+        root,
+        card,
+        header,
+        scroller,
+        list,
+        empty,
+        empty_label,
+        confirm,
+        im: gtk::IMMulticontext::new(),
+        gaps: gaps_out(),
+        st: RefCell::new(State { active: "root".into(), dmenu_width: 300, ..Default::default() }),
+      }
     });
     menu.connect_input();
     menu.watch_sources();
@@ -570,7 +517,7 @@ impl OmarchyMenu {
   }
 
   fn show(self: &Rc<Self>) {
-    self.surface.set(doxia_theme::menu_card());
+    self.card.refresh();
     {
       let mut st = self.st.borrow_mut();
       st.opened = true;
@@ -580,9 +527,9 @@ impl OmarchyMenu {
       st.pointer_origin = None;
       st.pointer_live = false;
     }
-    self.confirm.set_visible(false);
-    self.card.set_valign(gtk::Align::Center);
-    self.card.set_margin_top(0);
+    self.confirm.hide();
+    self.card.overlay.set_valign(gtk::Align::Center);
+    self.card.overlay.set_margin_top(0);
     self.rebuild();
     self.window.set_visible(true);
     self.im.focus_in();
@@ -709,9 +656,7 @@ impl OmarchyMenu {
       st.selected = st.rows.len() - 1;
     }
 
-    while let Some(child) = self.list.first_child() {
-      self.list.remove(&child);
-    }
+    popup::clear(&self.list);
     let mut tops = Vec::new();
     let mut totals = Vec::new();
     let mut y = 0;
@@ -782,10 +727,10 @@ impl OmarchyMenu {
     };
     let width = width.min(self.screen_width() - self.gaps * 2);
     let card_height = MARGIN * 2 + HEADER + if input { 0 } else { SPACING + rows_height };
-    self.card.set_size_request(width, card_height);
+    self.card.overlay.set_size_request(width, card_height);
     if let Some(top) = st.card_top {
-      self.card.set_valign(gtk::Align::Start);
-      self.card.set_margin_top(top);
+      self.card.overlay.set_valign(gtk::Align::Start);
+      self.card.overlay.set_margin_top(top);
     }
     drop(st);
     self.paint_selection();
@@ -934,7 +879,7 @@ impl OmarchyMenu {
     if st.card_top.is_some() || !self.window.is_visible() {
       return;
     }
-    if let Some(bounds) = self.card.compute_bounds(&self.root) {
+    if let Some(bounds) = self.card.overlay.compute_bounds(&self.root) {
       st.card_top = Some(bounds.y().round() as i32);
       st.max_rows = Some(self.scroller.max_content_height());
     }
@@ -1053,24 +998,13 @@ impl OmarchyMenu {
       return;
     }
     let Some(row) = st.rows.get(st.selected).filter(|r| r.kind == Kind::App).cloned() else { return };
-    self.confirm_label.set_text(&format!("Deseja desinstalar {}?", row.label));
+    self.confirm.ask(&format!("Deseja desinstalar {}?", row.label));
     st.confirm = Some((row.app_id, row.label));
-    st.confirm_index = 1;
-    drop(st);
-    self.paint_confirm();
-    self.confirm.set_visible(true);
-  }
-
-  fn paint_confirm(&self) {
-    let index = self.st.borrow().confirm_index;
-    for (i, b) in self.confirm_buttons.iter().enumerate() {
-      if i == index { b.add_css_class("selected") } else { b.remove_css_class("selected") }
-    }
   }
 
   fn answer_confirm(self: &Rc<Self>, uninstall: bool) {
     let target = self.st.borrow_mut().confirm.take();
-    self.confirm.set_visible(false);
+    self.confirm.hide();
     let Some((id, name)) = target.filter(|_| uninstall) else { return };
     self.cancel();
     let remover = format!("{}/bin/omarchy-remove-launcher-entry", omarchy_path());
@@ -1080,27 +1014,23 @@ impl OmarchyMenu {
   // --- Input -----------------------------------------------------------------
 
   fn connect_input(self: &Rc<Self>) {
-    let keys = gtk::EventControllerKey::new();
-    self.im.set_client_widget(Some(&self.window));
-    keys.set_im_context(Some(&self.im));
     let me = Rc::downgrade(self);
-    self.im.connect_commit(move |_, text| {
-      let Some(me) = me.upgrade() else { return };
-      let (typing, filter) = {
-        let st = me.st.borrow();
-        (st.opened && st.confirm.is_none(), st.filter.clone())
-      };
-      let printable: String = text.chars().filter(|c| !c.is_control()).collect();
-      if typing && !printable.is_empty() {
-        me.set_filter(filter + &printable);
-      }
-    });
-    let me = Rc::downgrade(self);
-    keys.connect_key_pressed(move |_, key, _, state| {
-      let Some(me) = me.upgrade() else { return glib::Propagation::Proceed };
-      if me.key(key, state) { glib::Propagation::Stop } else { glib::Propagation::Proceed }
-    });
-    self.window.add_controller(keys);
+    let typed = Rc::downgrade(self);
+    popup::connect_keys(
+      &self.window,
+      &self.im,
+      move |key, state| me.upgrade().is_some_and(|me| me.key(key, state)),
+      move |text| {
+        let Some(me) = typed.upgrade() else { return };
+        let (typing, filter) = {
+          let st = me.st.borrow();
+          (st.opened && st.confirm.is_none(), st.filter.clone())
+        };
+        if typing {
+          me.set_filter(filter + text);
+        }
+      },
+    );
 
     // The pointer counts once it moves after the card appeared under it.
     let motion = gtk::EventControllerMotion::new();
@@ -1119,52 +1049,19 @@ impl OmarchyMenu {
     });
     self.window.add_controller(motion);
 
-    // A click outside the card closes it.
-    let click = gtk::GestureClick::new();
     let me = Rc::downgrade(self);
-    click.connect_released(move |_, _, x, y| {
-      let Some(me) = me.upgrade() else { return };
-      let inside = me
-        .card
-        .compute_bounds(&me.root)
-        .is_some_and(|b| b.contains_point(&graphene::Point::new(x as f32, y as f32)));
-      if !inside {
+    popup::close_on_outside_click(&self.root, self.card.clone(), move || {
+      if let Some(me) = me.upgrade() {
         me.cancel();
       }
     });
-    self.root.add_controller(click);
-
-    for (i, button) in self.confirm_buttons.iter().enumerate() {
-      let click = gtk::GestureClick::new();
-      let me = Rc::downgrade(self);
-      click.connect_released(move |_, _, _, _| {
-        if let Some(me) = me.upgrade() {
-          me.answer_confirm(i == 1);
-        }
-      });
-      button.add_controller(click);
-    }
   }
 
   fn key(self: &Rc<Self>, key: gdk::Key, state: gdk::ModifierType) -> bool {
     use gdk::Key;
-    let ctrl = state.contains(gdk::ModifierType::CONTROL_MASK);
-    let other = state.intersects(gdk::ModifierType::ALT_MASK | gdk::ModifierType::SUPER_MASK | gdk::ModifierType::META_MASK);
-
-    if self.st.borrow().confirm.is_some() {
-      match key {
-        Key::Escape => self.answer_confirm(false),
-        Key::Left | Key::Right | Key::Tab | Key::ISO_Left_Tab => {
-          let mut st = self.st.borrow_mut();
-          st.confirm_index = 1 - st.confirm_index;
-          drop(st);
-          self.paint_confirm();
-        }
-        Key::Return | Key::KP_Enter => {
-          let yes = self.st.borrow().confirm_index == 1;
-          self.answer_confirm(yes);
-        }
-        _ => return false,
+    if self.confirm.open() {
+      if let Some(yes) = self.confirm.key(key) {
+        self.answer_confirm(yes);
       }
       return true;
     }
@@ -1173,25 +1070,14 @@ impl OmarchyMenu {
       let st = self.st.borrow();
       (st.filter.clone(), st.dmenu(), st.mode(), st.cursor, st.rows.len(), st.selected)
     };
+    if let Some(next) = popup::edit_filter(&filter, key, state) {
+      self.set_filter(next);
+      return true;
+    }
     match key {
       Key::Delete => self.ask_uninstall(),
       Key::Escape => {
         if filter.is_empty() { self.cancel() } else { self.set_filter(String::new()) }
-      }
-      // Util.editsFilter: Backspace (Ctrl: a word), Ctrl+U clears.
-      Key::BackSpace if !filter.is_empty() && !other => {
-        let next = if ctrl {
-          let trimmed = filter.trim_end();
-          trimmed.trim_end_matches(|c: char| !c.is_whitespace()).to_string()
-        } else {
-          let mut f = filter;
-          f.pop();
-          f
-        };
-        self.set_filter(next);
-      }
-      Key::u | Key::U if ctrl && !other && !filter.is_empty() && !state.contains(gdk::ModifierType::SHIFT_MASK) => {
-        self.set_filter(String::new())
       }
       Key::BackSpace | Key::Left if filter.is_empty() => self.go_back(),
       Key::Up => self.select(-1),

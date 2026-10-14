@@ -12,12 +12,16 @@
 
 mod apps;
 mod card;
+mod clipboard;
+mod emojis;
+mod images;
 mod iniciar;
 mod ipc;
 mod lock;
 mod menu;
 mod notify;
 mod osd;
+mod popup;
 mod polkit;
 mod quickshell;
 mod run;
@@ -29,6 +33,12 @@ use std::rc::Rc;
 fn main() -> glib::ExitCode {
   // The lock screen's PAM child (lock/pam.rs), before any GTK.
   let args: Vec<String> = std::env::args().collect();
+  // What this build takes over from Quickshell, for fedora/doxia/apply-bar
+  // (builds before 0.7.0 reject the option).
+  if args.get(1).map(String::as_str) == Some("--features") {
+    println!("notifications polkit lock menu iniciar clipboard emojis image-picker");
+    return glib::ExitCode::SUCCESS;
+  }
   if args.get(1).map(String::as_str) == Some("--pam") {
     let code = lock::pam::run(args.get(2).map(String::as_str).unwrap_or(""));
     return glib::ExitCode::from(code as u8);
@@ -79,11 +89,16 @@ fn main() -> glib::ExitCode {
     let l = lock.clone();
     ipc.add("lock", Box::new(move |method, _| l.ipc(method)));
 
-    // Quickshell's plugin surface for the plugins taken over (the menu
-    // and the Start menu so far); any other plugin, or a call with none,
-    // stays Quickshell's.
+    // Quickshell's plugin surface for the plugins taken over (the menu,
+    // the Start menu and the pickers so far); any other plugin, or a call
+    // with none, stays Quickshell's.
     let omarchy_menu = menu::OmarchyMenu::new(app);
     let iniciar = iniciar::Iniciar::new(app);
+    let clipboard = clipboard::Clipboard::new(app);
+    let emojis = emojis::Emojis::new(app);
+    let images = images::Images::new(app);
+    let i = images.clone();
+    ipc.add("image-selector", Box::new(move |method, args| i.selector_ipc(method, args)));
     ipc.add(
       "shell",
       Box::new(move |method, args| {
@@ -91,6 +106,9 @@ fn main() -> glib::ExitCode {
         match args.first().map(String::as_str) {
           Some("omarchy.menu") => omarchy_menu.ipc(method, &args[1..]),
           Some("doxia.iniciar") => iniciar.ipc(method, &args[1..]),
+          Some("omarchy.clipboard") => clipboard.ipc(method, &args[1..]),
+          Some("omarchy.emojis") => emojis.ipc(method, &args[1..]),
+          Some("omarchy.image-picker") => images.plugin_ipc(method, &args[1..]),
           _ => not_ours(),
         }
       }),

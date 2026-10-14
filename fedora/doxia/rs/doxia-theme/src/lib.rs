@@ -505,6 +505,38 @@ pub fn menu_card() -> Card {
   Card { fill, border, border_width, radius: rounding() as f64 }
 }
 
+// The image picker's colors (Color.qml's imagePicker): the scrim, the
+// labels, the selected and other slices' borders, and the background that
+// dims the other slices and outlines the labels.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ImagePicker {
+  pub scrim: [f64; 4],
+  pub text: [f64; 4],
+  pub selected_border: [f64; 4],
+  pub unselected_border: [f64; 4],
+  pub background: [f64; 4],
+}
+
+pub fn image_picker() -> ImagePicker {
+  let dir = theme_dir();
+  let colors = dir.join("colors.toml");
+  let shell = Toml::read(&dir.join("shell.toml"));
+  let fg = color_value(&colors, "foreground").unwrap_or(Rgb(0.79, 0.8, 0.8));
+  let bg = color_value(&colors, "background").unwrap_or(Rgb(0.063, 0.075, 0.082));
+  let accent = color_value(&colors, "accent").unwrap_or(fg);
+  let composed = |key: &str, fallback: Rgb, alpha: f64| {
+    let Rgb(r, g, b) = shell.get("image-picker", key).and_then(Rgb::hex).unwrap_or(fallback);
+    [r, g, b, shell.num("image-picker", &format!("{key}-alpha")).unwrap_or(alpha)]
+  };
+  ImagePicker {
+    scrim: composed("scrim", bg, 0.5),
+    text: shell.get("image-picker", "text").and_then(rgba_of).unwrap_or([fg.0, fg.1, fg.2, 1.0]),
+    selected_border: composed("selected-border", accent, 1.0),
+    unselected_border: composed("unselected-border", fg, 0.28),
+    background: [bg.0, bg.1, bg.2, 1.0],
+  }
+}
+
 // Keeps one app's CSS in place and current: reload() rebuilds it when the
 // theme files changed (a theme switch), and says whether it did.
 pub struct Styler {
