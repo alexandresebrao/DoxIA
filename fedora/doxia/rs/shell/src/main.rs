@@ -1,6 +1,7 @@
 // doxia-shell: the long-running half of the DoxIA shell, taking over from
 // Quickshell one surface at a time: the OSD, the notifications, the polkit
-// agent, the lock screen, the Omarchy menu and the Start menu so far. It
+// agent, the lock screen, the menus, the pickers, the reminder prompt, the
+// battery warning and the desktop background so far. It
 // owns org.doxia.Shell on the session bus and answers the same IPC calls
 // Quickshell does for those targets (ipc.rs), which
 // bin/omarchy-shell tries first:
@@ -11,6 +12,8 @@
 // Running doxia-shell again while it runs does nothing.
 
 mod apps;
+mod background;
+mod battery;
 mod card;
 mod clipboard;
 mod emojis;
@@ -24,6 +27,7 @@ mod osd;
 mod popup;
 mod polkit;
 mod quickshell;
+mod reminders;
 mod run;
 
 use gtk::prelude::*;
@@ -36,7 +40,7 @@ fn main() -> glib::ExitCode {
   // What this build takes over from Quickshell, for fedora/doxia/apply-bar
   // (builds before 0.7.0 reject the option).
   if args.get(1).map(String::as_str) == Some("--features") {
-    println!("notifications polkit lock menu iniciar clipboard emojis image-picker");
+    println!("notifications polkit lock menu iniciar clipboard emojis image-picker reminders battery background");
     return glib::ExitCode::SUCCESS;
   }
   if args.get(1).map(String::as_str) == Some("--pam") {
@@ -89,14 +93,15 @@ fn main() -> glib::ExitCode {
     let l = lock.clone();
     ipc.add("lock", Box::new(move |method, _| l.ipc(method)));
 
-    // Quickshell's plugin surface for the plugins taken over (the menu,
-    // the Start menu and the pickers so far); any other plugin, or a call
-    // with none, stays Quickshell's.
+    // Quickshell's plugin surface for the plugins taken over (the menus,
+    // the pickers and the reminder prompt so far); any other plugin, or a
+    // call with none, stays Quickshell's.
     let omarchy_menu = menu::OmarchyMenu::new(app);
     let iniciar = iniciar::Iniciar::new(app);
     let clipboard = clipboard::Clipboard::new(app);
     let emojis = emojis::Emojis::new(app);
     let images = images::Images::new(app);
+    let reminders = reminders::Reminders::new(app);
     let i = images.clone();
     ipc.add("image-selector", Box::new(move |method, args| i.selector_ipc(method, args)));
     ipc.add(
@@ -109,10 +114,21 @@ fn main() -> glib::ExitCode {
           Some("omarchy.clipboard") => clipboard.ipc(method, &args[1..]),
           Some("omarchy.emojis") => emojis.ipc(method, &args[1..]),
           Some("omarchy.image-picker") => images.plugin_ipc(method, &args[1..]),
+          Some("omarchy.reminders") => reminders.ipc(method, &args[1..]),
           _ => not_ours(),
         }
       }),
     );
+
+    let (s, n) = (styler.clone(), notifications.clone());
+    let background = background::Background::new(app, move || {
+      s.reload(true);
+      n.place();
+    });
+    ipc.add("background", Box::new(move |method, args| background.ipc(method, args)));
+
+    crate::quickshell::disable("omarchy.battery");
+    battery::Battery::start();
 
     let polkit = polkit::Polkit::new(app);
     polkit.start();

@@ -196,7 +196,7 @@ window.iniciar-window { background: transparent; }
 
 /* The emoji and clipboard pickers, like Emojis.qml and Clipboard.qml: the
    menu's card, header and selected color. */
-window.emojis-window, window.clipboard-window { background: $MENU_SCRIM; }
+window.emojis-window, window.clipboard-window, window.reminders-window { background: $MENU_SCRIM; }
 window.images-window { background: transparent; }
 gridview.emoji-grid, gridview.emoji-grid > child { background: transparent; padding: 0; margin: 0; }
 gridview.emoji-grid > child { border-radius: $R_CTRL; }

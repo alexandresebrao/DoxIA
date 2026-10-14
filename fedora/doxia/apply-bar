@@ -143,13 +143,13 @@ if command -v doxia-shell >/dev/null; then
     doxia-shell --pam "" </dev/null &>/dev/null || pam=$?
     (( pam == 2 )) && features="lock"
   fi
-  for feature in lock clipboard; do
+  for feature in lock clipboard battery background; do
     if [[ " $features " == *" $feature "* ]]; then
       taken+=("omarchy.$feature")
     fi
   done
 fi
-jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboard"] as $all
+jq '["omarchy.notifications", "omarchy.polkit", "omarchy.lock", "omarchy.clipboard", "omarchy.battery", "omarchy.background"] as $all
     | ((.disabledPlugins // []) | map(select(. as $id | $all | index($id) | not)) + $ARGS.positional) as $off
     | if $off == [] then del(.disabledPlugins) else .disabledPlugins = $off end' \
   "$shell_json" --args "${taken[@]}" > "$shell_json.tmp"

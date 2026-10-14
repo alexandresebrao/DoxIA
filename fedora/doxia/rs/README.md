@@ -110,7 +110,8 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 
 - `shell` (the plugin surface): `summon`, `toggle`, `hide` and `call` for
   the plugins doxia-shell has taken over, `omarchy.menu`, `doxia.iniciar`,
-  `omarchy.clipboard`, `omarchy.emojis` and `omarchy.image-picker`; for any
+  `omarchy.clipboard`, `omarchy.emojis`, `omarchy.image-picker` and
+  `omarchy.reminders`; for any
   other plugin, or a call without one (`ping`,
   `listPlugins`), it answers "Target not found." and the call goes on to
   Quickshell. Both plugins stay enabled there: the menu's bar button is a
@@ -153,6 +154,28 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
     `omarchy-menu-images` (theme, background and boot screen switchers),
     drawn with cairo, as the `image-selector` IPC target (`open`, `preload`,
     `cancel`) as well as the plugin.
+  - `reminders.rs`, replacing `shell/plugins/reminders`: the minutes, then
+    the message, handed to `omarchy-reminder`.
+
+- `background`: the desktop background (`background.rs`), replacing
+  `shell/plugins/background` (`refresh`, `set`, `setInstant`, `transition`,
+  `themeTransition`). One background-layer window per screen with the image
+  cropped to fill it; a new one comes in through the QML's slanted band.
+  `themeTransition` (`omarchy-theme-set`) also carries the theme's
+  `colors.toml` and `shell.toml`: as the band starts doxia-shell reloads its
+  CSS and passes them on to Quickshell's `shell applyTheme` (which does not
+  watch the files), so the bar changes with the picture. Double-click picks a
+  background, a right double-click a theme.
+
+- The battery warning (`battery.rs`), replacing `shell/services/battery`:
+  UPower's display device every 30 s and on every switch to or from battery;
+  `omarchy-battery-low` once per discharge at 10% or less, and the profile
+  saved for battery or AC (`omarchy-powerprofiles-set`) on each switch.
+
+- `omarchy.background` and `omarchy.battery` go to `disabledPlugins` like the
+  services above. Still Quickshell's, because its bar's indicators read them
+  directly: `omarchy.idle` (stay awake), `omarchy.nightlight` and
+  `omarchy.media`; they move with the bar.
 
 - `doxia-shell --features` lists what the build takes over, for
   `apply-bar` (builds before 0.7.0 reject the option).
