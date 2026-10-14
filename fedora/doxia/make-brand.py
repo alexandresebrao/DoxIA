@@ -2,7 +2,8 @@
 """Gera a marca do DoxIA: o ∞ do tema DoxIA com "DoxIA" ao lado, em Red Hat Display
 (fonte livre, SIL OFL), "Dox" em cinza-claro e "IA" com a extrusão 3D do ∞. Nas
 imagens o ∞ e o IA vão no degradê vermelho -> laranja do tema LiquidIA; nos
-terminais ficam chapados em vermelho.
+terminais ficam chapados em vermelho e o "Dox" usa a cor de texto do terminal, para
+aparecer tanto em tema escuro quanto claro.
 
 Saídas (rode da raiz do repositório depois de mudar a marca):
   logo.txt, icon.txt                         terminal, 8 linhas (icon.txt com $1/$2 de cor)
@@ -11,7 +12,9 @@ Saídas (rode da raiz do repositório depois de mudar a marca):
   fedora/doxia/branding/screensaver.txt  versão grande, 12 linhas
   fedora/doxia/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
   default/plymouth/doxia/watermark.png     marca no rodapé do boot splash
-  default/sddm/omarchy/brand.png             marca no rodapé da tela de login
+  default/sddm/omarchy/brand.png             marca no rodapé da tela de login (e nos
+                                             terminais com imagem, em tema escuro)
+  fedora/doxia/brand-light.png               a mesma com "Dox" escuro, para tema claro
 
 Precisa do PIL e das fontes redhat-display-fonts.
 """
@@ -23,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[2]
 FONT = "/usr/share/fonts/redhat/RedHatDisplay-Bold.otf"
 INFINITY = ROOT / "themes/doxia/infinito.png"
 LIGHT = (240, 240, 240)
+DARK = (21, 21, 21)  # "Dox" sobre fundo claro
 RED = (238, 0, 0)
 SIDE = (163, 0, 0)  # lateral 3D, a mesma do ∞
 # Degradê do LiquidIA (themes/liquidia/make-art.py), da esquerda para a direita.
@@ -53,12 +57,12 @@ def extrude(mask, depth):
     return out
 
 
-def brand(height, smooth):
+def brand(height, smooth, text=LIGHT):
     """∞ + DoxIA numa tela de `height` px. Devolve (RGBA colorida, máscara do vermelho).
     Na versão lisa (imagens) o IA ganha a extrusão do ∞; nos blocos do terminal fica chapado."""
     if smooth:
         # Desenha 4x maior para a extrusão sair sem serrilhado e reduz no fim.
-        big, red = brand_canvas(height * 4, smooth=True)
+        big, red = brand_canvas(height * 4, smooth=True, text=text)
         size = (big.width // 4, big.height // 4)
         return big.resize(size, Image.LANCZOS), red.resize(size, Image.LANCZOS)
     return brand_canvas(height, smooth=False)
@@ -81,7 +85,7 @@ def liquid(img, mask, x0, x1):
     return Image.composite(tinted, img, mask)
 
 
-def brand_canvas(height, smooth):
+def brand_canvas(height, smooth, text=LIGHT):
     font = ImageFont.truetype(FONT, int(height * 1.32))
     box = font.getbbox("DoxIA")
     cap = font.getbbox("D")
@@ -97,7 +101,7 @@ def brand_canvas(height, smooth):
 
     img = Image.new("RGBA", (width, canvas_h), (0, 0, 0, 0))
     red = Image.new("L", (width, canvas_h), 0)
-    ImageDraw.Draw(img).text((x_text, y), "Dox", font=font, fill=LIGHT + (255,))
+    ImageDraw.Draw(img).text((x_text, y), "Dox", font=font, fill=text + (255,))
     ia = Image.new("L", (width, canvas_h), 0)
     ImageDraw.Draw(ia).text((x_text + dox, y), "IA", font=font, fill=255)
     if depth:
@@ -165,7 +169,8 @@ def main():
     icon = render(medium, "$1", "$2")
     write("icon.txt", icon)
     write("fedora/doxia/branding/about.txt", icon)
-    ansi_light, ansi_red = "\x1b[1;38;2;240;240;240m", "\x1b[1;38;2;238;0;0m"
+    # "Dox" na cor de texto padrão do terminal (39), que acompanha o tema claro ou escuro.
+    ansi_light, ansi_red = "\x1b[1;39m", "\x1b[1;38;2;238;0;0m"
     write("fedora/doxia/branding/logo.ansi", render(medium, ansi_light, ansi_red, "\x1b[0m"))
     write("fedora/doxia/branding/screensaver.txt", render(blocks(12), "", ""))
     write("fedora/doxia/brand.ansi", render(blocks(8), ansi_light, ansi_red, "\x1b[0m"))
@@ -182,6 +187,10 @@ def main():
     login, _ = brand(110, smooth=True)
     login.crop(login.getbbox()).save(ROOT / "default/sddm/omarchy/brand.png", optimize=True)
     print("wrote default/sddm/omarchy/brand.png")
+
+    light, _ = brand(110, smooth=True, text=DARK)
+    light.crop(light.getbbox()).save(ROOT / "fedora/doxia/brand-light.png", optimize=True)
+    print("wrote fedora/doxia/brand-light.png")
 
 
 if __name__ == "__main__":

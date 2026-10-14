@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Prints the DoxIA brand image that fits the current theme: brand.png ("Dox" light
+# gray) on dark themes, brand-light.png ("Dox" near-black) on light ones. Both are
+# made by make-brand.py. Used by show-brand and fedora/bin/fastfetch.
+
+dir=$(dirname "$(readlink -f "$0")")
+if [[ $(omarchy-theme-color mode 2>/dev/null) == light ]]; then
+  echo "$dir/brand-light.png"
+else
+  echo "$(dirname "$(dirname "$dir")")/default/sddm/omarchy/brand.png"
+fi

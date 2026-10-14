@@ -4,7 +4,7 @@
     "type": "file",
     "source": "~/.config/omarchy/branding/about.txt",
     "color": {
-      "1": "#f0f0f0",
+      "1": "default",
       "2": "#ee0000"
     },
     "padding": {
@@ -16,7 +16,7 @@
   "display": {
     "disableLinewrap": true,
     "percent": {
-      "color": { "green": "#d2d2d2", "yellow": "#f0ab00", "red": "#ee0000" }
+      "color": { "green": "default", "yellow": "#f0ab00", "red": "#ee0000" }
     }
   },
   "modules": [
@@ -29,40 +29,40 @@
     {
       "type": "host",
       "key": " PC",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "cpu",
       "key": "│ ├",
       "showPeCoreCount": true,
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "gpu",
       "key": "│ ├",
       "detectionMethod": "pci",
       "format": "{name}",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "display",
       "key": "│ ├󱄄",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "disk",
       "key": "│ ├󰋊",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "memory",
       "key": "│ ├",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "swap",
       "key": "└ └󰓡 ",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "custom",
@@ -144,18 +144,18 @@
     {
       "type": "command",
       "key": "󱦟 OS Age",
-      "keyColor": "#d2d2d2",
+      "keyColor": "default",
       "text": "echo $(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days"
     },
     {
       "type": "uptime",
       "key": "󱫐 Uptime",
-      "keyColor": "#d2d2d2"
+      "keyColor": "default"
     },
     {
       "type": "command",
       "key": " Update",
-      "keyColor": "#d2d2d2",
+      "keyColor": "default",
       "text": "date -d @$(stat -c %Y /usr/lib/sysimage/rpm/rpmdb.sqlite) '+%A, %B %d %Y at %H:%M'"
     },
     {

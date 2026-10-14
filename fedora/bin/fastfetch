@@ -16,7 +16,7 @@ done
 if [[ -t 1 ]] && "$omarchy_path/fedora/doxia/term-graphics" >/dev/null; then
   # As wide as the ASCII logo (46 columns), so omarchy-launch-about's window fit
   # still holds; the image is about half its height, hence the extra top padding.
-  exec "$real" --logo "$omarchy_path/default/sddm/omarchy/brand.png" --logo-type kitty \
+  exec "$real" --logo "$("$omarchy_path/fedora/doxia/brand-image")" --logo-type kitty \
     --logo-width 46 --logo-padding-top 14 "$@"
 fi
 exec "$real" "$@"

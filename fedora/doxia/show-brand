@@ -7,7 +7,7 @@
 
 indent=${1:-0}
 dir=$(dirname "$(readlink -f "$0")")
-brand=$(dirname "$(dirname "$dir")")/default/sddm/omarchy/brand.png
+brand=$("$dir/brand-image")
 
 [[ -t 1 ]] || exit 1
 "$dir/term-graphics" >/dev/null || exit 1
