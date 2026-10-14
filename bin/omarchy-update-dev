@@ -29,9 +29,16 @@ else
   # Local commits not upstream yet: replay them on top. Only a real conflict
   # stops the update, and then the checkout is put back as it was.
   echo "Rebasing local commits onto $upstream"
+  # Rewriting them needs a committer; with no git identity set, reuse the one
+  # that made the latest local commit.
+  if [[ -z $(git -C "$OMARCHY_PATH" config user.email) ]]; then
+    export GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
+    GIT_COMMITTER_NAME=$(git -C "$OMARCHY_PATH" log -1 --format=%cn)
+    GIT_COMMITTER_EMAIL=$(git -C "$OMARCHY_PATH" log -1 --format=%ce)
+  fi
   if ! git -C "$OMARCHY_PATH" rebase --autostash '@{upstream}'; then
-    git -C "$OMARCHY_PATH" rebase --abort || true
-    echo -e "\e[31mLocal commits conflict with $upstream; resolve by hand with git rebase $upstream\e[0m" >&2
+    git -C "$OMARCHY_PATH" rebase --abort 2>/dev/null || true
+    echo -e "\e[31mCould not rebase local commits onto $upstream (see above); the checkout is unchanged. Resolve by hand with: git rebase $upstream\e[0m" >&2
     exit 1
   fi
 fi
