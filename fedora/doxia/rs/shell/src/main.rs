@@ -31,6 +31,7 @@ mod mpris;
 mod nightlight;
 mod notify;
 mod osd;
+mod overlays;
 mod pipewire;
 mod popup;
 mod polkit;
@@ -115,6 +116,12 @@ fn main() -> glib::ExitCode {
     let reminders = reminders::Reminders::new(app);
     let i = images.clone();
     ipc.add("image-selector", Box::new(move |method, args| i.selector_ipc(method, args)));
+    // The network panel's QR code and speed tests, with the bar.
+    let dev_bar = std::env::var("DOXIA_BAR").as_deref() == Ok("1");
+    let wifiqr = dev_bar.then(|| overlays::WifiQr::new(app));
+    let speedtest = dev_bar.then(|| overlays::SpeedTest::new(app, false));
+    let disk_speedtest = dev_bar.then(|| overlays::SpeedTest::new(app, true));
+
     // The bar, made further down: its panels answer for their widgets' ids.
     let bar_slot: Rc<std::cell::RefCell<Option<Rc<bar::Bar>>>> = Rc::default();
     let bs = bar_slot.clone();
@@ -137,6 +144,9 @@ fn main() -> glib::ExitCode {
           Some("doxia.emojis" | "omarchy.emojis") => emojis.ipc(method, &args[1..]),
           Some("doxia.image-picker" | "omarchy.image-picker") => images.plugin_ipc(method, &args[1..]),
           Some("doxia.reminders" | "omarchy.reminders") => reminders.ipc(method, &args[1..]),
+          Some("omarchy.wifiqr" | "doxia.wifiqr") if wifiqr.is_some() => wifiqr.as_ref()?.ipc(method, &args[1..]),
+          Some("omarchy.speedtest" | "doxia.speedtest") if speedtest.is_some() => speedtest.as_ref()?.ipc(method, &args[1..]),
+          Some("omarchy.disk-speedtest" | "doxia.disk-speedtest") if disk_speedtest.is_some() => disk_speedtest.as_ref()?.ipc(method, &args[1..]),
           Some(id) => bar.and_then(|b| b.shell_call(method, id)).or_else(not_ours),
           _ => not_ours(),
         }

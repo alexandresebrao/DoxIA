@@ -376,3 +376,10 @@ button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }
 .bar-button.silenced label { color: alpha($BAR_TEXT, 0.6); }
 .bar-omarchy label { font-family: "omarchy"; }
 .bar-omarchy-workspace { color: $BAR_TEXT; font-size: $FS_BODY; }
+window.overlay-window { background: rgba(0, 0, 0, 0.78); }
+.overlay-title { font-size: $FS_CAPTION; font-weight: bold; letter-spacing: 2px; color: rgba(255, 255, 255, 0.55); }
+.overlay-dim { font-size: $FS_SMALL; color: rgba(255, 255, 255, 0.55); }
+.overlay-error { font-size: $FS_SMALL; color: #ff6b6b; }
+.overlay-password { font-size: $FS_SMALL; color: rgba(255, 255, 255, 0.6); }
+.overlay-password.visible { color: white; }
+button.ctl.overlay-again { color: white; padding: 4px 14px; font-size: $FS_SMALL; }
