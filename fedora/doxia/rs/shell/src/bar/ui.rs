@@ -293,12 +293,15 @@ impl Slider {
     drag.connect_drag_end(move |_, _, _| {
       let Some(me) = weak.upgrade() else { return };
       me.dragging.set(false);
+      // Stays where it was dropped (snapping back to the old value made the
+      // media position jump back until the next tick); the callback or the
+      // next set() corrects it.
       let v = me.live.get();
+      me.value.set(v);
       let f = me.on_released.borrow().clone();
       if let Some(f) = f {
         f(v);
       }
-      me.live.set(me.value.get());
       me.widget.queue_draw();
     });
     me.widget.add_controller(drag);

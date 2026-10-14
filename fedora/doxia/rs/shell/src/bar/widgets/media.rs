@@ -71,6 +71,8 @@ struct Media {
   selected: RefCell<String>,
   player: RefCell<Option<Rc<Player>>>,
   position: Cell<f64>,
+  // The position just sought to, shown until the player reports it.
+  sought: Cell<Option<(f64, Instant)>>,
   // The volume just set, shown until PipeWire and MPRIS catch up with it.
   wanted: Cell<Option<(f64, Instant)>>,
 }
@@ -142,9 +144,27 @@ impl Media {
   fn seek_by(&self, delta: f64) {
     if let Some(p) = self.player().filter(|_| self.can_seek()) {
       let to = (self.position.get() + delta).clamp(0.0, p.length());
-      p.set_position(to);
-      self.position.set(to);
+      self.seek(&p, to);
     }
+  }
+
+  fn seek(&self, p: &Player, to: f64) {
+    p.set_position(to);
+    self.position.set(to);
+    self.sought.set(Some((to, Instant::now())));
+  }
+
+  // Players answer with the old position for a moment after a seek; keep
+  // showing the new one (running on while playing) until they catch up.
+  fn shown_position(&self, reported: f64, playing: bool) -> f64 {
+    let Some((to, at)) = self.sought.get() else { return reported };
+    let since = at.elapsed().as_secs_f64();
+    let expected = if playing { to + since } else { to };
+    if since > 3.0 || (reported - expected).abs() < 1.5 {
+      self.sought.set(None);
+      return reported;
+    }
+    expected
   }
 
   fn toggle_shuffle(&self) {
@@ -171,7 +191,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   let space = { let s = ctx.style.clone(); move |px: f64| s.space(px) };
   let max_label = setting(entry, "maxLabelWidth").and_then(|v| v.as_f64().or_else(|| v.as_str()?.parse().ok())).unwrap_or(180.0).max(60.0);
   let vertical = ctx.vertical();
-  let media = Rc::new(Media { selected: RefCell::default(), player: RefCell::default(), position: Cell::new(0.0), wanted: Cell::new(None) });
+  let media = Rc::new(Media { selected: RefCell::default(), player: RefCell::default(), position: Cell::new(0.0), sought: Cell::new(None), wanted: Cell::new(None) });
 
   // The bar: the glyph, then the title in a fixed-width clip.
   let row = ui::hbox(space(6.0));
@@ -539,7 +559,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
       let (media, progress, elapsed, panel_w) = (media.clone(), progress.clone(), elapsed.clone(), panel_w.clone());
       glib::spawn_future_local(async move {
         let Some(p) = media.player() else { return };
-        let pos = p.position().await;
+        let pos = media.shown_position(p.position().await, p.playing());
         media.position.set(pos);
         if panel_w.upgrade().is_some_and(|p| p.is_open()) && !progress.dragging() {
           progress.set(pos / p.length().max(1.0));
@@ -575,8 +595,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
     let m = media.clone();
     progress.connect_released(move |f| {
       if let Some(p) = m.player().filter(|_| m.can_seek()) {
-        p.set_position(f * p.length());
-        m.position.set(f * p.length());
+        m.seek(&p, f * p.length());
       }
     });
     let (m, vt) = (media.clone(), vol_text.clone());
