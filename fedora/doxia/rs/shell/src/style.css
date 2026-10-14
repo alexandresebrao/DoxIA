@@ -334,3 +334,8 @@ window.panel-window { background: transparent; }
 .audio-device.bold, .audio-stream-name.bold { font-weight: bold; }
 .audio-stream-name { font-size: $FS_BODY; }
 .audio-stream { padding: 4px 6px; border-radius: $R_CTRL; }
+.power-percent { font-size: 28px; font-weight: bold; }
+.power-info-label { font-size: $FS_SMALL; opacity: 0.6; }
+.power-info-value { font-size: $FS_SMALL; }
+button.ctl.profile { padding: 8px 10px; font-size: $FS_SMALL; }
+button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }

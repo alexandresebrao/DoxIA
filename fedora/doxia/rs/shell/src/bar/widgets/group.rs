@@ -104,8 +104,13 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value, make: impl Fn(&str, &Value) -> Option
     let render = move || {
       last.set(index);
       crate::popup::clear(&tabs);
-      tabs.set_visible(members_c.len() > 1);
+      // Members with nothing to show (no battery) have no tab.
+      let shown = members_c.iter().filter(|m| m.button.widget.is_visible()).count();
+      tabs.set_visible(shown > 1);
       for (i, other) in members_c.iter().enumerate() {
+        if !other.button.widget.is_visible() {
+          continue;
+        }
         let t = ui::hbox(space(6.0));
         t.set_halign(gtk::Align::Center);
         t.append(&ui::label(&other.button.label.text(), "panel-tab-glyph"));
@@ -128,9 +133,19 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value, make: impl Fn(&str, &Value) -> Option
       }
     };
     m.panel.connect_open(render);
-    // Tab and Shift+Tab walk the tabs.
-    let (sel, n) = (select.clone(), members.len());
-    m.panel.connect_tab(move |back| sel(if back { (index + n - 1) % n } else { (index + 1) % n }));
+    // Tab and Shift+Tab walk the tabs that show.
+    let (sel, members_t) = (select.clone(), members.clone());
+    m.panel.connect_tab(move |back| {
+      let n = members_t.len();
+      let mut i = index;
+      for _ in 0..n {
+        i = if back { (i + n - 1) % n } else { (i + 1) % n };
+        if members_t[i].button.widget.is_visible() {
+          break;
+        }
+      }
+      sel(i);
+    });
   }
 
   // Clicks, the wheel and the right click.
@@ -148,7 +163,10 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value, make: impl Fn(&str, &Value) -> Option
         Some(m) => m.panel.close(),
         None => {
           let i = last.get().min(members.len() - 1);
-          members[i].panel.open();
+          let pick = if members[i].button.widget.is_visible() { Some(i) } else { members.iter().position(|m| m.button.widget.is_visible()) };
+          if let Some(i) = pick {
+            members[i].panel.open();
+          }
         }
       }
     });

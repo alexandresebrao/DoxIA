@@ -85,6 +85,7 @@ pub fn text(text: &str) -> gtk::Label {
 
 // A rail filled to `fraction` in the accent (the update's progress, a
 // battery's charge).
+#[derive(Clone)]
 pub struct Rail {
   pub widget: gtk::DrawingArea,
   fraction: Rc<Cell<f64>>,

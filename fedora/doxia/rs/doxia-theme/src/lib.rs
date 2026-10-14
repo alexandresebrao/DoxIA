@@ -565,6 +565,8 @@ pub struct BarStyle {
   pub gaps_out: i32,
   pub font_body: f64,
   pub font_caption: f64,
+  // [font] base-size: what omarchy-display-text-size sets.
+  pub font_base: f64,
 }
 
 impl BarStyle {
@@ -688,6 +690,7 @@ pub fn bar_style() -> BarStyle {
     gaps_out,
     font_body: font("body", 1.0),
     font_caption: font("caption", 0.833),
+    font_base: base,
   }
 }
 

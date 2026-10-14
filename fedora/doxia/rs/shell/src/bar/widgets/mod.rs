@@ -7,6 +7,8 @@ pub mod clock;
 mod doxia;
 mod group;
 mod media;
+mod monitor;
+mod power;
 mod system;
 mod tray;
 mod usage;
@@ -31,16 +33,18 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "omarchy.tray" => Some(tray::build(ctx, entry)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),
     "omarchy.system-update" => Some(system::system_update(ctx)),
-    "omarchy.audio" => member(ctx, "omarchy.audio", entry).map(Member::standalone),
+    id @ ("omarchy.audio" | "omarchy.power" | "omarchy.monitor") => member(ctx, id, entry).map(Member::standalone),
     "omarchy.group" => group::build(ctx, entry, |id, e| member(ctx, id, e)),
     _ => None,
   }
 }
 
 // A widget with a panel, alone on the bar or in a group.
-fn member(ctx: &Rc<Ctx>, id: &str, _entry: &Value) -> Option<Member> {
+fn member(ctx: &Rc<Ctx>, id: &str, entry: &Value) -> Option<Member> {
   match id {
     "omarchy.audio" => Some(audio::build(ctx)),
+    "omarchy.power" => Some(power::build(ctx, entry)),
+    "omarchy.monitor" => Some(monitor::build(ctx)),
     _ => None,
   }
 }
