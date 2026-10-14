@@ -333,21 +333,21 @@ systemctl --user try-restart doxia-shell.service 2>/dev/null || true
 echo "==> DoxIA bar widgets (∞ menu button, workspace icons, Now Playing, screen share, usage, services)"
 bash "$OMARCHY_PATH/fedora/doxia/apply-bar"
 
-# doxia-shell doing everything, Quickshell goes, with the Qt pieces
-# install-system.sh added for it that nothing else needs (marked as
-# dependencies, dnf takes the unused ones along). The one still running
-# from this session ends at the shell restart after the update.
+# doxia-shell doing everything, Quickshell goes, then the Qt pieces
+# install-system.sh added for it that nothing installed needs (rpm -e --test,
+# which counts the libraries they provide). The one still running from this
+# session ends at the shell restart after the update.
 if omarchy-cmd-doxia-shell-full; then
   if rpm -q quickshell &>/dev/null; then
     echo "==> Quickshell, replaced by doxia-shell (sudo)"
     sudo bash -s <<'ROOT'
 set -euo pipefail
+dnf remove -y quickshell
 qt=()
 for package in qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia; do
-  rpm -q "$package" &>/dev/null && qt+=("$package")
+  rpm -e --test "$package" &>/dev/null && qt+=("$package")
 done
-(( ${#qt[@]} )) && dnf mark dependency "${qt[@]}" >/dev/null
-dnf remove -y quickshell
+(( ${#qt[@]} )) && dnf remove -y "${qt[@]}"
 dnf copr disable -y errornointernet/quickshell 2>/dev/null || true
 ROOT
   fi
