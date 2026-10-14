@@ -55,6 +55,8 @@ struct Media {
   selected: RefCell<String>,
   player: RefCell<Option<Rc<Player>>>,
   position: Cell<f64>,
+  // The volume just set, shown until PipeWire and MPRIS catch up with it.
+  wanted: Cell<Option<(f64, Instant)>>,
 }
 
 impl Media {
@@ -70,14 +72,16 @@ impl Media {
 
   // The stream's volume when there is one: Spotify's MPRIS volume lags.
   fn volume(&self) -> Option<(f64, bool)> {
+    let wanted = self.wanted.get().filter(|(_, at)| at.elapsed() < Duration::from_millis(1500)).map(|(v, _)| v);
     if let Some(s) = self.streams().first() {
-      return Some((s.volume, s.muted));
+      return Some((wanted.unwrap_or(s.volume), s.muted));
     }
-    self.player().and_then(|p| p.volume()).map(|v| (v, false))
+    self.player().and_then(|p| p.volume()).map(|v| (wanted.unwrap_or(v), false))
   }
 
   fn set_volume(&self, v: f64) {
     let v = v.clamp(0.0, 1.0);
+    self.wanted.set(Some((v, Instant::now())));
     // Spotify puts its own (MPRIS) volume back on the stream at every track,
     // so that one moves too.
     if let Some(p) = self.player().filter(|p| p.volume().is_some() && p.can("CanControl")) {
@@ -151,7 +155,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   let space = { let s = ctx.style.clone(); move |px: f64| s.space(px) };
   let max_label = setting(entry, "maxLabelWidth").and_then(|v| v.as_f64().or_else(|| v.as_str()?.parse().ok())).unwrap_or(180.0).max(60.0);
   let vertical = ctx.vertical();
-  let media = Rc::new(Media { selected: RefCell::default(), player: RefCell::default(), position: Cell::new(0.0) });
+  let media = Rc::new(Media { selected: RefCell::default(), player: RefCell::default(), position: Cell::new(0.0), wanted: Cell::new(None) });
 
   // The bar: the glyph, then the title in a fixed-width clip.
   let row = ui::hbox(space(6.0));

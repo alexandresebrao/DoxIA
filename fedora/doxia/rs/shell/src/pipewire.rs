@@ -134,6 +134,8 @@ pub fn parse(dump: &str) -> Snapshot {
 pub struct Pipewire {
   snap: RefCell<Rc<Snapshot>>,
   pending: Cell<bool>,
+  // An event came during a read: read again after it.
+  again: Cell<bool>,
   listeners: RefCell<Vec<Box<dyn Fn()>>>,
 }
 
@@ -167,9 +169,11 @@ impl Pipewire {
     self.refresh();
   }
 
-  // Coalesced: a burst of events reads once.
+  // Coalesced: a burst of events reads once, and once more after a read
+  // that events overtook (a volume drag), or the last change would be lost.
   pub fn refresh(self: &Rc<Self>) {
     if self.pending.replace(true) {
+      self.again.set(true);
       return;
     }
     let weak = Rc::downgrade(self);
@@ -178,6 +182,9 @@ impl Pipewire {
       let dump = crate::watch::output(&["pw-dump"]).await.unwrap_or_default();
       let Some(me) = weak.upgrade() else { return };
       me.pending.set(false);
+      if me.again.replace(false) {
+        me.refresh();
+      }
       let snap = parse(&dump);
       if *me.snap.borrow().as_ref() != snap {
         *me.snap.borrow_mut() = Rc::new(snap);
