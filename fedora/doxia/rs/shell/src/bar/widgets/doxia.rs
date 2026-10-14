@@ -69,6 +69,25 @@ fn icon(id: u32) -> Option<&'static str> {
   ICONS.iter().find(|(i, _)| *i == id).map(|(_, g)| *g)
 }
 
+// A workspace's icon or number, centered on its ink rather than its advance:
+// these icons sit a couple of pixels right of their advance's middle, which
+// a label would center (like OpticalGlyph in the Quickshell bar). Font and
+// color from the CSS (.bar-workspace).
+fn plate(text: String) -> gtk::DrawingArea {
+  let area = gtk::DrawingArea::new();
+  area.set_draw_func(move |a, cr, w, h| {
+    let layout = a.create_pango_layout(Some(&text));
+    let (ink, _) = layout.pixel_extents();
+    let x = (w - ink.width()) as f64 / 2.0 - ink.x() as f64;
+    let y = (h - ink.height()) as f64 / 2.0 - ink.y() as f64;
+    let c = a.color();
+    cr.set_source_rgba(c.red() as f64, c.green() as f64, c.blue() as f64, c.alpha() as f64);
+    cr.move_to(x.round(), y.round());
+    pangocairo::functions::show_layout(cr, &layout);
+  });
+  area
+}
+
 // 1..6 always, and any tag up to 10 with windows or on screen.
 pub fn workspace_ids(tags: &[mango::Tag]) -> Vec<u32> {
   let mut ids: Vec<u32> = (1..=6).collect();
@@ -107,18 +126,37 @@ pub fn workspaces(ctx: &Rc<Ctx>) -> gtk::Widget {
   overlay.add_overlay(&row);
   overlay.set_measure_overlay(&row, true);
 
-  // The pill's position along the row: where it is and where it goes.
+  // The pill's place along the row, as a plate index: where it is and
+  // where it goes. Drawn centered on the plates as laid out.
   let from = Rc::new(Cell::new(-1.0f64));
   let to = Rc::new(Cell::new(-1.0f64));
   let started = Rc::new(Cell::new(None::<Instant>));
-  let (f, t, st) = (from.clone(), to.clone(), started.clone());
-  pill.set_draw_func(move |_, cr, w, h| {
+  let plates: Rc<RefCell<Vec<(u32, gtk::DrawingArea)>>> = Rc::default();
+  let (f, t, st, pl) = (from.clone(), to.clone(), started.clone(), plates.clone());
+  pill.set_draw_func(move |area, cr, w, h| {
     if t.get() < 0.0 {
       return;
     }
-    let progress = st.get().map(|s| out_cubic(s.elapsed().as_secs_f64() / 0.22)).unwrap_or(1.0);
-    let at = if f.get() < 0.0 { t.get() } else { f.get() + (t.get() - f.get()) * progress };
     let (pw, ph) = if vertical { (plate_h as f64, plate_w as f64) } else { (plate_w as f64, plate_h as f64) };
+    // A plate's pill start: its center less half the pill; between two
+    // plates (an index caught mid-slide), in proportion.
+    let plate_start = |i: usize| -> Option<f64> {
+      let plates = pl.borrow();
+      let (_, label) = plates.get(i)?;
+      let b = label.compute_bounds(area)?;
+      Some(if vertical { b.y() as f64 + (b.height() as f64 - ph) / 2.0 } else { b.x() as f64 + (b.width() as f64 - pw) / 2.0 })
+    };
+    let start_of = |index: f64| -> Option<f64> {
+      let (lo, hi) = (index.floor() as usize, index.ceil() as usize);
+      let a = plate_start(lo)?;
+      Some(a + (plate_start(hi).unwrap_or(a) - a) * index.fract())
+    };
+    let Some(end) = start_of(t.get()) else { return };
+    let progress = st.get().map(|s| out_cubic(s.elapsed().as_secs_f64() / 0.22)).unwrap_or(1.0);
+    let at = match start_of(f.get()).filter(|_| f.get() >= 0.0) {
+      Some(begin) => begin + (end - begin) * progress,
+      None => end,
+    };
     let (x, y) = if vertical { ((w as f64 - pw) / 2.0, at) } else { (at, (h as f64 - ph) / 2.0) };
     let r = pw.min(ph) / 2.0;
     widget::rounded(cr, x + 0.5, y + 0.5, pw - 1.0, ph - 1.0, r);
@@ -130,7 +168,6 @@ pub fn workspaces(ctx: &Rc<Ctx>) -> gtk::Widget {
   });
 
   let mango = mango::get();
-  let plates: Rc<RefCell<Vec<(u32, gtk::Label)>>> = Rc::default();
   let render = {
     let (row, plates, pill, mango, monitor) = (row.clone(), plates.clone(), pill.clone(), mango.clone(), monitor.clone());
     let (from, to, started) = (from.clone(), to.clone(), started.clone());
@@ -142,7 +179,8 @@ pub fn workspaces(ctx: &Rc<Ctx>) -> gtk::Widget {
         crate::popup::clear(&row);
         let mut list = Vec::new();
         for id in &ids {
-          let l = gtk::Label::new(Some(icon(*id).map(String::from).unwrap_or_else(|| if *id == 10 { "0".into() } else { id.to_string() }).as_str()));
+          let text = icon(*id).map(String::from).unwrap_or_else(|| if *id == 10 { "0".into() } else { id.to_string() });
+          let l = plate(text);
           l.add_css_class("bar-workspace");
           if icon(*id).is_none() {
             l.add_css_class("number");
@@ -168,13 +206,14 @@ pub fn workspaces(ctx: &Rc<Ctx>) -> gtk::Widget {
         let occupied = tag.is_some_and(|t| t.clients > 0);
         for (class, on) in [("focused", focused), ("occupied", occupied && !focused)] {
           if on { l.add_css_class(class) } else { l.remove_css_class(class) }
+          l.queue_draw();
         }
         if focused {
           active_at = Some(i);
         }
       }
       // Slide the pill to the active plate.
-      let target = active_at.map(|i| 4.0 + i as f64 * (plate_w as f64 + 4.0)).unwrap_or(-1.0);
+      let target = active_at.map(|i| i as f64).unwrap_or(-1.0);
       if target != to.get() {
         let progress = started.get().map(|s| out_cubic(s.elapsed().as_secs_f64() / 0.22)).unwrap_or(1.0);
         let now_at = if from.get() < 0.0 || to.get() < 0.0 { to.get() } else { from.get() + (to.get() - from.get()) * progress };
