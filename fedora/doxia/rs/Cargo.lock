@@ -98,7 +98,7 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
 name = "doxia-atualizar"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -107,7 +107,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-painel"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-shell"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "doxia-theme",
  "gio-unix",
@@ -133,7 +133,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-theme"
-version = "0.10.7"
+version = "0.10.8"
 dependencies = [
  "gtk4",
  "serde_json",
