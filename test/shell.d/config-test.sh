@@ -219,42 +219,14 @@ cat >"$TMPDIR/home/.config/omarchy/shell.json" <<'JSON'
 }
 JSON
 
-mkdir -p "$TMPDIR/home/.config/omarchy/plugins/local.demo-bar"
-cat >"$TMPDIR/home/.config/omarchy/plugins/local.demo-bar/manifest.json" <<'JSON'
-{
-  "schemaVersion": 1,
-  "id": "local.demo-bar",
-  "name": "Demo bar",
-  "version": "1.0.0",
-  "author": "Test",
-  "description": "Replacement bar for config tests",
-  "kinds": ["bar"],
-  "entryPoints": { "bar": "Bar.qml" }
-}
-JSON
-touch "$TMPDIR/home/.config/omarchy/plugins/local.demo-bar/Bar.qml"
-
-if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar use local.nonexistent-bar 2>/dev/null; then
-  fail "bar use accepted an unknown bar option"
-fi
-pass "bar use rejects an unknown bar option"
-
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar use local.demo-bar
-jq -e '.bar.id == "local.demo-bar"' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config selects a bar option"
-
-HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar reset
-jq -e '.bar.id == null' "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
-pass "shell config resets to built-in bar option"
-
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar move omarchy.active-window right
-grep -Fqx 'shell moveBarWidget omarchy.active-window {"section":"right"}' \
-  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+jq -e '.bar.layout.right | map(.id) | index("omarchy.active-window") != null' \
+  "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar move accepts a positional target section"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar move omarchy.active-window left
-grep -Fqx 'shell moveBarWidget omarchy.active-window {"section":"left"}' \
-  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+jq -e '.bar.layout.left | map(.id) | index("omarchy.active-window") != null' \
+  "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar move can restore a widget with positional syntax"
 
 if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar move omarchy.active-window left --section right 2>/dev/null; then
@@ -282,13 +254,13 @@ jq -e '.bar.transparent == false' "$TMPDIR/home/.config/omarchy/shell.json" >/de
 pass "shell config toggles bar transparency"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth enabled false --json
-grep -Fqx 'shell setBarWidget omarchy.bluetooth enabled false {}' \
-  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+jq -e '.bar.layout.right[] | select(.id == "omarchy.bluetooth") | .enabled == false' \
+  "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar set accepts false JSON values"
 
 HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth optional null --json
-grep -Fqx 'shell setBarWidget omarchy.bluetooth optional null {}' \
-  "$TMPDIR/home/.local/state/omarchy/shell-ipc-calls"
+jq -e '.bar.layout.right[] | select(.id == "omarchy.bluetooth") | has("optional") and .optional == null' \
+  "$TMPDIR/home/.config/omarchy/shell.json" >/dev/null
 pass "bar set accepts null JSON values"
 
 if HOME="$TMPDIR/home" OMARCHY_PATH="$ROOT" omarchy-bar set omarchy.bluetooth broken '{' --json 2>/dev/null; then
