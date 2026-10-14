@@ -9,6 +9,30 @@ session_omarchy_path=$(systemctl --user show-environment 2>/dev/null | sed -n 's
 : "${session_omarchy_path:=$OMARCHY_PATH}"
 
 CONFIG_DIR="$session_omarchy_path/shell"
+
+# doxia-shell doing everything: it is the shell to restart. A Quickshell left
+# from before (the session that installed it) goes. doxia-shell relocks a
+# session it finds stranded, but a live lock screen dies with it: refuse then.
+if omarchy-cmd-doxia-shell-full; then
+  if [[ $(omarchy-shell lock status 2>/dev/null | jq -r '.secure or .requested' 2>/dev/null) == "true" ]]; then
+    echo "Refusing to restart the shell while the session is locked." >&2
+    exit 1
+  fi
+  if [[ -f $CONFIG_DIR/shell.qml ]]; then
+    while timeout 5 quickshell kill -p "$CONFIG_DIR" --any-display >/dev/null 2>&1; do :; done
+  fi
+  systemctl --user restart doxia-shell.service || exit 1
+  for (( attempt = 0; attempt < 50; attempt++ )); do
+    if [[ $(omarchy-shell shell ping 2>/dev/null) == "ok" ]]; then
+      systemctl --user try-restart 'omarchy-*-invitation.service' 2>/dev/null || true
+      exit 0
+    fi
+    sleep 0.1
+  done
+  echo "doxia-shell did not become ready after restart." >&2
+  exit 1
+fi
+
 [[ -f $CONFIG_DIR/shell.qml ]] || { echo "Omarchy shell config not found: $CONFIG_DIR" >&2; exit 1; }
 
 # Allow running from outside the session (e.g. over ssh) by finding the

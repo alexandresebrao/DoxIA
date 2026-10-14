@@ -131,6 +131,11 @@ fn main() -> glib::ExitCode {
       Box::new(move |method, args| {
         let not_ours = || Some("Target not found.".to_string());
         let bar = bs.borrow().clone();
+        // Quickshell's housekeeping calls: up, and nothing to do, since
+        // doxia-shell rereads shell.json and the theme files itself.
+        if matches!(method, "ping" | "applyTheme" | "reloadConfig" | "rescanPlugins") {
+          return Some("ok".into());
+        }
         if method == "togglePanelAt" {
           let bar = bar?;
           let index = args.get(1).and_then(|i| i.trim().parse::<usize>().ok()).unwrap_or(0);

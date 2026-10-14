@@ -38,7 +38,6 @@ fi
 
 (( $# >= 2 )) || fail "Usage: omarchy-shell <target> <method> [args...]"
 [[ -n ${OMARCHY_PATH:-} ]] || fail "OMARCHY_PATH is not set"
-[[ -f $OMARCHY_PATH/shell/shell.qml ]] || fail "omarchy-shell config not found: $OMARCHY_PATH/shell/shell.qml"
 
 # qs matches instances by display, and a caller from outside the session (an
 # ssh or TTY omarchy-restart-shell, and the migrations it runs for) has none,
@@ -64,6 +63,13 @@ if [[ ${DOXIA_SHELL:-1} != "0" ]]; then
     exit 0
   fi
 fi
+
+# With doxia-shell doing everything, Quickshell isn't running: what it
+# couldn't answer, nothing can.
+if [[ -n ${doxia:-} ]] && omarchy-cmd-doxia-shell-full; then
+  fail "$doxia"
+fi
+[[ -f $OMARCHY_PATH/shell/shell.qml ]] || fail "omarchy-shell config not found: $OMARCHY_PATH/shell/shell.qml"
 
 # doxia-shell's plugins (doxia.menu, ...) are Quickshell's omarchy.* ones.
 if [[ $1 == "shell" && ${3:-} =~ ^doxia\.(menu|clipboard|emojis|image-picker|reminders)$ ]]; then

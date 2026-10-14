@@ -14,6 +14,11 @@
 # A package upgrade rewriting $OMARCHY_PATH/shell would otherwise reload it
 # against a half-written tree, and that failed reload leaves a second engine
 # generation behind that turns the next restart's IPC kill into a crash.
+
+# doxia-shell (its own service) is the shell once it does everything
+# Quickshell did; Quickshell is only the fallback without it.
+omarchy-cmd-doxia-shell-full && exit 0
+
 run_shell() {
   QS_DISABLE_FILE_WATCHER=1 QS_NO_RELOAD_POPUP=1 \
     systemd-cat -t omarchy-shell -- quickshell -n -p "$OMARCHY_PATH/shell" &

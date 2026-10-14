@@ -20,19 +20,28 @@ date -Is
 section "Idle IPC status"
 omarchy-shell idle status 2>&1 | jq . 2>/dev/null || omarchy-shell idle status 2>&1 || true
 
-section "Quickshell instances"
-quickshell list -p "$OMARCHY_PATH/shell" --any-display 2>&1 || true
+if omarchy-cmd-doxia-shell-full; then
+  section "doxia-shell"
+  systemctl --user status doxia-shell.service --no-pager 2>/dev/null | head -n 5 || true
 
-section "Recent idle logs"
-quickshell --no-color log -p "$OMARCHY_PATH/shell" --any-display --tail "$lines" --log-times -r 'quickshell.wayland.idle_notify=true' 2>&1 \
-  | grep -Ei 'omarchy idle|idle_notify|screensaver|lock|error|warn|failed' || true
+  section "Recent doxia-shell log"
+  journalctl --user -u doxia-shell.service -n "$lines" --no-pager --quiet 2>/dev/null \
+    | grep -Ei 'idle|screensaver|lock|error|warn|failed' || true
+else
+  section "Quickshell instances"
+  quickshell list -p "$OMARCHY_PATH/shell" --any-display 2>&1 || true
 
-section "Persisted shell log"
-journalctl -t omarchy-shell -n "$lines" --no-pager --quiet 2>/dev/null || true
+  section "Recent idle logs"
+  quickshell --no-color log -p "$OMARCHY_PATH/shell" --any-display --tail "$lines" --log-times -r 'quickshell.wayland.idle_notify=true' 2>&1 \
+    | grep -Ei 'omarchy idle|idle_notify|screensaver|lock|error|warn|failed' || true
+
+  section "Persisted shell log"
+  journalctl -t omarchy-shell -n "$lines" --no-pager --quiet 2>/dev/null || true
+fi
 
 section "Relevant processes"
 ps -eo pid=,args= \
-  | grep -E 'quickshell -n -p|omarchy-system-sleep-monitor|systemd-inhibit.*Lock screen before suspend|org\.omarchy\.screensaver|omarchy-screensaver|(^|/| )ttfx( |$)' \
+  | grep -E 'quickshell -n -p|doxia-shell|omarchy-system-sleep-monitor|systemd-inhibit.*Lock screen before suspend|org\.omarchy\.screensaver|omarchy-screensaver|(^|/| )ttfx( |$)' \
   | grep -v grep || true
 
 section "Sleep lock service"
