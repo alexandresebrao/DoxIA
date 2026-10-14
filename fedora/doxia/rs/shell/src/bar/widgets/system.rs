@@ -466,7 +466,7 @@ fn notify_result(last: Option<&Value>, path: &str) {
     crate::run::argv(&["omarchy-notification-send", "-i", "system-software-update", "-g", "\u{f021}", title, &text]);
   } else {
     crate::run::argv(&[
-      "omarchy-notification-send", "-u", "critical", "-i", "system-software-update", "-g", "\u{f071}", "A atualização não terminou", &m::failure_text(Some(last)), "--exec",
+      "omarchy-notification-send", "-u", "critical", "-i", "dialog-error", "-g", "\u{f00d}", "A atualização não terminou", &m::failure_text(Some(last)), "--exec",
       "omarchy-launch-update",
     ]);
   }
