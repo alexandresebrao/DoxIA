@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-version=0.9.0
-sha256=c749b968b652bf49c15687727e306130559f2983cdee67b6247d76beacd89c05
+version=0.10.0
+sha256=fdf59f382c23344d5a73c740154a30abb56847ae1aef0a083e1c7901f102a771
 name="doxia-rs-$version-$(uname -m)"
 url="https://github.com/alexandresebrao/DoxIA/releases/download/doxia-rs-$version/$name.tar.gz"
 stamp=/usr/local/share/doxia/rs.sha256
