@@ -13,3 +13,6 @@ doxia-theme.workspace = true
 gtk4-layer-shell = "0.8"
 gio-unix = "0.22"
 pangocairo = "0.22"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+glib-unix = "0.22"

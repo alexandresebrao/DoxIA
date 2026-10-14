@@ -20,12 +20,15 @@ mod card;
 mod clipboard;
 mod emojis;
 mod images;
+mod idle;
+mod idle_monitor;
 mod iniciar;
 mod ipc;
 mod lock;
 mod mango;
 mod menu;
 mod mpris;
+mod nightlight;
 mod notify;
 mod osd;
 mod pipewire;
@@ -148,9 +151,21 @@ fn main() -> glib::ExitCode {
       notifications.register(&conn);
     }
 
+    // Idle (screensaver, then lock), while it is being tried: only with
+    // DOXIA_IDLE=1, which takes it from Quickshell.
+    if std::env::var("DOXIA_IDLE").as_deref() == Ok("1") {
+      crate::quickshell::disable("omarchy.idle");
+      let idle = idle::Idle::new();
+      ipc.add("idle", Box::new(move |method, _| idle.ipc(method)));
+    }
+
     // The bar, while it is being built: only with DOXIA_BAR=1, next to
     // Quickshell's.
     let bar = (std::env::var("DOXIA_BAR").as_deref() == Ok("1")).then(|| bar::Bar::new(app, &ipc));
+    if bar.is_some() {
+      let night = nightlight::Nightlight::new();
+      ipc.add("nightlight", Box::new(move |method, _| night.ipc(method)));
+    }
     if let Some(b) = bar.clone() {
       ipc.add("doxia.bar", Box::new(move |method, _| b.ipc(method)));
     }

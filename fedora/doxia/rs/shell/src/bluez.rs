@@ -3,7 +3,6 @@
 // and again (coalesced) on every signal BlueZ sends. One instance per
 // process (bluez::get()).
 
-use gtk::prelude::*;
 use gtk::{gio, glib};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
