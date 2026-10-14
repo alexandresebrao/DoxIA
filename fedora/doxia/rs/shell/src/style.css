@@ -357,3 +357,7 @@ button.ctl.scale { padding: 6px 4px; font-size: $FS_SMALL; }
 .service-line-icon { font-size: $FS_BODY; opacity: 0.6; min-width: 16px; }
 .panel-action.start { color: #5fb878; }
 .panel-action.stop, .panel-action.failed { color: $URGENT; }
+.panel-text.failed, .fortivpn-glyph.failed { color: $URGENT; }
+.fortivpn-status { font-size: $FS_CAPTION; color: alpha($POPUP_TEXT, 0.66); }
+.fortivpn-glyph { font-size: $FS_TITLE; }
+.dim { color: alpha($POPUP_TEXT, 0.66); }
