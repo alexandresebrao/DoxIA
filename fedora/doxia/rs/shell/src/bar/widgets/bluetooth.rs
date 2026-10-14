@@ -178,14 +178,8 @@ pub fn build(ctx: &Rc<Ctx>) -> Member {
       hero.append(&labels);
       if adapter.is_some() {
         let tp = toggle_power.clone();
-        let sw = gtk::Switch::new();
-        sw.set_state(powered);
-        sw.set_valign(gtk::Align::Center);
+        let sw = ui::state_switch(powered, move || tp());
         sw.set_tooltip_text(Some(if powered { "Desligar Bluetooth" } else { "Ligar Bluetooth" }));
-        sw.connect_state_set(move |_, _| {
-          tp();
-          glib::Propagation::Stop
-        });
         hero.append(&sw);
         let tp = toggle_power.clone();
         cursor.add(CursorRow { widget: sw.upcast(), activate: Some(Rc::new(move || tp())), adjust: None, mute: None });

@@ -452,16 +452,10 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
             call(&render_w2);
           }));
           if !st.current().is_empty() || st.connected() {
-            let sw = gtk::Switch::new();
-            sw.set_state(st.switch_on());
-            sw.set_valign(gtk::Align::Center);
+            let tv = toggle_vpn.clone();
+            let sw = ui::state_switch(st.switch_on(), move || tv());
             sw.set_sensitive(!st.busy);
             sw.set_tooltip_text(Some(&if st.switch_on() { "Desconectar".to_string() } else { format!("Conectar a {}", st.current()) }));
-            let tv = toggle_vpn.clone();
-            sw.connect_state_set(move |_, _| {
-              tv();
-              glib::Propagation::Stop
-            });
             hero.append(&sw);
           }
           body.append(&hero);

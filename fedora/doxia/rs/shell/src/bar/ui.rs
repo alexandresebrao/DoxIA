@@ -155,6 +155,29 @@ pub fn toggle(active: bool, on_change: impl Fn(bool) + 'static) -> gtk::Switch {
   s
 }
 
+// A switch that shows a state kept elsewhere (the VPN, Wi-Fi, Bluetooth): a
+// click asks for the change and the switch waits for set_switch to report
+// it. GTK draws the color from `state` and the knob from `active`, so the two
+// move together; a click's own echo (asking for the state it already has)
+// asks for nothing.
+pub fn state_switch(on: bool, on_toggle: impl Fn() + 'static) -> gtk::Switch {
+  let s = gtk::Switch::new();
+  set_switch(&s, on);
+  s.set_valign(gtk::Align::Center);
+  s.connect_state_set(move |s, want| {
+    if want != s.state() {
+      on_toggle();
+    }
+    gtk::glib::Propagation::Stop
+  });
+  s
+}
+
+pub fn set_switch(s: &gtk::Switch, on: bool) {
+  s.set_state(on);
+  s.set_active(on);
+}
+
 // A row that highlights on hover and takes clicks.
 pub fn row(child: &impl IsA<gtk::Widget>, on_click: impl Fn(u32) + 'static) -> gtk::Box {
   let b = hbox(0);

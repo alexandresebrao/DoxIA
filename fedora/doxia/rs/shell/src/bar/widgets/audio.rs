@@ -362,15 +362,10 @@ fn build_panel(
   name.set_xalign(0.0);
   labels.append(&name);
   hero.append(&labels);
-  let sw = gtk::Switch::new();
-  sw.set_valign(gtk::Align::Center);
-  sw.set_focus_on_click(false);
   let ta = toggle_all.clone();
   // A click toggles; the state follows PipeWire through the updater.
-  sw.connect_state_set(move |_, _| {
-    ta();
-    glib::Propagation::Stop
-  });
+  let sw = ui::state_switch(false, move || ta());
+  sw.set_focus_on_click(false);
   hero.append(&sw);
   body.append(&hero);
   let ta = toggle_all.clone();
@@ -384,7 +379,7 @@ fn build_panel(
       hi.set_opacity(if m { 0.5 } else { 1.0 });
       name.set_text(&volume_name(v, m).to_uppercase());
       let audible = (out.is_some() && !m) || snap.source().is_some_and(|s| !s.muted);
-      sw.set_state(audible);
+      ui::set_switch(&sw, audible);
       sw.set_tooltip_text(Some(if audible { "Silenciar" } else { "Ativar som" }));
     }));
   }

@@ -405,14 +405,8 @@ pub fn build(ctx: &Rc<Ctx>) -> Member {
       }
       if s.wifi_device {
         let tw = toggle_wifi.clone();
-        let sw = gtk::Switch::new();
-        sw.set_state(s.wifi_enabled);
-        sw.set_valign(gtk::Align::Center);
+        let sw = ui::state_switch(s.wifi_enabled, move || tw());
         sw.set_tooltip_text(Some(if s.wifi_enabled { "Desligar Wi-Fi" } else { "Ligar Wi-Fi" }));
-        sw.connect_state_set(move |_, _| {
-          tw();
-          glib::Propagation::Stop
-        });
         hero.append(&sw);
         let tw = toggle_wifi.clone();
         cursor.add(CursorRow { widget: sw.upcast(), activate: Some(Rc::new(move || tw())), adjust: None, mute: None });
@@ -475,18 +469,15 @@ pub fn build(ctx: &Rc<Ctx>) -> Member {
         auto.append(&ui::label("AUTOMÁTICO", "panel-section"));
         let sb = set_band.clone();
         let cur = current.clone();
-        let sw = gtk::Switch::new();
-        sw.set_state(!pinned);
-        sw.set_tooltip_text(Some(&if pinned { "Deixar o Wi-Fi escolher a banda".to_string() } else { format!("Manter em {}", m::band_label(current)) }));
         let pinned_now = pinned;
-        sw.connect_state_set(move |_, _| {
+        let sw = ui::state_switch(!pinned, move || {
           if pinned_now {
             sb("auto".into());
           } else if !cur.is_empty() {
             sb(cur.clone());
           }
-          glib::Propagation::Stop
         });
+        sw.set_tooltip_text(Some(&if pinned { "Deixar o Wi-Fi escolher a banda".to_string() } else { format!("Manter em {}", m::band_label(current)) }));
         auto.append(&sw);
         head.set_end_widget(Some(&auto));
         col.append(&head);
