@@ -22,6 +22,8 @@ struct State {
   tags: HashMap<String, Vec<Tag>>,
   focused_monitor: String,
   keyboard_layout: String,
+  // The focused window: its id and title.
+  focused_client: Option<(u64, String)>,
 }
 
 #[derive(Default)]
@@ -83,6 +85,11 @@ impl Mango {
     let weak = Rc::downgrade(self);
     crate::watch::lines(&["mmsg", "watch", "focusing-client"], move |line| {
       let (Some(me), Ok(json)) = (weak.upgrade(), serde_json::from_str::<Value>(line)) else { return };
+      let client = json.get("id").and_then(Value::as_u64).map(|id| (id, json.get("title").and_then(Value::as_str).unwrap_or("").to_string()));
+      if me.st.borrow().focused_client != client {
+        me.st.borrow_mut().focused_client = client;
+        me.changed();
+      }
       match json.get("monitor").and_then(Value::as_str).filter(|m| !m.is_empty()) {
         Some(monitor) => me.set_focused(monitor),
         // No focused window: the output under the pointer.
@@ -132,6 +139,10 @@ impl Mango {
     let st = self.st.borrow();
     let name = if monitor.is_empty() { st.focused_monitor.as_str() } else { monitor };
     st.tags.get(name).cloned().unwrap_or_default()
+  }
+
+  pub fn focused_client(&self) -> Option<(u64, String)> {
+    self.st.borrow().focused_client.clone()
   }
 
   pub fn focused_monitor(&self) -> String {

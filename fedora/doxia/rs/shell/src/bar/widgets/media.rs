@@ -4,7 +4,8 @@
 // album art, the track, a seekable progress bar, the controls, the
 // player's volume (its PipeWire stream, which the audio panel moves too)
 // and, with several music players (browsers are left out), the choice
-// between them. Right click plays or pauses, middle click skips. IPC target
+// between them. Right click plays or pauses, middle click skips. A window
+// taking the focus shows its title there for five seconds. IPC target
 // "doxia.media" (open, close, show, hide, toggle, playPause, next, previous).
 
 use super::super::config::setting;
@@ -12,6 +13,7 @@ use super::super::panel::Panel;
 use super::super::ui;
 use super::super::widget::{self, Slot};
 use super::super::Ctx;
+use crate::mango;
 use crate::mpris::{self, Loop, Player};
 use crate::pipewire;
 use gtk::gdk_pixbuf::Pixbuf;
@@ -189,6 +191,49 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   row.append(&marquee);
   let slot = Slot::new(ctx, &row);
   let panel = Panel::new(ctx, &row, &slot, space(320.0));
+
+  // A window taking the focus: its title over the player for five seconds,
+  // the two crossing with a blur (style.css).
+  if !vertical {
+    let focus = gtk::Label::new(None);
+    focus.add_css_class("bar-media-focus");
+    focus.set_ellipsize(pango::EllipsizeMode::End);
+    focus.set_max_width_chars(((max_label + 2.0 * pad as f64) / 7.0).round() as i32);
+    focus.set_can_target(false);
+    slot.widget.add_overlay(&focus);
+    slot.widget.set_measure_overlay(&focus, true);
+    let last = Rc::new(Cell::new(None::<u64>));
+    let generation = Rc::new(Cell::new(0u64));
+    let (row_w, focus_w) = (row.downgrade(), focus.downgrade());
+    mango::get().connect(move || {
+      let Some((id, title)) = mango::get().focused_client() else { return };
+      // The first one heard (the shell starting) only sets where we are.
+      if last.replace(Some(id)).is_none_or(|was| was == id) || title.is_empty() {
+        return;
+      }
+      let (Some(row), Some(focus)) = (row_w.upgrade(), focus_w.upgrade()) else { return };
+      focus.set_text(&title);
+      focus.add_css_class("shown");
+      row.add_css_class("away");
+      let g = generation.get() + 1;
+      generation.set(g);
+      let (generation, row_w, focus_w) = (generation.clone(), row_w.clone(), focus_w.clone());
+      glib::timeout_add_local_once(Duration::from_secs(5), move || {
+        if generation.get() != g {
+          return;
+        }
+        let (Some(row), Some(focus)) = (row_w.upgrade(), focus_w.upgrade()) else { return };
+        focus.remove_css_class("shown");
+        row.remove_css_class("away");
+        // Its width goes once the blur is over.
+        glib::timeout_add_local_once(Duration::from_millis(400), move || {
+          if generation.get() == g {
+            focus.set_text("");
+          }
+        });
+      });
+    });
+  }
 
   // The marquee: parked at the start, ellipsized, unless it plays with the
   // panel shut; then it runs at about 40 px/s from the right edge.

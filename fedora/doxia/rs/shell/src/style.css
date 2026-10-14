@@ -298,6 +298,10 @@ window.panel-window { background: transparent; }
 .bar-media-glyph { font-size: 10px; color: $BAR_TEXT; }
 .bar-media-glyph.dim { color: alpha($BAR_TEXT, 0.66); }
 .bar-media-title { color: $BAR_TEXT; font-size: $FS_BODY; }
+.bar-media, .bar-media-focus { transition: opacity 350ms ease-out, filter 350ms ease-out; }
+.bar-media.away { opacity: 0; filter: blur(6px); }
+.bar-media-focus { color: $BAR_TEXT; font-size: $FS_BODY; opacity: 0; filter: blur(6px); }
+.bar-media-focus.shown { opacity: 1; filter: blur(0); }
 .media-art { border-radius: 4px; background: $NORMAL_FILL; border: 1px solid $NORMAL_BORDER; }
 .media-art-glyph { font-size: 56px; color: alpha($POPUP_TEXT, 0.64); }
 .media-title { font-size: $FS_HEADING; font-weight: bold; }
