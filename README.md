@@ -5,26 +5,54 @@
   <br><sub><a href="docs/media/doxia-intro.mp4">Assista ao vídeo com som</a></sub>
 </p>
 
-DoxIA é um desktop [mango](https://github.com/mangowm/mango) + Quickshell para **Fedora**, todo em **português do Brasil**,
-pensado para quem desenvolve: Node.js e Java já vêm gerenciados, a barra tem um painel
-para subir os serviços do dia a dia e há uma ISO própria de instalação. Ele pode ser
-instalado ao lado de um desktop que já existe, como o KDE Plasma, sem mexer nele.
+DoxIA é um desktop para **Fedora** sobre o compositor [mango](https://github.com/mangowm/mango),
+com uma casca própria escrita em **Rust + GTK 4**: barra, painéis, notificações, menus,
+tela de bloqueio e os apps do dia a dia são binários nativos, sem QML nem JavaScript no
+caminho. Tudo em **português do Brasil** e pensado para quem desenvolve: Node.js e Java já
+vêm gerenciados, a barra tem um painel para subir os serviços do dia a dia e há uma ISO
+própria de instalação. Ele pode ser instalado ao lado de um desktop que já existe, como o
+KDE Plasma, sem mexer nele.
 
 O nome é Dox + IA, e o ∞ do logo é um 8 deitado.
 
 Mantido por [@alexandresebrao](https://github.com/alexandresebrao). Problemas e sugestões
 vão nas issues deste repositório.
 
+### Feito em Rust
+
+O workspace Cargo em [`fedora/doxia/rs/`](fedora/doxia/rs/) tem os apps do DoxIA. Cada um
+roda no seu próprio processo, então atualizar ou reiniciar a casca não fecha nenhum deles.
+
+| Binário | O que é |
+| --- | --- |
+| `doxia-shell` | A casca: barra, painéis (bateria, tela, som, rede…), notificações, OSD, menu, Iniciar, tela de bloqueio com PAM, agente polkit e os seletores (área de transferência, emojis, imagens) |
+| `doxia-atualizar` | A janela **Atualizar DoxIA** |
+| `doxia-painel` | O **Painel Rápido** |
+| `doxia-theme` | Biblioteca do visual: lê o `colors.toml` e o `shell.toml` do tema e gera o CSS do GTK |
+
+Os binários saem prontos nos [releases](https://github.com/alexandresebrao/DoxIA/releases)
+(`doxia-rs-<versão>`), conferidos por sha256 na instalação e na atualização. Para compilar:
+
+```bash
+sudo dnf install cargo gtk4-devel gtk4-layer-shell-devel pam-devel
+cd fedora/doxia/rs
+cargo test --release && cargo build --release
+```
+
+Detalhes de cada app, o tema e como publicar uma versão estão no
+[README do workspace](fedora/doxia/rs/README.md).
+
 ### Recursos
 
 - mango como compositor (wlroots), numa build do DoxIA publicada nos releases deste
-  repositório com uma correção para máquinas sem GPU (como VMs do Hyper-V); Quickshell e
-  gpu-screen-recorder vindos do COPR e a sessão gerenciada pelo uwsm
+  repositório com uma correção para máquinas sem GPU (como VMs do Hyper-V); sessão
+  gerenciada pelo uwsm
+- Casca em Rust + GTK 4 com vidro translúcido e blur do mango atrás da barra, dos painéis
+  e das janelas dos apps
 - Menus, painéis, notificações e mensagens de OSD em pt-BR
 - Identidade DoxIA: sessão no login, tela de login, logos do Sobre e da proteção de tela,
   saudação do terminal e MOTD
-- Pacotes com `dnf` (helpers `omarchy-pkg-*` e scripts de atualização) e seletores do
-  Flathub (`omarchy-pkg-flatpak-install` / `-remove`) para instalar e remover apps
+- Pacotes com `dnf` e seletores do Flathub para instalar e remover apps
 - Node.js pelo nvm e Java pelo SDKMAN! (uma LTS de cada por padrão), com **Versões do Node
   e do Java** no lançador para escolher a versão padrão, instalar e remover versões e
   instalar um JDK a partir de um arquivo (zip, tar.gz, rpm… como os da Oracle) ou de uma pasta
@@ -48,7 +76,6 @@ vão nas issues deste repositório.
 - Google Chrome e Claude Code instalados; Firefox, Thunderbird (cliente de e-mail padrão) e
   ONLYOFFICE (em pt-BR, no lugar do LibreOffice) vêm do Flathub
 - `tuned-ppd` com um pequeno shim de `powerprofilesctl` para o menu de energia
-- Tela de bloqueio com PAM ajustado para o Fedora
 
 ### Instalação
 
@@ -63,7 +90,7 @@ Depois saia da sessão e escolha **DoxIA** na tela de login.
 O script de usuário faz backup de toda configuração que substitui (`*.bak-omarchy-<data>`)
 e não mexe no autostart, nas variáveis de ambiente nem nas configurações do Chromium do KDE.
 
-Para atualizar, use **Atualizar** no menu: ele atualiza o DoxIA (git pull), os pacotes do
+Para atualizar, use **Atualizar** no menu: ele atualiza o DoxIA (git pull e os apps em Rust), os pacotes do
 sistema, os apps Flatpak e as ferramentas do mise, e depois roda o `fedora/update.sh`, que
 reaplica tema, identidade visual, fonte de ícones, menu, MOTD e tela de login sem mexer no
 layout da barra nem nos plugins dela. O `fedora/update.sh` também pode ser rodado sozinho:
@@ -95,10 +122,10 @@ O desktop é configurado para a conta de usuário criada no assistente.
 
 ### Créditos
 
-Baseado no [Omarchy](https://github.com/basecamp/omarchy) (MIT, © DHH). Não afiliado à
-Basecamp. Os nomes `omarchy-*` (comandos, `~/.local/share/omarchy`, `~/.config/omarchy`)
-foram mantidos para facilitar o merge com o upstream. O manual, em inglês e adaptado ao
-mango, está em [`manual/`](manual/).
+Nasceu como um fork do [Omarchy](https://github.com/basecamp/omarchy) (MIT, © DHH), não
+afiliado à Basecamp. Os nomes `omarchy-*` dos comandos e das pastas
+(`~/.local/share/omarchy`, `~/.config/omarchy`) ficaram por compatibilidade. O manual, em
+inglês, está em [`manual/`](manual/).
 
 ### Licença
 
