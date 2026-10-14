@@ -419,11 +419,21 @@ pub fn system_update(ctx: &Rc<Ctx>) -> gtk::Widget {
   slot.widget.clone().upcast()
 }
 
+thread_local! {
+  // The run last toasted. `notified` lands in the file only after jq runs,
+  // while every bar, every file event and the 1s tick reload before that.
+  static NOTIFIED_AT: Cell<f64> = const { Cell::new(0.0) };
+}
+
 // One toast per finished run: `notified` marks it (the window keeps `seen`).
 fn notify_result(last: Option<&Value>, path: &str) {
   use update_model as m;
   let Some(last) = last else { return };
   if last.get("seen") != Some(&Value::Bool(false)) || m::flag(last, "notified") || m::num(last, "finishedAt") <= 0.0 {
+    return;
+  }
+  let finished = m::num(last, "finishedAt");
+  if NOTIFIED_AT.with(|n| n.replace(finished)) == finished {
     return;
   }
   let result = m::text(last, "result");
