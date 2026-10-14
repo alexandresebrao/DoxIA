@@ -2,8 +2,8 @@
 
 # omarchy:summary=Configure the bar and its widget layout
 # omarchy:group=bar
-# omarchy:args=use <id> | reset | defaults | position <top|bottom|left|right> | transparent <true|false|toggle> | put <id> [placement] | move <id> [placement] | set <id> <key> <value> [--json] [placement]
-# omarchy:examples=omarchy bar use local.neon-bar | omarchy bar put omarchy.keyboard-layout --after omarchy.clock | omarchy bar move omarchy.clock --section center --index 0 | omarchy bar set omarchy.clock format HH:mm
+# omarchy:args=defaults | position <top|bottom|left|right> | transparent <true|false|toggle> | put <id> [placement] | remove <id> | move <id> [placement] | set <id> <key> <value> [--json] [placement]
+# omarchy:examples=omarchy bar put omarchy.keyboard-layout --after omarchy.clock | omarchy bar move omarchy.clock --section center --index 0 | omarchy bar set omarchy.clock format HH:mm
 
 set -euo pipefail
 
@@ -13,13 +13,12 @@ usage() {
   cat <<USAGE
 Usage: omarchy bar <command> [args...]
 
-  use <id>                             Use a bar option as the active bar
-  reset                                Return to the built-in Omarchy bar
   defaults                             Restore the default bar and service widgets
   position <top|bottom|left|right>     Bar position
   transparent <true|false|toggle>      Bar transparency
   put <id> [placement]                 Put a widget on the bar, leaving one
                                        that is already there where it is
+  remove <id>                          Take a widget off the bar
   move <id> [placement]                Move a widget within or between sections
   set <id> <key> <value> [--json] [placement]
                                        Set a per-widget option
@@ -32,15 +31,11 @@ Placement:
   --from-section <section>             Source section
   --from-index <n>                     Source index
 
-Enable and disable widgets with 'omarchy plugin enable' and
-'omarchy plugin disable'.
-
-'put' places a widget the way 'plugin enable' does, but leaves one that is
-already on the bar where it is, and falls back to the widget's usual spot when
---before / --after names a widget the bar does not carry.
+'put' leaves a widget that is already on the bar where it is, and falls back
+to the widget's usual spot when --before / --after names a widget the bar
+does not carry.
 
 Examples:
-  omarchy bar use local.neon-bar
   omarchy bar put omarchy.keyboard-layout --after omarchy.clock
   omarchy bar move omarchy.media left
   omarchy bar move omarchy.clock --section center --index 0
@@ -49,12 +44,6 @@ USAGE
 }
 
 # ------------------------------------------------------------------ validation
-
-bar_option_exists() {
-  omarchy-plugin-catalog | jq -e --arg id "$1" '
-    any(.[]; (.kinds | index("bar")) and .barPath != null and .id == $id)
-  ' >/dev/null
-}
 
 validate_section() {
   [[ $1 =~ ^(left|center|right)$ ]] || fail "section must be left, center, or right"
@@ -139,23 +128,6 @@ placement_json() {
 
 # -------------------------------------------------------------------- commands
 
-cmd_use() {
-  local plugin="${1:-}"
-  [[ -n $plugin ]] || fail "bar option id is required"
-  (( $# == 1 )) || fail "use takes a single bar option id"
-  if [[ $plugin == "default" || $plugin == "built-in" ]]; then
-    plugin="omarchy.bar"
-  fi
-  bar_option_exists "$plugin" || fail "$plugin is not a known bar option; run 'omarchy plugin list'"
-
-  if [[ $plugin == "omarchy.bar" ]]; then
-    commit "$NORMALIZE | del(.bar.id)"
-  else
-    commit "$NORMALIZE | .bar.id = \$plugin" --arg plugin "$plugin"
-  fi
-  echo "Using $plugin as the active bar"
-}
-
 cmd_defaults() {
   (( $# == 0 )) || fail "defaults does not take arguments"
 
@@ -218,52 +190,65 @@ cmd_transparent() {
   fi
 }
 
+# Where a widget goes when no placement says: its side of the bar.
 bar_widget_default_section() {
-  local catalog
-  catalog=$(omarchy-plugin-catalog 2>/dev/null) || {
-    echo "center"
-    return 0
-  }
-  jq -r --arg id "$1" '
-    map(select(.id == $id))[0].barWidget.defaultSection // "center"
-    | if IN("left", "center", "right") then . else "center" end
-  ' <<<"$catalog"
+  case $1 in
+    doxia.emblem | doxia.workspaces | omarchy.menu | omarchy.workspaces) echo "left" ;;
+    doxia.media | doxia.screenshare | omarchy.keyboard-layout | omarchy.weather | omarchy.system-update) echo "center" ;;
+    *) echo "right" ;;
+  esac
 }
 
-# Asks the shell to place a widget, waiting out one still coming up. Answers 0
-# with the reply in PUT_RESULT, 1 when there was no shell to ask. Only an
-# absent shell is carried on from: omarchy-migrate marks a 0 return as done.
-PUT_RESULT=""
-SHELL_ANSWERED=0
-ask_to_put() {
-  local id="$1" placement="$2" attempt absent=0
-  for (( attempt = 0; attempt < ${OMARCHY_SHELL_READY_ATTEMPTS:-50}; attempt++ )); do
-    if PUT_RESULT=$(omarchy-shell shell putBarWidget "$id" "$placement" 2>&1); then
-      SHELL_ANSWERED=1
-      [[ $PUT_RESULT == "not ready" ]] || return 0
-    elif [[ $PUT_RESULT == *"not ready"* ]]; then
-      SHELL_ANSWERED=1
-    elif [[ $PUT_RESULT == *"is not running"* ]]; then
-      # Answered once and now gone: it stopped mid-request.
-      if (( SHELL_ANSWERED )); then
-        fail "omarchy-shell did not become ready; $id was not put on the bar"
-      fi
-      # A shell being spawned has no socket yet, and nothing says a launch is
-      # under way, so give one a few seconds to turn up.
-      if (( ++absent >= ${OMARCHY_SHELL_ABSENT_ATTEMPTS:-30} )); then
-        echo "omarchy-shell is not running; $id was not put on the bar" >&2
-        return 1
-      fi
-    else
-      fail "could not put $id on the bar: $PUT_RESULT"
-    fi
-    sleep 0.1
-  done
-  fail "omarchy-shell did not become ready; $id was not put on the bar"
+# The bar's layout, edited in shell.json the way Quickshell's plugin registry
+# did (doxia-shell's bar rereads the file): a widget is found by id, in a
+# section when one is named; --before/--after place it next to another, and
+# a section alone after the section's anchor widget, or at its end.
+LAYOUT='
+  def eid: if type == "object" then (.id // "" | tostring) else tostring end;
+  def locate($id; $section):
+    first((if $section == "" then ["left", "center", "right"] else [$section] end)[] as $s
+      | (.bar.layout[$s] | map(eid) | index($id)) as $i
+      | select($i != null) | {section: $s, index: $i}) // null;
+  def target($p; $fallback):
+    (($p.section // "") | if IN("left", "center", "right") then . else $fallback end) as $section
+    | ($p.before // $p.after // "") as $relative
+    | if $relative != "" then
+        locate($relative; if ($p.section // "") != "" then $section else "" end) as $at
+        | if $at == null then error("could not find target widget \($relative)")
+          else {section: $at.section, index: ($at.index + (if $p.after then 1 else 0 end))} end
+      elif $p.index != null then
+        {section: $section, index: ([([($p.index | floor), 0] | max), (.bar.layout[$section] | length)] | min)}
+      else
+        ({left: "omarchy.workspaces", center: "omarchy.weather", right: "omarchy.tray"}[$section]) as $anchor
+        | locate($anchor; $section) as $at
+        | {section: $section, index: (if $at then $at.index + 1 else (.bar.layout[$section] | length) end)}
+      end;
+  def insert($at; $entry): .bar.layout[$at.section] |= (.[:$at.index] + [$entry] + .[$at.index:]);
+  def at_index($section; $index; $id):
+    if $section == "" then error("index requires section") else . end
+    | ($index | floor) as $n
+    | if (.bar.layout[$section] | type) != "array" or $n < 0 or $n >= (.bar.layout[$section] | length) then
+        error("no widget at \($section)[\($n)]")
+      elif (.bar.layout[$section][$n] | eid) != $id then error("widget at \($section)[\($n)] is not \($id)")
+      else {section: $section, index: $n} end;
+'
+
+# Runs a layout edit; its error() becomes the command's failure.
+edit_layout() {
+  local program="$1" out error
+  shift
+  out=$(jq -c "$@" "$NORMALIZE | $LAYOUT try {config: ($program)} catch {error: .}" "$(source_file)") ||
+    fail "could not update shell config"
+  error=$(jq -r '.error // empty' <<<"$out")
+  [[ -z $error ]] || fail "$error"
+  mkdir -p "$(dirname "$CONFIG_FILE")"
+  _SHELL_CONFIG_TMP=$(mktemp)
+  jq -S '.config' <<<"$out" >"$_SHELL_CONFIG_TMP" || fail "could not update shell config"
+  mv "$_SHELL_CONFIG_TMP" "$CONFIG_FILE"
+  _SHELL_CONFIG_TMP=""
+  refresh_shell_config
 }
 
-# Placement lives in the shell, which owns the config it has in memory. Putting
-# a widget therefore asks the shell rather than editing the file behind it.
 cmd_put() {
   local id="${1:-}"
   [[ -n $id ]] || fail "put requires a widget id"
@@ -283,23 +268,25 @@ cmd_put() {
   [[ -z $PLACEMENT_FROM_SECTION && -z $PLACEMENT_FROM_INDEX ]] ||
     fail "put does not accept --from-section or --from-index"
 
-  local placement
-  placement=$(placement_json)
-  ask_to_put "$id" "$placement" || return 0
-
-  # An update runs migrations before it restarts the shell, so this one can
-  # predate the fallback. Ask it again without the neighbour it cannot find.
-  if [[ $PUT_RESULT == "could not find target widget"* ]]; then
-    PLACEMENT_BEFORE=""
-    PLACEMENT_AFTER=""
-    ask_to_put "$id" "$(placement_json)" || return 0
-  fi
-
-  [[ $PUT_RESULT != "unknown" ]] || fail "$id is not a known widget; run 'omarchy plugin list'"
-  [[ $PUT_RESULT == "ok" ]] || fail "$PUT_RESULT"
-  # Says nothing about whether it had to be placed: a widget already on the bar
-  # is left where it is, and both outcomes are the same answer to the caller.
+  # Left where it is when on the bar already; a neighbour the bar doesn't
+  # carry means the widget's usual spot.
+  edit_layout '
+    if locate($id; "") then .
+    else
+      (if ($p.before // $p.after // "") != "" and locate($p.before // $p.after; $p.section // "") == null
+       then $p | del(.before, .after) else $p end) as $p
+      | insert(target($p; $default); {id: $id})
+    end' \
+    --arg id "$id" --argjson p "$(placement_json)" --arg default "$(bar_widget_default_section "$id")"
   echo "$id is on the bar"
+}
+
+cmd_remove() {
+  local id="${1:-}"
+  [[ -n $id ]] || fail "remove requires a widget id"
+  (( $# == 1 )) || fail "remove takes a single widget id"
+  edit_layout '.bar.layout[] |= map(select(eid != $id))' --arg id "$id"
+  echo "$id is off the bar"
 }
 
 cmd_move() {
@@ -325,9 +312,13 @@ cmd_move() {
     fail "specify a section positionally or use --after, not both"
   [[ -z $positional_section ]] || PLACEMENT_SECTION="$positional_section"
 
-  local result
-  result=$(omarchy-shell shell moveBarWidget "$id" "$(placement_json)")
-  [[ $result == "ok" ]] || fail "$result"
+  edit_layout '
+    (if $p.fromIndex != null then at_index($p.fromSection // ""; $p.fromIndex; $id)
+     else locate($id; $p.fromSection // "") // error("could not find widget \($id)") end) as $from
+    | .bar.layout[$from.section][$from.index] as $entry
+    | .bar.layout[$from.section] |= del(.[$from.index])
+    | insert(target($p; $from.section); $entry)' \
+    --arg id "$id" --argjson p "$(placement_json)"
   echo "Moved $id"
 }
 
@@ -357,9 +348,14 @@ cmd_set() {
     value_json=$(jq -cn --arg value "$value" '$value')
   fi
 
-  local result
-  result=$(omarchy-shell shell setBarWidget "$id" "$key" "$value_json" "$(placement_json)")
-  [[ $result == "ok" ]] || fail "$result"
+  edit_layout '
+    ($p.fromSection // $p.section // "") as $section
+    | ($p.fromIndex // $p.index) as $index
+    | (if $index != null then at_index($section; $index; $id)
+       else locate($id; $section) // error("could not find widget \($id)") end) as $at
+    | if (.bar.layout[$at.section][$at.index] | type) != "object" then error("widget entry must be an object")
+      else .bar.layout[$at.section][$at.index][$key] = $value end' \
+    --arg id "$id" --arg key "$key" --argjson value "$value_json" --argjson p "$(placement_json)"
   echo "Set $key on $id"
 }
 
@@ -369,13 +365,6 @@ command="${1:-}"
 (( $# > 0 )) && shift || true
 
 case "$command" in
-  use)
-    cmd_use "$@"
-    ;;
-  reset)
-    (( $# == 0 )) || fail "reset does not take arguments"
-    cmd_use omarchy.bar
-    ;;
   defaults)
     cmd_defaults "$@"
     ;;
@@ -387,6 +376,9 @@ case "$command" in
     ;;
   put)
     cmd_put "$@"
+    ;;
+  remove)
+    cmd_remove "$@"
     ;;
   move)
     cmd_move "$@"

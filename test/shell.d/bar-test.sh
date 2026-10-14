@@ -351,132 +351,64 @@ assertEqual(
 )
 JS
 
+# omarchy-bar edits the layout in shell.json itself (doxia-shell's bar rereads
+# the file); the shell is only told to reload.
 put_tmp=$(mktemp -d)
 trap 'rm -rf "$put_tmp"' EXIT
-mkdir -p "$put_tmp/bin"
-ln -s "$ROOT/bin/omarchy-shell-config" "$put_tmp/bin/omarchy-shell-config"
-
-cat >"$put_tmp/bin/omarchy-shell" <<'STUB'
-#!/bin/bash
-case ${OMARCHY_TEST_SHELL_STATE:-ready} in
-  missing)
-    echo "omarchy-shell is not running" >&2
-    exit 1
-    ;;
-  starting)
-    echo "omarchy-shell is not ready" >&2
-    exit 1
-    ;;
-  crashing)
-    # Seen coming up, then gone.
-    if [[ -e $OMARCHY_TEST_SHELL_MARKER ]]; then
-      echo "omarchy-shell is not running" >&2
-    else
-      touch "$OMARCHY_TEST_SHELL_MARKER"
-      echo "omarchy-shell is not ready" >&2
-    fi
-    exit 1
-    ;;
-  oldshell)
-    # A shell from before put learned to fall back.
-    if [[ $4 == *"after"* ]]; then
-      echo "could not find target widget omarchy.clock"
-    else
-      echo "ok"
-    fi
-    exit 0
-    ;;
-  spawning)
-    # Launched, but with no socket to answer on yet.
-    if [[ ! -e $OMARCHY_TEST_SHELL_MARKER ]]; then
-      touch "$OMARCHY_TEST_SHELL_MARKER"
-      echo "omarchy-shell is not running" >&2
-      exit 1
-    fi
-    ;;
-  vanishing)
-    # Answers the first ask, then is gone before the fallback lands.
-    if [[ ! -e $OMARCHY_TEST_SHELL_MARKER ]]; then
-      touch "$OMARCHY_TEST_SHELL_MARKER"
-      echo "could not find target widget omarchy.clock"
-      exit 0
-    fi
-    echo "omarchy-shell is not running" >&2
-    exit 1
-    ;;
-  unsupported)
-    # An older shell that predates this call.
-    echo "Function not found." >&2
-    exit 1
-    ;;
-  scanning)
-    # Answering IPC, but has not read the plugins yet.
-    if [[ ! -e $OMARCHY_TEST_SHELL_MARKER ]]; then
-      touch "$OMARCHY_TEST_SHELL_MARKER"
-      echo "not ready"
-      exit 0
-    fi
-    ;;
-esac
-echo "ok"
-STUB
+mkdir -p "$put_tmp/bin" "$put_tmp/home/.config/omarchy"
+printf '#!/bin/bash\necho ok\n' >"$put_tmp/bin/omarchy-shell"
 chmod +x "$put_tmp/bin/omarchy-shell"
+put_config="$put_tmp/home/.config/omarchy/shell.json"
+reset_layout() {
+  cat >"$put_config" <<'JSON'
+{"bar": {"layout": {"left": ["omarchy.workspaces"], "center": [{"id": "omarchy.weather"}], "right": ["omarchy.tray", {"id": "omarchy.clock", "format": "HH:mm"}]}}}
+JSON
+}
+bar_cmd() {
+  HOME="$put_tmp/home" PATH="$put_tmp/bin:$ROOT/bin:$PATH" "$ROOT/bin/omarchy-bar" "$@" 2>&1
+}
+layout() {
+  jq -c '[.bar.layout.left, .bar.layout.center, .bar.layout.right | map(if type == "object" then .id else . end)]' "$put_config"
+}
 
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=missing \
-  OMARCHY_SHELL_ABSENT_ATTEMPTS=2 \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) ||
-  fail "put carries on when no shell is running" "$put_output"
-[[ $put_output == *"is not running"* ]] || fail "put says why it placed nothing" "$put_output"
-pass "put carries on when no shell is running"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=spawning \
-  OMARCHY_TEST_SHELL_MARKER="$put_tmp/spawned" \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) ||
-  fail "put waits for a shell that is being spawned" "$put_output"
-[[ $put_output == "omarchy.keyboard-layout is on the bar" ]] || fail "put places once the shell answers" "$put_output"
-pass "put waits for a shell that is being spawned"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=starting OMARCHY_SHELL_READY_ATTEMPTS=2 \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) &&
-  fail "put fails when the shell never becomes ready" "$put_output"
-[[ $put_output == *"did not become ready"* ]] || fail "put says the shell never became ready" "$put_output"
-pass "put fails when the shell never becomes ready"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=crashing \
-  OMARCHY_TEST_SHELL_MARKER="$put_tmp/started" \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) &&
-  fail "put fails when a starting shell disappears" "$put_output"
-[[ $put_output == *"did not become ready"* ]] || fail "put keeps a lost shell retryable" "$put_output"
-pass "put fails when a starting shell disappears"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=oldshell \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) ||
-  fail "put falls back against a shell that has not restarted yet" "$put_output"
-[[ $put_output == "omarchy.keyboard-layout is on the bar" ]] || fail "put places without the missing neighbour" "$put_output"
-pass "put falls back against a shell that has not restarted yet"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=vanishing \
-  OMARCHY_TEST_SHELL_MARKER="$put_tmp/vanished" \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) &&
-  fail "put fails when the shell goes away mid-fallback" "$put_output"
-[[ $put_output == *"did not become ready"* ]] || fail "put remembers the shell answered once" "$put_output"
-pass "put fails when the shell goes away mid-fallback"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=unsupported \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) &&
-  fail "put fails when the shell cannot answer the call" "$put_output"
-[[ $put_output == *"Function not found"* ]] || fail "put passes on what the shell said" "$put_output"
-pass "put fails when the shell cannot answer the call"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" OMARCHY_TEST_SHELL_STATE=scanning \
-  OMARCHY_TEST_SHELL_MARKER="$put_tmp/scanned" \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) ||
-  fail "put asks again while the shell is still reading its plugins" "$put_output"
-[[ $put_output == "omarchy.keyboard-layout is on the bar" ]] || fail "put places once the plugins are read" "$put_output"
-pass "put asks again while the shell is still reading its plugins"
-
-put_output=$(PATH="$put_tmp/bin:$ROOT/bin:$PATH" \
-  "$ROOT/bin/omarchy-bar" put omarchy.keyboard-layout --after omarchy.clock 2>&1) ||
-  fail "put places a widget through a ready shell" "$put_output"
+reset_layout
+put_output=$(bar_cmd put omarchy.keyboard-layout --after omarchy.clock) || fail "put places a widget" "$put_output"
 [[ $put_output == "omarchy.keyboard-layout is on the bar" ]] || fail "put reports the placed widget" "$put_output"
-pass "put places a widget through a ready shell"
+[[ $(layout) == '[["omarchy.workspaces"],["omarchy.weather"],["omarchy.tray","omarchy.clock","omarchy.keyboard-layout"]]' ]] ||
+  fail "put places after its neighbour" "$(layout)"
+pass "put places a widget after its neighbour"
+
+put_output=$(bar_cmd put omarchy.keyboard-layout --section left) || fail "put leaves a placed widget" "$put_output"
+[[ $(layout) == '[["omarchy.workspaces"],["omarchy.weather"],["omarchy.tray","omarchy.clock","omarchy.keyboard-layout"]]' ]] ||
+  fail "put leaves a widget already on the bar where it is" "$(layout)"
+pass "put leaves a widget already on the bar where it is"
+
+reset_layout
+put_output=$(bar_cmd put omarchy.weather-alt --before omarchy.missing) || fail "put falls back without its neighbour" "$put_output"
+[[ $(layout) == '[["omarchy.workspaces"],["omarchy.weather"],["omarchy.tray","omarchy.weather-alt","omarchy.clock"]]' ]] ||
+  fail "put falls back to its section's anchor" "$(layout)"
+pass "put falls back to the usual spot when the neighbour is missing"
+
+reset_layout
+put_output=$(bar_cmd move omarchy.clock --section left --index 0) || fail "move moves" "$put_output"
+[[ $(layout) == '[["omarchy.clock","omarchy.workspaces"],["omarchy.weather"],["omarchy.tray"]]' ]] ||
+  fail "move puts the widget at the index" "$(layout)"
+jq -e '.bar.layout.left[0].format == "HH:mm"' "$put_config" >/dev/null || fail "move keeps the widget's settings"
+pass "move keeps a widget's settings as it moves it"
+
+put_output=$(bar_cmd move omarchy.missing right) && fail "move refuses a widget not on the bar" "$put_output"
+[[ $put_output == *"could not find widget omarchy.missing"* ]] || fail "move says what it could not find" "$put_output"
+put_output=$(bar_cmd move omarchy.clock --from-section right --from-index 0) && fail "move checks the widget at the index" "$put_output"
+[[ $put_output == *"widget at right[0] is not omarchy.clock"* ]] || fail "move names the widget mismatch" "$put_output"
+pass "move refuses what it cannot find"
+
+reset_layout
+put_output=$(bar_cmd set omarchy.clock format "HH:mm:ss") || fail "set sets" "$put_output"
+jq -e '.bar.layout.right[1].format == "HH:mm:ss"' "$put_config" >/dev/null || fail "set writes the setting"
+put_output=$(bar_cmd set omarchy.tray icons 3 --json) && fail "set refuses a bare-id entry" "$put_output"
+[[ $put_output == *"widget entry must be an object"* ]] || fail "set says why" "$put_output"
+pass "set writes per-widget settings"
+
+put_output=$(bar_cmd remove omarchy.clock) || fail "remove removes" "$put_output"
+[[ $(layout) == '[["omarchy.workspaces"],["omarchy.weather"],["omarchy.tray"]]' ]] || fail "remove takes the widget off" "$(layout)"
+pass "remove takes a widget off the bar"
