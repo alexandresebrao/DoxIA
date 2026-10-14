@@ -184,6 +184,8 @@ fn reset_ms(at: &str) -> f64 {
 
 pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   let space = { let s = ctx.style.clone(); move |px: f64| s.space(px) };
+  // [font] display: the hero mark's size, as in Panel.qml.
+  let display = (ctx.style.font_base * 2.0).round() as i32;
   let entry = Rc::new(entry.clone());
   let interval = setting(&entry, "refreshIntervalSec").map(num).unwrap_or(900.0).max(30.0) as u64;
   let button = Button::new(ctx, Kind::Icon, "\u{f16a3}");
@@ -269,9 +271,9 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
       let mark = candidates.iter().find(|c| std::path::Path::new(c).exists()).and_then(|c| gdk::Texture::from_filename(c).ok());
       match mark {
         Some(t) => {
-          let pic = gtk::Picture::for_paintable(&t);
-          pic.set_size_request(24, 24);
-          pic.set_can_shrink(true);
+          // An Image holds the size; a Picture would take the SVG's own.
+          let pic = gtk::Image::from_paintable(Some(&t));
+          pic.set_pixel_size(display);
           pic.set_valign(gtk::Align::Center);
           hero.append(&pic);
         }
