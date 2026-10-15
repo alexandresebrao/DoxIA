@@ -19,7 +19,7 @@ mod widgets;
 use config::{BarConfig, Position};
 use doxia_theme::BarStyle;
 use gtk::prelude::*;
-use gtk::{cairo, gdk, gio};
+use gtk::{cairo, gdk, gio, glib};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
 use serde_json::Value;
 use std::cell::{Cell, RefCell};
@@ -216,14 +216,70 @@ impl Bar {
   }
 
   // The theme changed: sizes and colors.
-  pub fn restyle(self: &Rc<Self>) {
+  pub fn restyle(self: &Rc<Self>, css_changed: bool) {
     let style = doxia_theme::bar_style();
     if *self.style.borrow() != style {
       *self.style.borrow_mut() = style;
-      self.build();
-    } else {
+      self.crossfade();
+    } else if css_changed {
       self.redraw();
     }
+  }
+
+  // A new look without the bar leaving the screen: the new bars come in
+  // over the old ones as those fade out, in step with the background's band
+  // (its length and easing), and only then take the exclusive zone.
+  fn crossfade(self: &Rc<Self>) {
+    if self.hidden.get() {
+      self.build();
+      return;
+    }
+    let old: Vec<gtk::Window> = self.screens.borrow_mut().drain(..).map(|s| s.window).collect();
+    self.build();
+    // The opacity goes on the contents: GTK leaves a toplevel's own alone.
+    let fade = |w: &gtk::Window, o: f64| {
+      if let Some(c) = w.child() {
+        c.set_opacity(o);
+      }
+    };
+    for s in self.screens.borrow().iter() {
+      s.window.set_exclusive_zone(0);
+      fade(&s.window, 0.0);
+    }
+    let fresh: Vec<gtk::Window> = self.screens.borrow().iter().map(|s| s.window.clone()).collect();
+    // Building the widgets holds the main loop for a while: the clock starts
+    // once the new bars are on screen, or the fade would be over before its
+    // first step.
+    let started: Cell<Option<std::time::Instant>> = Cell::new(None);
+    let weak = Rc::downgrade(self);
+    glib::timeout_add_local(std::time::Duration::from_millis(16), move || {
+      if started.get().is_none() {
+        if !fresh.iter().all(|w| w.is_mapped()) {
+          return glib::ControlFlow::Continue;
+        }
+        started.set(Some(std::time::Instant::now()));
+      }
+      let t = started.get().map_or(0.0, |s| s.elapsed().as_secs_f64()) / crate::background::REVEAL.as_secs_f64();
+      let e = crate::background::ease(t);
+      for w in &fresh {
+        fade(w, e);
+      }
+      for w in &old {
+        fade(w, 1.0 - e);
+      }
+      if t < 1.0 {
+        return glib::ControlFlow::Continue;
+      }
+      for w in &old {
+        w.destroy();
+      }
+      if let Some(me) = weak.upgrade() {
+        for w in &fresh {
+          me.place(w);
+        }
+      }
+      glib::ControlFlow::Break
+    });
   }
 
   fn watch(self: &Rc<Self>) {
@@ -260,7 +316,15 @@ impl Bar {
     if hidden != self.hidden.get() {
       self.hidden.set(hidden);
       for s in self.screens.borrow().iter() {
+        // Parked past the edge, the surface gets no frame callbacks, so the
+        // margin back to 0 is never committed. Remapping commits it.
+        if !hidden {
+          s.window.set_visible(false);
+        }
         self.place(&s.window);
+        if !hidden {
+          s.window.set_visible(true);
+        }
       }
     }
   }

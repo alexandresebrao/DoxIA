@@ -125,15 +125,25 @@ fn main() -> glib::ExitCode {
 
     // The bar, made further down: its panels answer for their widgets' ids.
     let bar_slot: Rc<std::cell::RefCell<Option<Rc<bar::Bar>>>> = Rc::default();
-    let bs = bar_slot.clone();
+    let (bs, st, nt) = (bar_slot.clone(), styler.clone(), notifications.clone());
     ipc.add(
       "shell",
       Box::new(move |method, args| {
         let not_ours = || Some("Target not found.".to_string());
         let bar = bs.borrow().clone();
+        // A theme switch without a background to animate: the theme files
+        // are in place, so the colors and the bar follow now.
+        if method == "applyTheme" {
+          st.reload(true);
+          nt.place();
+          if let Some(b) = bar {
+            b.restyle(true);
+          }
+          return Some("ok".into());
+        }
         // Quickshell's housekeeping calls: up, and nothing to do, since
         // doxia-shell rereads shell.json and the theme files itself.
-        if matches!(method, "ping" | "applyTheme" | "reloadConfig" | "rescanPlugins") {
+        if matches!(method, "ping" | "reloadConfig" | "rescanPlugins") {
           return Some("ok".into());
         }
         if method == "togglePanelAt" {
@@ -159,10 +169,14 @@ fn main() -> glib::ExitCode {
       }),
     );
 
-    let (s, n) = (styler.clone(), notifications.clone());
+    let (s, n, bs) = (styler.clone(), notifications.clone(), bar_slot.clone());
     let background = background::Background::new(app, move || {
       s.reload(true);
       n.place();
+      // The bar crossfades into the new theme alongside the band.
+      if let Some(b) = bs.borrow().clone() {
+        b.restyle(true);
+      }
     });
     ipc.add("background", Box::new(move |method, args| background.ipc(method, args)));
 
@@ -202,17 +216,26 @@ fn main() -> glib::ExitCode {
       ipc.add("omarchy.bar", Box::new(move |method, _| b.ipc(method)));
     }
 
-    // Theme switches: colors through the CSS, the bar's size and edge
-    // through the popups' margins.
-    glib::timeout_add_seconds_local(2, move || {
-      if styler.reload(false) {
-        notifications.place();
-        if let Some(b) = bar.as_ref() {
-          b.restyle();
+    // Theme switches arrive over IPC (background themeTransition, or shell
+    // applyTheme without a background): no polling. mango's looknfeel.conf
+    // (gaps, radius) is the one input edited by hand, so it is watched; edits
+    // to the theme files themselves go through omarchy-theme-refresh.
+    let looknfeel = gio::File::for_path(std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".config/mango/looknfeel.conf"));
+    if let Ok(m) = looknfeel.monitor_file(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE) {
+      m.connect_changed(move |_, _, _, event| {
+        if !matches!(event, gio::FileMonitorEvent::ChangesDoneHint | gio::FileMonitorEvent::Created | gio::FileMonitorEvent::Renamed | gio::FileMonitorEvent::MovedIn) {
+          return;
         }
-      }
-      glib::ControlFlow::Continue
-    });
+        let css_changed = styler.reload(false);
+        if css_changed {
+          notifications.place();
+        }
+        if let Some(b) = bar.as_ref() {
+          b.restyle(css_changed);
+        }
+      });
+      std::mem::forget(m);
+    }
 
     // A service: no window to keep it alive.
     std::mem::forget(app.hold());

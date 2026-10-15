@@ -18,7 +18,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-const REVEAL: Duration = Duration::from_millis(420);
+pub const REVEAL: Duration = Duration::from_millis(420);
 const SLANT: f64 = -0.18;
 const THEME_FALLBACK: Duration = Duration::from_millis(300);
 
