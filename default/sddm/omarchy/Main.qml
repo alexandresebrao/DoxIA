@@ -1,10 +1,12 @@
 import QtQuick 2.0
 import SddmComponents 2.0
 
-// DoxIA login screen: a split layout with the brand, a large clock and the date on
-// the left, the sign-in card on the right (pick an account, then type the password
-// with the session chip under it), the power actions in the bottom right corner and
-// the ∞ as a faint watermark bleeding off the bottom edge.
+// DoxIA login screen, like a game's title screen: an animated landscape that
+// follows the clock and the weather (Landscape.qml), the brand and a large
+// clock on the left, and the sign-in floating in the lower third with no card:
+// the account (arrows switch between accounts), the password on a thin line,
+// then "Outro usuário" and the session; the power actions in the bottom right
+// corner.
 //
 // omarchy-plymouth-set recolors the upstream greeter's background and text hex
 // codes (see bin/omarchy-plymouth-set) to the theme's colors. Neither appears in
@@ -13,22 +15,18 @@ Rectangle {
   id: root
   width: 1280
   height: 800
+  color: "black"
 
   property string fontFamily: "Red Hat Text"
   property string displayFamily: "Red Hat Display"
   property color textColor: "#f2f2f2"
-  property color dimColor: "#a9abae"
+  property color dimColor: "#c9ccd1"
   property color accent: "#ee0000"
   property color accentHover: "#ff1a1a"
-  property color cardColor: "#1a1c1f"
-  property color cardBorder: "#33363a"
-  property color fieldColor: "#121315"
-  property color fieldBorder: "#4a4d51"
-  property color chipColor: "#26292d"
-  property color chipHover: "#30343a"
-  property color errorColor: "#ff6c6c"
+  property color lineColor: Qt.rgba(1, 1, 1, 0.45)
+  property color chipHover: Qt.rgba(1, 1, 1, 0.14)
+  property color errorColor: "#ff8a8a"
 
-  property bool choosingUser: true
   property bool manualUser: false
   property bool loginFailed: false
   property bool sessionMenuOpen: false
@@ -39,23 +37,14 @@ Rectangle {
   property string loginName: manualUser ? manualName.text : (selectedUser ? selectedUser.userName : "")
   property string shownName: manualUser ? manualName.text : (selectedUser ? selectedUser.displayName : "")
 
-  gradient: Gradient {
-    orientation: Gradient.Horizontal
-    GradientStop { position: 0.0; color: "#101112" }
-    GradientStop { position: 0.55; color: "#1d1f22" }
-    GradientStop { position: 1.0; color: "#26292d" }
-  }
-
-  function chooseUser(index) {
-    userIndex = index
+  function switchUser(step) {
+    if (users.count < 2)
+      return
+    userIndex = (userIndex + step + users.count) % users.count
     manualUser = false
     loginFailed = false
     password.text = ""
-    choosingUser = false
-    if (selectedUser && !selectedUser.needsPassword)
-      login()
-    else
-      password.forceActiveFocus()
+    password.forceActiveFocus()
   }
 
   function chooseManualUser() {
@@ -63,17 +52,15 @@ Rectangle {
     loginFailed = false
     password.text = ""
     manualName.text = ""
-    choosingUser = false
     manualName.forceActiveFocus()
   }
 
-  function backToUsers() {
-    choosingUser = true
+  function backToList() {
     manualUser = false
     sessionMenuOpen = false
     password.text = ""
     loginFailed = false
-    userList.forceActiveFocus()
+    password.forceActiveFocus()
   }
 
   function login() {
@@ -87,15 +74,28 @@ Rectangle {
       root.loginFailed = true
       password.text = ""
       password.forceActiveFocus()
+      shake.restart()
     }
     function onLoginSucceeded() {
       root.loginFailed = false
     }
   }
 
-  // Session names, readable by index outside a delegate.
+  // Accounts and session names, readable by index.
   Item {
     visible: false
+    Repeater {
+      id: users
+      model: userModel
+      Item {
+        property string userName: model.name
+        property string displayName: model.realName || model.name
+        // SDDM's stock face is a dark silhouette lost on the background:
+        // show the initial instead.
+        property string avatar: (model.icon || "").indexOf("/.face.icon") === -1 || (model.icon || "").indexOf("/sddm/faces/") === -1 ? (model.icon || "") : ""
+        property bool needsPassword: model.needsPassword
+      }
+    }
     Repeater {
       id: sessionNames
       model: sessionModel
@@ -103,16 +103,29 @@ Rectangle {
     }
   }
 
-  // The ∞ watermark, cut by the bottom edge under the clock.
-  Image {
-    source: "infinity.png"
-    width: root.width * 0.62
-    height: sourceSize.width > 0 ? Math.round(width * sourceSize.height / sourceSize.width) : 0
-    x: -width * 0.12
-    y: root.height - height * 0.62
-    opacity: 0.06
-    smooth: true
-    mipmap: true
+  Landscape {
+    anchors.fill: parent
+  }
+
+  // Shade under the clock and under the sign-in, so the text reads on a
+  // bright daytime sky and on the grass.
+  Rectangle {
+    anchors.fill: parent
+    gradient: Gradient {
+      orientation: Gradient.Horizontal
+      GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.38) }
+      GradientStop { position: 0.38; color: Qt.rgba(0, 0, 0, 0.06) }
+      GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
+    }
+  }
+  Rectangle {
+    width: parent.width
+    height: parent.height * 0.45
+    anchors.bottom: parent.bottom
+    gradient: Gradient {
+      GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0) }
+      GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.5) }
+    }
   }
 
   // Clicking anywhere else closes the session menu.
@@ -122,11 +135,12 @@ Rectangle {
     onClicked: root.sessionMenuOpen = false
   }
 
-  // Left: brand on top, then the clock and the date.
+  // Top left: the brand, small.
   Image {
     id: brand
     source: "brand.png"
-    height: 38
+    height: 26
+    opacity: 0.85
     width: sourceSize.height > 0 ? Math.round(height * sourceSize.width / sourceSize.height) : 0
     fillMode: Image.PreserveAspectFit
     smooth: true
@@ -137,9 +151,11 @@ Rectangle {
     anchors.topMargin: 48
   }
 
+  // Left: the clock and the date.
   Column {
     anchors.left: brand.left
-    anchors.verticalCenter: parent.verticalCenter
+    anchors.top: parent.top
+    anchors.topMargin: root.height * 0.3
     spacing: 6
 
     Text {
@@ -148,6 +164,8 @@ Rectangle {
       font.family: root.displayFamily
       font.pixelSize: Math.round(root.height * 0.15)
       font.weight: Font.Light
+      style: Text.Raised
+      styleColor: Qt.rgba(0, 0, 0, 0.35)
     }
 
     Rectangle {
@@ -161,7 +179,10 @@ Rectangle {
 
     Text {
       id: date
-      color: root.dimColor
+      color: root.textColor
+      opacity: 0.85
+      style: Text.Raised
+      styleColor: Qt.rgba(0, 0, 0, 0.35)
       font.family: root.displayFamily
       font.pixelSize: 22
     }
@@ -179,363 +200,217 @@ Rectangle {
     }
   }
 
-  Text {
-    anchors.left: brand.left
+  // The sign-in, floating in the lower third.
+  Column {
+    id: signIn
+    width: 380
+    anchors.horizontalCenter: parent.horizontalCenter
     anchors.bottom: parent.bottom
-    anchors.bottomMargin: 36
-    text: sddm.hostName
-    color: root.dimColor
-    opacity: 0.7
-    font.family: root.fontFamily
-    font.pixelSize: 13
-  }
+    anchors.bottomMargin: root.height * 0.1
+    spacing: 14
 
-  // Right: the sign-in card.
-  Rectangle {
-    id: card
-    width: 400
-    height: (root.choosingUser ? userList.height : passwordStep.height) + 56
-    anchors.right: parent.right
-    anchors.rightMargin: root.width * 0.09
-    anchors.verticalCenter: parent.verticalCenter
-    radius: 18
-    color: root.cardColor
-    border.color: root.cardBorder
-    border.width: 1
-
-    // Step 1: pick an account.
-    FocusScope {
-      id: userList
-      visible: root.choosingUser
-      x: 28
-      y: 28
-      width: parent.width - 56
-      height: userColumn.height
-      focus: root.choosingUser
-
-      Keys.onUpPressed: root.userIndex = Math.max(0, root.userIndex - 1)
-      Keys.onDownPressed: root.userIndex = Math.min(users.count - 1, root.userIndex + 1)
-      Keys.onReturnPressed: root.chooseUser(root.userIndex)
-      Keys.onEnterPressed: root.chooseUser(root.userIndex)
-
-      Column {
-        id: userColumn
-        width: parent.width
-        spacing: 6
-
-        Text {
-          text: "Bem-vindo"
-          color: root.textColor
-          font.family: root.displayFamily
-          font.pixelSize: 26
-          font.bold: true
-        }
-
-        Text {
-          text: "Escolha uma conta para entrar"
-          color: root.dimColor
-          font.family: root.fontFamily
-          font.pixelSize: 14
-        }
-
-        Item { width: 1; height: 12 }
-
-        Repeater {
-          id: users
-          model: userModel
-
-          Item {
-            id: userRow
-            property string userName: model.name
-            property string displayName: model.realName || model.name
-            // SDDM's stock face is a dark silhouette lost on the background:
-            // show the initial instead.
-            property string avatar: (model.icon || "").indexOf("/.face.icon") === -1 || (model.icon || "").indexOf("/sddm/faces/") === -1 ? (model.icon || "") : ""
-            property bool needsPassword: model.needsPassword
-            property bool current: index === root.userIndex
-
-            width: userColumn.width
-            height: 64
-
-            Rectangle {
-              anchors.fill: parent
-              radius: 12
-              color: userRow.current || rowMouse.containsMouse ? root.chipHover : root.chipColor
-              border.width: userRow.current ? 1 : 0
-              border.color: root.accent
-            }
-
-            Avatar {
-              id: rowAvatar
-              size: 44
-              anchors.left: parent.left
-              anchors.leftMargin: 12
-              anchors.verticalCenter: parent.verticalCenter
-              source: userRow.avatar
-              initial: userRow.displayName
-            }
-
-            Text {
-              anchors.left: rowAvatar.right
-              anchors.leftMargin: 14
-              anchors.right: arrow.left
-              anchors.rightMargin: 8
-              anchors.verticalCenter: parent.verticalCenter
-              text: userRow.displayName
-              color: root.textColor
-              elide: Text.ElideRight
-              font.family: root.fontFamily
-              font.pixelSize: 17
-              font.bold: true
-            }
-
-            Text {
-              id: arrow
-              anchors.right: parent.right
-              anchors.rightMargin: 16
-              anchors.verticalCenter: parent.verticalCenter
-              text: "→"
-              color: userRow.current ? root.accent : root.dimColor
-              font.family: root.fontFamily
-              font.pixelSize: 18
-            }
-
-            MouseArea {
-              id: rowMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.chooseUser(index)
-            }
-          }
-        }
-
-        Item { width: 1; height: 8 }
-
-        Text {
-          text: "Outro usuário…"
-          color: notListedMouse.containsMouse ? root.textColor : root.dimColor
-          font.family: root.fontFamily
-          font.pixelSize: 14
-          font.underline: notListedMouse.containsMouse
-
-          MouseArea {
-            id: notListedMouse
-            anchors.fill: parent
-            anchors.margins: -6
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.chooseManualUser()
-          }
-        }
-      }
+    // Shakes on a wrong password.
+    transform: Translate { id: shakeOffset }
+    SequentialAnimation {
+      id: shake
+      NumberAnimation { target: shakeOffset; property: "x"; to: -10; duration: 50 }
+      NumberAnimation { target: shakeOffset; property: "x"; to: 10; duration: 70 }
+      NumberAnimation { target: shakeOffset; property: "x"; to: -6; duration: 60 }
+      NumberAnimation { target: shakeOffset; property: "x"; to: 0; duration: 50 }
     }
 
-    // Step 2: password (and the user name, for someone not in the list).
-    Column {
-      id: passwordStep
-      visible: !root.choosingUser
-      x: 28
-      y: 28
-      width: parent.width - 56
-      spacing: 12
-
-      Item {
-        width: parent.width
-        height: 32
-
-        RoundButton {
-          id: back
-          label: "←"
-          anchors.left: parent.left
-          onClicked: root.backToUsers()
-        }
-
-        Text {
-          anchors.left: back.right
-          anchors.leftMargin: 12
-          anchors.verticalCenter: parent.verticalCenter
-          text: root.manualUser ? "Outro usuário" : "Trocar de conta"
-          color: root.dimColor
-          font.family: root.fontFamily
-          font.pixelSize: 13
-        }
-      }
+    // The account, with arrows when there is more than one.
+    Item {
+      visible: !root.manualUser
+      width: parent.width
+      height: 96
 
       Avatar {
-        visible: !root.manualUser
+        id: avatar
         size: 88
-        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.centerIn: parent
         source: root.selectedUser ? root.selectedUser.avatar : ""
         initial: root.shownName
       }
 
-      Text {
-        visible: !root.manualUser
-        width: parent.width
-        horizontalAlignment: Text.AlignHCenter
-        text: root.shownName
+      ArrowButton {
+        visible: users.count > 1
+        label: "‹"
+        anchors.right: avatar.left
+        anchors.rightMargin: 28
+        anchors.verticalCenter: parent.verticalCenter
+        onClicked: root.switchUser(-1)
+      }
+
+      ArrowButton {
+        visible: users.count > 1
+        label: "›"
+        anchors.left: avatar.right
+        anchors.leftMargin: 28
+        anchors.verticalCenter: parent.verticalCenter
+        onClicked: root.switchUser(1)
+      }
+    }
+
+    Text {
+      visible: !root.manualUser
+      width: parent.width
+      horizontalAlignment: Text.AlignHCenter
+      text: root.shownName
+      color: root.textColor
+      elide: Text.ElideRight
+      style: Text.Raised
+      styleColor: Qt.rgba(0, 0, 0, 0.35)
+      font.family: root.displayFamily
+      font.pixelSize: 24
+      font.bold: true
+    }
+
+    // Someone not in the list: the name on its own line.
+    Line {
+      visible: root.manualUser
+      input: manualName
+      placeholder: "Nome de usuário"
+
+      TextInput {
+        id: manualName
+        anchors.fill: parent
+        anchors.rightMargin: 44
+        verticalAlignment: TextInput.AlignVCenter
+        horizontalAlignment: TextInput.AlignHCenter
         color: root.textColor
-        elide: Text.ElideRight
-        font.family: root.displayFamily
-        font.pixelSize: 22
-        font.bold: true
-      }
-
-      Item { width: 1; height: 4 }
-
-      Field {
-        visible: root.manualUser
-        input: manualName
-        placeholder: "Nome de usuário"
-
-        TextInput {
-          id: manualName
-          anchors.fill: parent
-          anchors.leftMargin: 16
-          anchors.rightMargin: 16
-          verticalAlignment: TextInput.AlignVCenter
-          color: root.textColor
-          selectionColor: root.accent
-          font.family: root.fontFamily
-          font.pixelSize: 16
-          clip: true
-
-          Keys.onReturnPressed: password.forceActiveFocus()
-          Keys.onEnterPressed: password.forceActiveFocus()
-          Keys.onEscapePressed: root.backToUsers()
-        }
-      }
-
-      Field {
-        input: password
-        failed: root.loginFailed
-        placeholder: "Senha"
-
-        TextInput {
-          id: password
-          anchors.fill: parent
-          anchors.leftMargin: 16
-          anchors.rightMargin: 56
-          verticalAlignment: TextInput.AlignVCenter
-          echoMode: TextInput.Password
-          passwordCharacter: "●"
-          color: root.textColor
-          selectionColor: root.accent
-          font.family: root.fontFamily
-          font.pixelSize: 14
-          font.letterSpacing: 2
-          clip: true
-
-          onTextChanged: root.loginFailed = false
-
-          Keys.onPressed: function (event) {
-            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-              root.sessionMenuOpen = false
-              root.login()
-              event.accepted = true
-            } else if (event.key === Qt.Key_Escape) {
-              if (root.sessionMenuOpen)
-                root.sessionMenuOpen = false
-              else
-                root.backToUsers()
-              event.accepted = true
-            } else if (event.key === Qt.Key_Tab) {
-              root.sessionMenuOpen = !root.sessionMenuOpen
-              event.accepted = true
-            } else if (root.sessionMenuOpen && event.key === Qt.Key_Up) {
-              root.sessionIndex = Math.max(0, root.sessionIndex - 1)
-              event.accepted = true
-            } else if (root.sessionMenuOpen && event.key === Qt.Key_Down) {
-              root.sessionIndex = Math.min(sessionNames.count - 1, root.sessionIndex + 1)
-              event.accepted = true
-            }
-          }
-        }
-
-        // Submit, inside the field's right end.
-        Rectangle {
-          anchors.right: parent.right
-          anchors.rightMargin: 6
-          anchors.verticalCenter: parent.verticalCenter
-          width: 36
-          height: 36
-          radius: 18
-          color: submitMouse.containsMouse ? root.accentHover : root.accent
-
-          Text {
-            anchors.centerIn: parent
-            text: "→"
-            color: root.textColor
-            font.family: root.fontFamily
-            font.pixelSize: 18
-            font.bold: true
-          }
-
-          MouseArea {
-            id: submitMouse
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: root.login()
-          }
-        }
-      }
-
-      Text {
-        width: parent.width
-        height: 18
-        text: root.loginFailed ? "Senha incorreta. Tente novamente." : ""
-        color: root.errorColor
+        selectionColor: root.accent
         font.family: root.fontFamily
-        font.pixelSize: 13
+        font.pixelSize: 18
+        clip: true
+
+        Keys.onReturnPressed: password.forceActiveFocus()
+        Keys.onEnterPressed: password.forceActiveFocus()
+        Keys.onEscapePressed: root.backToList()
+      }
+    }
+
+    Line {
+      input: password
+      failed: root.loginFailed
+      placeholder: root.selectedUser && !root.selectedUser.needsPassword && !root.manualUser ? "Enter para entrar" : "Senha"
+
+      TextInput {
+        id: password
+        anchors.fill: parent
+        anchors.leftMargin: 44
+        anchors.rightMargin: 44
+        verticalAlignment: TextInput.AlignVCenter
+        horizontalAlignment: TextInput.AlignHCenter
+        echoMode: TextInput.Password
+        passwordCharacter: "●"
+        color: root.textColor
+        selectionColor: root.accent
+        font.family: root.fontFamily
+        font.pixelSize: 16
+        font.letterSpacing: 3
+        clip: true
+        focus: true
+
+        onTextChanged: root.loginFailed = false
+
+        Keys.onPressed: function (event) {
+          if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            root.sessionMenuOpen = false
+            root.login()
+            event.accepted = true
+          } else if (event.key === Qt.Key_Escape) {
+            if (root.sessionMenuOpen)
+              root.sessionMenuOpen = false
+            else if (root.manualUser)
+              root.backToList()
+            else
+              password.text = ""
+            event.accepted = true
+          } else if (event.key === Qt.Key_Tab) {
+            root.sessionMenuOpen = !root.sessionMenuOpen
+            event.accepted = true
+          } else if (root.sessionMenuOpen && event.key === Qt.Key_Up) {
+            root.sessionIndex = Math.max(0, root.sessionIndex - 1)
+            event.accepted = true
+          } else if (root.sessionMenuOpen && event.key === Qt.Key_Down) {
+            root.sessionIndex = Math.min(sessionNames.count - 1, root.sessionIndex + 1)
+            event.accepted = true
+          } else if (!root.manualUser && password.text.length === 0 && event.key === Qt.Key_Left) {
+            root.switchUser(-1)
+            event.accepted = true
+          } else if (!root.manualUser && password.text.length === 0 && event.key === Qt.Key_Right) {
+            root.switchUser(1)
+            event.accepted = true
+          }
+        }
       }
 
-      // Session chip: opens the session menu under it.
+      // Submit, at the line's right end.
       Rectangle {
-        id: sessionChip
-        width: Math.min(parent.width, sessionRow.width + 28)
-        height: 32
-        radius: 16
-        color: sessionMouse.containsMouse || root.sessionMenuOpen ? root.chipHover : root.chipColor
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        width: 34
+        height: 34
+        radius: 17
+        color: submitMouse.containsMouse ? root.accentHover : root.accent
+        opacity: password.text.length > 0 || submitMouse.containsMouse ? 1 : 0.75
 
-        Row {
-          id: sessionRow
+        Text {
           anchors.centerIn: parent
-          spacing: 8
-
-          Text {
-            text: "Sessão"
-            color: root.dimColor
-            font.family: root.fontFamily
-            font.pixelSize: 12
-            anchors.verticalCenter: parent.verticalCenter
-          }
-          Text {
-            text: root.selectedSession ? root.selectedSession.sessionName : ""
-            color: root.textColor
-            font.family: root.fontFamily
-            font.pixelSize: 12
-            font.bold: true
-            anchors.verticalCenter: parent.verticalCenter
-          }
-          Text {
-            text: "▾"
-            color: root.dimColor
-            font.pixelSize: 11
-            anchors.verticalCenter: parent.verticalCenter
-          }
+          text: "→"
+          color: root.textColor
+          font.family: root.fontFamily
+          font.pixelSize: 17
+          font.bold: true
         }
 
         MouseArea {
-          id: sessionMouse
+          id: submitMouse
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
-          onClicked: {
-            root.sessionMenuOpen = !root.sessionMenuOpen
-            password.forceActiveFocus()
-          }
+          onClicked: root.login()
+        }
+      }
+    }
+
+    Text {
+      width: parent.width
+      height: 16
+      horizontalAlignment: Text.AlignHCenter
+      text: root.loginFailed ? "Senha incorreta. Tente novamente." : ""
+      color: root.errorColor
+      style: Text.Raised
+      styleColor: Qt.rgba(0, 0, 0, 0.4)
+      font.family: root.fontFamily
+      font.pixelSize: 13
+    }
+
+    // "Outro usuário" · the session.
+    Row {
+      anchors.horizontalCenter: parent.horizontalCenter
+      spacing: 6
+
+      LinkText {
+        text: root.manualUser ? "Voltar às contas" : "Outro usuário"
+        onClicked: root.manualUser ? root.backToList() : root.chooseManualUser()
+      }
+
+      Text {
+        text: "·"
+        color: root.dimColor
+        font.family: root.fontFamily
+        font.pixelSize: 13
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      LinkText {
+        text: "Sessão: " + (root.selectedSession ? root.selectedSession.sessionName : "") + "  ▾"
+        active: root.sessionMenuOpen
+        onClicked: {
+          root.sessionMenuOpen = !root.sessionMenuOpen
+          password.forceActiveFocus()
         }
       }
     }
@@ -543,10 +418,10 @@ Rectangle {
 
   Popup {
     id: sessionMenu
-    visible: root.sessionMenuOpen && !root.choosingUser
-    x: card.x + 28
-    y: card.y + card.height - 20
-    width: 300
+    visible: root.sessionMenuOpen
+    width: 260
+    x: (root.width - width) / 2
+    y: signIn.y + signIn.height - height - 40
     entries: {
       var list = []
       for (var i = 0; i < sessionNames.count; i++) {
@@ -566,66 +441,108 @@ Rectangle {
     }
   }
 
+  Text {
+    anchors.left: brand.left
+    anchors.bottom: parent.bottom
+    anchors.bottomMargin: 30
+    text: sddm.hostName
+    color: root.dimColor
+    opacity: 0.7
+    font.family: root.fontFamily
+    font.pixelSize: 13
+  }
+
   // Bottom right: power actions, always visible.
   Row {
-    anchors.right: card.right
+    anchors.right: parent.right
+    anchors.rightMargin: root.width * 0.04
     anchors.bottom: parent.bottom
-    anchors.bottomMargin: 28
-    spacing: 8
+    anchors.bottomMargin: 24
+    spacing: 4
 
     PowerButton { label: "Suspender"; visible: sddm.canSuspend; onClicked: sddm.suspend() }
     PowerButton { label: "Reiniciar"; visible: sddm.canReboot; onClicked: sddm.reboot() }
     PowerButton { label: "Desligar"; icon: "power.png"; visible: sddm.canPowerOff; onClicked: sddm.powerOff() }
   }
 
-  component Field: Rectangle {
+  // A text field drawn as a thin line, like a game menu's.
+  component Line: Item {
     property Item input
     property bool failed: false
     property string placeholder: ""
 
-    width: parent ? parent.width : 344
-    height: 48
-    radius: 24
-    color: root.fieldColor
-    border.width: input && input.activeFocus ? 2 : 1
-    border.color: failed ? root.errorColor : (input && input.activeFocus ? root.accent : root.fieldBorder)
-
-    Text {
-      anchors.left: parent.left
-      anchors.leftMargin: 16
-      anchors.verticalCenter: parent.verticalCenter
-      visible: parent.input && parent.input.text.length === 0
-      text: parent.placeholder
-      color: root.dimColor
-      font.family: root.fontFamily
-      font.pixelSize: 14
-    }
-  }
-
-  component RoundButton: Rectangle {
-    id: roundButton
-    property string label: ""
-    signal clicked()
-
-    width: 32
-    height: 32
-    radius: 16
-    color: roundMouse.containsMouse ? root.chipHover : root.chipColor
+    width: parent ? parent.width : 380
+    height: 44
 
     Text {
       anchors.centerIn: parent
-      text: roundButton.label
+      visible: parent.input && parent.input.text.length === 0
+      text: parent.placeholder
+      color: root.dimColor
+      opacity: 0.8
+      style: Text.Raised
+      styleColor: Qt.rgba(0, 0, 0, 0.35)
+      font.family: root.fontFamily
+      font.pixelSize: 15
+    }
+
+    Rectangle {
+      anchors.bottom: parent.bottom
+      anchors.horizontalCenter: parent.horizontalCenter
+      width: parent.input && parent.input.activeFocus ? parent.width : parent.width * 0.8
+      height: parent.input && parent.input.activeFocus ? 2 : 1
+      color: parent.failed ? root.errorColor : (parent.input && parent.input.activeFocus ? root.textColor : root.lineColor)
+      Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+    }
+  }
+
+  component ArrowButton: Rectangle {
+    id: arrowButton
+    property string label: ""
+    signal clicked()
+
+    width: 36
+    height: 36
+    radius: 18
+    color: arrowMouse.containsMouse ? root.chipHover : "transparent"
+
+    Text {
+      anchors.centerIn: parent
+      anchors.verticalCenterOffset: -2
+      text: arrowButton.label
       color: root.textColor
       font.family: root.fontFamily
-      font.pixelSize: 16
+      font.pixelSize: 28
     }
 
     MouseArea {
-      id: roundMouse
+      id: arrowMouse
       anchors.fill: parent
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
-      onClicked: roundButton.clicked()
+      onClicked: arrowButton.clicked()
+    }
+  }
+
+  component LinkText: Text {
+    id: link
+    property bool active: false
+    signal clicked()
+
+    color: linkMouse.containsMouse || active ? root.textColor : root.dimColor
+    style: Text.Raised
+    styleColor: Qt.rgba(0, 0, 0, 0.35)
+    font.family: root.fontFamily
+    font.pixelSize: 13
+    font.underline: linkMouse.containsMouse
+
+    MouseArea {
+      id: linkMouse
+      anchors.fill: parent
+      anchors.margins: -6
+      hoverEnabled: true
+      cursorShape: Qt.PointingHandCursor
+      onClicked: link.clicked()
     }
   }
 
@@ -639,8 +556,6 @@ Rectangle {
     height: 32
     radius: 16
     color: powerMouse.containsMouse ? root.chipHover : "transparent"
-    border.color: root.cardBorder
-    border.width: 1
 
     Row {
       id: powerRow
@@ -659,6 +574,8 @@ Rectangle {
       Text {
         text: powerButton.label
         color: powerMouse.containsMouse ? root.textColor : root.dimColor
+        style: Text.Raised
+        styleColor: Qt.rgba(0, 0, 0, 0.35)
         font.family: root.fontFamily
         font.pixelSize: 13
         anchors.verticalCenter: parent.verticalCenter
@@ -682,8 +599,8 @@ Rectangle {
     z: 20
     height: popupColumn.height + 12
     radius: 12
-    color: "#232528"
-    border.color: "#3e4044"
+    color: Qt.rgba(0.08, 0.09, 0.11, 0.85)
+    border.color: Qt.rgba(1, 1, 1, 0.14)
     border.width: 1
 
     Column {
@@ -741,10 +658,21 @@ Rectangle {
     width: size
     height: size
 
+    // A soft ring, so the avatar stands off the landscape.
+    Rectangle {
+      anchors.centerIn: parent
+      width: parent.size + 10
+      height: width
+      radius: width / 2
+      color: "transparent"
+      border.width: 2
+      border.color: Qt.rgba(1, 1, 1, 0.5)
+    }
+
     Rectangle {
       anchors.fill: parent
       radius: width / 2
-      color: "#4b4f55"
+      color: Qt.rgba(0.1, 0.11, 0.13, 0.7)
       visible: face.status !== Image.Ready
     }
 
@@ -769,5 +697,5 @@ Rectangle {
     }
   }
 
-  Component.onCompleted: userList.forceActiveFocus()
+  Component.onCompleted: password.forceActiveFocus()
 }
