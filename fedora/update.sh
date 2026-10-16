@@ -414,6 +414,8 @@ rm -f /usr/share/sddm/hyprland.lua
 restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter \
   /usr/libexec/doxia-sddm-greeter-env /etc/systemd/system/sddm.service.d 2>/dev/null || true
 bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
+# The touchpad for doxia-shell (the background follows three-finger swipes)
+bash "$omarchy_path/fedora/doxia/install-touchpad-access"
 # Chrome takes the theme from its profile now (fedora/doxia/chrome): a policy color
 # would keep its frame light, so the policy directory installs used to get goes.
 rm -f /etc/opt/chrome/policies/managed/color.json

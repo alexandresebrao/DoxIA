@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Lets doxia-shell read the touchpad, so the background's parallax follows
+# three fingers while mango's swipe is under way (fedora/doxia/rs/shell/src/touchpad.rs).
+# A udev rule hands touchpads, and only them, to the user at the seat
+# (uaccess, like audio and webcams): never the keyboard, as the input group
+# would. Without it the background moves only once the swipe is over.
+# Run as root by install-system.sh and fedora/update.sh.
+
+set -euo pipefail
+
+if (( EUID != 0 )); then
+  echo "Run as root." >&2
+  exit 1
+fi
+
+rule=/etc/udev/rules.d/70-doxia-touchpad.rules
+content='SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"'
+
+[[ $(cat "$rule" 2>/dev/null) == "$content" ]] && exit 0
+
+install -Dm644 /dev/stdin "$rule" <<< "$content"
+restorecon "$rule" 2>/dev/null || true
+udevadm control --reload
+udevadm trigger --subsystem-match=input
