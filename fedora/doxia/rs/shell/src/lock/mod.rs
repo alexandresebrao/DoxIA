@@ -1,6 +1,8 @@
 // The lock screen, replacing shell/plugins/lock: ext-session-lock through
-// gtk4-layer-shell's session lock API, one password field per monitor over the
-// blurred wallpaper, PAM in a child process (pam.rs) for the password
+// gtk4-layer-shell's session lock API, one view per monitor laid out like the
+// login screen (default/sddm/omarchy/Main.qml) over its animated landscape
+// (landscape.rs): the brand, the clock and the date on the left, the avatar,
+// the name and the password on a thin line in the lower third. PAM in a child process (pam.rs) for the password
 // (omarchy-lock-password) and, when a finger is enrolled, the reader
 // (omarchy-lock-fingerprint) in parallel. Same IPC (`omarchy-shell lock
 // lock|isLocked|status|preview|hidePreview`), same marker
@@ -11,6 +13,7 @@
 // systemd restarts it, and the stranded-lock check at startup locks again so
 // there is a password field to get back in.
 
+pub mod landscape;
 pub mod pam;
 
 use gtk::glib::translate::{FromGlibPtrFull, ToGlibPtr};
@@ -25,7 +28,10 @@ use std::time::{Duration, Instant};
 const PASSWORD_SERVICE: &str = "omarchy-lock-password";
 const FINGERPRINT_SERVICE: &str = "omarchy-lock-fingerprint";
 const G_FINGERPRINT: &str = "\u{f0237}";
-const PLACEHOLDER: &str = "Digite a senha";
+const PLACEHOLDER: &str = "Senha";
+// As the login screen writes them (GLib says "sexta").
+const WEEKDAYS: [&str; 7] = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"];
+const FAILED: &str = "Senha incorreta. Tente novamente.";
 
 #[link(name = "gtk4-layer-shell")]
 unsafe extern "C" {
@@ -54,19 +60,108 @@ fn sh(command: &str) {
     .map(|mut c| std::thread::spawn(move || c.wait()));
 }
 
-fn background_path() -> String {
-  let home = std::env::var("HOME").unwrap_or_default();
-  std::fs::canonicalize(format!("{home}/.local/state/omarchy/current/background"))
-    .map(|p| p.display().to_string())
-    .unwrap_or_default()
+fn brand_path() -> String {
+  format!("{}/default/sddm/omarchy/brand.png", std::env::var("OMARCHY_PATH").unwrap_or_default())
 }
 
-// One monitor's lock view: the wallpaper, the field and the fingerprint hint.
+// The account's name, as the login screen shows it.
+fn shown_name() -> String {
+  let real = glib::real_name().to_string_lossy().trim().to_string();
+  if real.is_empty() || real == "Unknown" { glib::user_name().to_string_lossy().to_string() } else { real }
+}
+
+fn label(text: &str, classes: &[&str]) -> gtk::Label {
+  let l = gtk::Label::new(Some(text));
+  for c in classes {
+    l.add_css_class(c);
+  }
+  l
+}
+
+// The avatar: the initial in a dark disc with a soft ring, as on the login
+// screen (no face image there either: SDDM's stock one is a silhouette).
+fn avatar(initial: &str) -> gtk::DrawingArea {
+  let area = gtk::DrawingArea::new();
+  area.set_content_width(98);
+  area.set_content_height(98);
+  area.set_halign(gtk::Align::Center);
+  let initial = initial.chars().next().map(|c| c.to_uppercase().to_string()).unwrap_or_default();
+  area.set_draw_func(move |_, cr, w, h| {
+    let (cx, cy) = (w as f64 / 2.0, h as f64 / 2.0);
+    cr.arc(cx, cy, 48.0, 0.0, 2.0 * std::f64::consts::PI);
+    cr.set_source_rgba(1.0, 1.0, 1.0, 0.5);
+    cr.set_line_width(2.0);
+    let _ = cr.stroke();
+    cr.arc(cx, cy, 44.0, 0.0, 2.0 * std::f64::consts::PI);
+    cr.set_source_rgba(0.1, 0.11, 0.13, 0.7);
+    let _ = cr.fill();
+    let layout = pangocairo::functions::create_layout(cr);
+    let mut font = gtk::pango::FontDescription::from_string("Red Hat Text Bold");
+    font.set_absolute_size(88.0 * 0.42 * gtk::pango::SCALE as f64);
+    layout.set_font_description(Some(&font));
+    layout.set_text(&initial);
+    let (tw, th) = layout.pixel_size();
+    cr.move_to(cx - tw as f64 / 2.0, cy - th as f64 / 2.0);
+    cr.set_source_rgb(0.95, 0.95, 0.95);
+    pangocairo::functions::show_layout(cr, &layout);
+  });
+  area
+}
+
+thread_local! {
+  // While the displays are blanked, the landscape stops drawing.
+  static BLANKED: Cell<bool> = const { Cell::new(false) };
+}
+
+// The landscape, redrawn at up to 30 frames a second (none while blanked);
+// the weather is read once a second from the bar's.
+fn landscape_area() -> gtk::DrawingArea {
+  let area = gtk::DrawingArea::new();
+  area.set_hexpand(true);
+  area.set_vexpand(true);
+  let started = Instant::now();
+  let sky = Rc::new(Cell::new(landscape::Sky::default()));
+  let s = sky.clone();
+  area.set_draw_func(move |_, cr, w, h| {
+    let now = glib::DateTime::now_local().ok();
+    let hour = now.map(|d| d.hour() as f64 + d.minute() as f64 / 60.0 + d.seconds() / 3600.0).unwrap_or(12.0);
+    let scene = landscape::Scene::new(w as f64, h as f64, started.elapsed().as_secs_f64(), hour, s.get());
+    landscape::draw(cr, &scene);
+  });
+  let last = Cell::new(0i64);
+  area.add_tick_callback(move |a, clock| {
+    let now = clock.frame_time();
+    if now - last.get() >= 33_000 && !BLANKED.with(Cell::get) {
+      last.set(now);
+      a.queue_draw();
+    }
+    glib::ControlFlow::Continue
+  });
+  let weak = area.downgrade();
+  let read = move || {
+    if let Some(found) = crate::bar::weather_now().as_ref().and_then(landscape::sky_of) {
+      sky.set(found);
+    }
+  };
+  read();
+  glib::timeout_add_seconds_local(1, move || {
+    if weak.upgrade().is_none() {
+      return glib::ControlFlow::Break;
+    }
+    read();
+    glib::ControlFlow::Continue
+  });
+  area
+}
+
+// One monitor's lock view: the landscape, the clock, the sign-in.
 struct View {
   window: gtk::Window,
   entry: gtk::PasswordEntry,
   field: gtk::Box,
   hint: gtk::Label,
+  status: gtk::Label,
+  sign_in: gtk::Box,
 }
 
 pub struct Lock {
@@ -116,6 +211,7 @@ impl Lock {
       if let Some(at) = me.blank_at.get() {
         if Instant::now() >= at && me.requested.get() && !me.authenticating.get() {
           me.blank_at.set(None);
+          BLANKED.with(|b| b.set(true));
           sh("omarchy-brightness-keyboard off; omarchy-brightness-display off");
         }
       }
@@ -206,7 +302,7 @@ impl Lock {
 
   fn add_monitor(self: &Rc<Self>, monitor: &gdk::Monitor) {
     let Some(instance) = self.instance.borrow().clone() else { return };
-    let view = self.build_view(true);
+    let view = self.build_view(true, Some(monitor));
     unsafe {
       gtk_session_lock_instance_assign_window_to_monitor(
         instance.to_glib_none().0,
@@ -341,6 +437,7 @@ impl Lock {
       view.entry.set_text("");
     }
     self.render();
+    self.shake();
     self.wake(true);
   }
 
@@ -401,6 +498,7 @@ impl Lock {
   // Input wakes the displays; at most once a second unless forced.
   fn wake(&self, force: bool) {
     let recent = self.last_wake.get().is_some_and(|t| t.elapsed() < Duration::from_secs(1));
+    BLANKED.with(|b| b.set(false));
     if force || !recent {
       self.last_wake.set(Some(Instant::now()));
       sh("omarchy-system-wake");
@@ -412,43 +510,131 @@ impl Lock {
 
   // ---- views -------------------------------------------------------------------
 
-  fn build_view(self: &Rc<Self>, input: bool) -> View {
+  fn build_view(self: &Rc<Self>, input: bool, monitor: Option<&gdk::Monitor>) -> View {
     let window = gtk::Window::builder().application(&self.app).decorated(false).build();
     window.add_css_class("doxia");
     window.add_css_class("lock-window");
+    let geometry = monitor.map(|m| m.geometry());
+    let (mw, mh) = geometry.map(|g| (g.width() as f64, g.height() as f64)).unwrap_or((1366.0, 768.0));
+    let left = (mw * 0.07).round() as i32;
 
     let overlay = gtk::Overlay::new();
-    let picture = gtk::Picture::new();
-    picture.set_content_fit(gtk::ContentFit::Cover);
-    picture.add_css_class("lock-bg");
-    let path = background_path();
-    if !path.is_empty() {
-      picture.set_filename(Some(&path));
-    }
-    overlay.set_child(Some(&picture));
+    overlay.set_child(Some(&landscape_area()));
 
+    // Top left: the brand, small.
+    let scale = monitor.map(|m| m.scale_factor()).unwrap_or(1).max(1);
+    let brand = gtk::Picture::new();
+    if let Ok(pixbuf) = gtk::gdk_pixbuf::Pixbuf::from_file_at_scale(brand_path(), -1, 26 * scale, true) {
+      brand.set_paintable(Some(&gdk::Texture::for_pixbuf(&pixbuf)));
+      brand.set_size_request(pixbuf.width() / scale, 26);
+    }
+    brand.set_can_shrink(true);
+    brand.set_content_fit(gtk::ContentFit::Contain);
+    brand.set_opacity(0.85);
+    brand.set_halign(gtk::Align::Start);
+    brand.set_valign(gtk::Align::Start);
+    brand.set_margin_start(left);
+    brand.set_margin_top(48);
+    overlay.add_overlay(&brand);
+
+    // Left: the clock and the date.
+    let column = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    column.set_halign(gtk::Align::Start);
+    column.set_valign(gtk::Align::Start);
+    column.set_margin_start(left);
+    column.set_margin_top((mh * 0.3).round() as i32);
+    let clock = label("", &["lock-clock"]);
+    clock.set_xalign(0.0);
+    let attrs = gtk::pango::AttrList::new();
+    attrs.insert(gtk::pango::AttrSize::new_size_absolute((mh * 0.15).round() as i32 * gtk::pango::SCALE));
+    clock.set_attributes(Some(&attrs));
+    column.append(&clock);
+    let bar = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    bar.add_css_class("lock-accent");
+    bar.set_size_request(56, 4);
+    bar.set_halign(gtk::Align::Start);
+    column.append(&bar);
+    let date = label("", &["lock-date"]);
+    date.set_xalign(0.0);
+    date.set_margin_top(6);
+    column.append(&date);
+    overlay.add_overlay(&column);
+    let (c, d) = (clock.downgrade(), date.downgrade());
+    let tick = move || {
+      let (Some(c), Some(d)) = (c.upgrade(), d.upgrade()) else { return glib::ControlFlow::Break };
+      if let Ok(now) = glib::DateTime::now_local() {
+        c.set_text(&now.format("%H:%M").map(|s| s.to_string()).unwrap_or_default());
+        let weekday = WEEKDAYS[(now.day_of_week() as usize).clamp(1, 7) - 1];
+        d.set_text(&format!("{weekday}, {}", now.format("%-d de %B").map(|s| s.to_string()).unwrap_or_default()));
+      }
+      glib::ControlFlow::Continue
+    };
+    tick();
+    glib::timeout_add_seconds_local(1, tick);
+
+    // The sign-in, floating in the lower third.
+    let sign_in = gtk::Box::new(gtk::Orientation::Vertical, 14);
+    sign_in.set_size_request(380, -1);
+    sign_in.set_halign(gtk::Align::Center);
+    sign_in.set_valign(gtk::Align::End);
+    sign_in.set_margin_bottom((mh * 0.1).round() as i32);
+    let name = shown_name();
+    sign_in.append(&avatar(&name));
+    sign_in.append(&label(&name, &["lock-name"]));
+
+    // The password on a thin line, the fingerprint at its left end and the
+    // submit button at its right end.
+    let line = gtk::Overlay::new();
     let field = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-    field.add_css_class("lock-field");
-    field.set_halign(gtk::Align::Center);
-    field.set_valign(gtk::Align::Center);
-    field.set_size_request(381, 67);
+    field.add_css_class("lock-line");
     let entry = gtk::PasswordEntry::new();
     entry.add_css_class("lock-entry");
     entry.set_hexpand(true);
     entry.set_alignment(0.5);
     entry.set_placeholder_text(Some(PLACEHOLDER));
+    entry.set_margin_start(44);
+    entry.set_margin_end(44);
     // The preview shows the field but takes no typing.
     entry.set_editable(input);
     entry.set_can_focus(input);
     field.append(&entry);
-    let hint = gtk::Label::new(Some(G_FINGERPRINT));
-    hint.add_css_class("lock-fingerprint");
+    line.set_child(Some(&field));
+    let hint = label(G_FINGERPRINT, &["lock-fingerprint"]);
+    hint.set_halign(gtk::Align::Start);
+    hint.set_valign(gtk::Align::Center);
+    hint.set_margin_start(8);
     hint.set_visible(false);
-    field.append(&hint);
-    overlay.add_overlay(&field);
+    line.add_overlay(&hint);
+    let submit = gtk::Button::with_label("→");
+    submit.add_css_class("lock-submit");
+    submit.set_halign(gtk::Align::End);
+    submit.set_valign(gtk::Align::Center);
+    submit.set_can_focus(false);
+    line.add_overlay(&submit);
+    sign_in.append(&line);
+    let status = label("", &["lock-status"]);
+    status.set_size_request(-1, 16);
+    sign_in.append(&status);
+    overlay.add_overlay(&sign_in);
+
+    // Bottom left: the machine's name.
+    let host = label(&glib::host_name(), &["lock-host"]);
+    host.set_halign(gtk::Align::Start);
+    host.set_valign(gtk::Align::End);
+    host.set_margin_start(left);
+    host.set_margin_bottom(30);
+    overlay.add_overlay(&host);
     window.set_child(Some(&overlay));
 
     if input {
+      let weak = Rc::downgrade(self);
+      let e = entry.clone();
+      submit.connect_clicked(move |_| {
+        let Some(me) = weak.upgrade() else { return };
+        let text = e.text().to_string();
+        e.set_text("");
+        me.submit(text);
+      });
       let weak = Rc::downgrade(self);
       entry.connect_activate(move |e| {
         let Some(me) = weak.upgrade() else { return };
@@ -499,28 +685,38 @@ impl Lock {
       });
       window.add_controller(click);
     }
-    View { window, entry, field, hint }
+    View { window, entry, field, hint, status, sign_in }
+  }
+
+  // A wrong password shakes the sign-in, as on the login screen.
+  fn shake(&self) {
+    let boxes: Vec<_> = self.views.borrow().iter().map(|v| v.sign_in.downgrade()).collect();
+    let steps = [(-10, 50u64), (10, 70), (-6, 60), (0, 50)];
+    let mut at = 0;
+    for (dx, ms) in steps {
+      at += ms;
+      let boxes = boxes.clone();
+      glib::timeout_add_local_once(Duration::from_millis(at), move || {
+        for b in boxes.iter().filter_map(|b| b.upgrade()) {
+          b.set_margin_start((2 * dx).max(0));
+          b.set_margin_end((-2 * dx).max(0));
+        }
+      });
+    }
   }
 
   fn render(&self) {
-    let failure = self.failure.borrow().clone();
-    let placeholder = if self.authenticating.get() {
-      "Verificando…".to_string()
-    } else if !failure.is_empty() {
-      failure.clone()
-    } else {
-      PLACEHOLDER.to_string()
-    };
+    let failed = !self.failure.borrow().is_empty();
+    let placeholder = if self.authenticating.get() { "Verificando…" } else { PLACEHOLDER };
     for view in self.views.borrow().iter() {
-      view.entry.set_placeholder_text(Some(&placeholder));
+      view.entry.set_placeholder_text(Some(placeholder));
       view.entry.set_editable(!self.authenticating.get());
       view.hint.set_visible(self.fingerprint.get());
-      for w in [view.field.upcast_ref::<gtk::Widget>(), view.entry.upcast_ref()] {
-        if failure.is_empty() {
-          w.remove_css_class("error");
-        } else {
-          w.add_css_class("error");
-        }
+      view.status.set_text(if failed { FAILED } else { "" });
+      if failed {
+        view.field.add_css_class("error");
+      } else {
+        view.field.remove_css_class("error");
       }
     }
   }
@@ -530,7 +726,8 @@ impl Lock {
     if self.preview.borrow().is_some() || self.locked() {
       return;
     }
-    let view = self.build_view(false);
+    let first = gdk::Display::default().and_then(|d| d.monitors().item(0)).and_then(|m| m.downcast::<gdk::Monitor>().ok());
+    let view = self.build_view(false, first.as_ref());
     view.window.init_layer_shell();
     view.window.set_namespace(Some("doxia-lock-preview"));
     view.window.set_layer(Layer::Overlay);

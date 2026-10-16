@@ -16,6 +16,8 @@ pub mod ui;
 pub mod widget;
 mod widgets;
 
+pub use widgets::weather_now;
+
 use config::{BarConfig, Position};
 use doxia_theme::BarStyle;
 use gtk::prelude::*;

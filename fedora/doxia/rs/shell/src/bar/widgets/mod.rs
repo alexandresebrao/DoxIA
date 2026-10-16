@@ -22,6 +22,8 @@ mod usage;
 mod weather;
 mod weather_model;
 
+pub use weather::current_condition as weather_now;
+
 use super::config::entry_id;
 use super::member::Member;
 use gtk::prelude::*;

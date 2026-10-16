@@ -17,6 +17,9 @@ import QtQuick.Effects
 // theme.conf can pin the hour (hour=18.5), speed the day up to look at every
 // light in a minute (timelapse=1440: a day per minute) or pin the weather
 // (weather=clear|partly|cloudy|fog|rain|snow|storm).
+//
+// The lock screen draws the same landscape with cairo
+// (fedora/doxia/rs/shell/src/lock/landscape.rs): keep the two in step.
 Item {
   id: scene
 

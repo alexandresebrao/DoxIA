@@ -45,6 +45,14 @@ thread_local! {
   static WEATHER: Rc<Weather> = Rc::new(Weather::default());
 }
 
+// The lock screen's landscape: wttr.in's current conditions, from the bar's
+// weather (started here, every 20 minutes, when the bar shows none).
+pub fn current_condition() -> Option<Value> {
+  let weather = Weather::get(20);
+  let st = weather.st.borrow();
+  st.wttr.as_ref().and_then(|r| r["current_condition"].get(0).cloned())
+}
+
 fn location_path() -> String {
   format!("{}/.local/state/omarchy/settings/weather.json", std::env::var("HOME").unwrap_or_default())
 }
