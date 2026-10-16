@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, the mango user config (once), /etc/motd, the login session
-# name, the SDDM theme, the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Thunderbird as the default mail client and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the SDDM theme, the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Evolution as the default mail client, LibreWolf and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
 # added; the rest of the bar stays as it is).
 #
@@ -309,12 +309,13 @@ flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
 flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
 ROOT
 
-echo "==> Mail: Thunderbird from Flathub as every user's default mail client (sudo)"
-sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.Thunderbird
+echo "==> Mail: Evolution from Flathub as every user's default mail client (sudo)"
+# Thunderbird, the default before, stays installed with its mail and settings.
+sudo flatpak install -y --noninteractive --or-update flathub org.gnome.Evolution
 sudo install -Dm644 "$OMARCHY_PATH/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
 
-echo "==> Firefox from Flathub instead of the RPM, in the theme's colors (sudo)"
-sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.firefox
+echo "==> Firefox from Flathub instead of the RPM, in the theme's colors, and LibreWolf (sudo)"
+sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.firefox io.gitlab.librewolf-community
 if rpm -q firefox &>/dev/null; then
   # Without clean_requirements_on_remove dnf would also drop what only Firefox's
   # dependents (the live installer, anaconda-webui) held: openssl, zenity and

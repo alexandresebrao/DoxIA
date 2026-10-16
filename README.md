@@ -73,8 +73,8 @@ Detalhes de cada app, o tema e como publicar uma versão estão no
   com a skill `/painel` do Claude Code ou em `~/.config/omarchy/painel.json`
 - Temas LiquidIA (padrão), LiquidOceanIA e DoxIA, com ícones Lucide na barra e nos menus
 - Ditado por voz com o Voxtype
-- Google Chrome e Claude Code instalados; Firefox, Thunderbird (cliente de e-mail padrão) e
-  ONLYOFFICE (em pt-BR, no lugar do LibreOffice) vêm do Flathub
+- Google Chrome e Claude Code instalados; Firefox, LibreWolf, Evolution (cliente de e-mail
+  padrão) e ONLYOFFICE (em pt-BR, no lugar do LibreOffice) vêm do Flathub
 - `tuned-ppd` com um pequeno shim de `powerprofilesctl` para o menu de energia
 
 ### Instalação
