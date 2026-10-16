@@ -10,6 +10,9 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::SystemTime;
 
+// The least opacity of the apps' own windows ($APP_BG).
+const APP_ALPHA: f64 = 0.94;
+
 #[derive(Clone, Copy, PartialEq)]
 struct Rgb(f64, f64, f64);
 
@@ -359,6 +362,10 @@ pub fn css(app_css: &str) -> String {
     ("$BG", p.bg.css()),
     // The apps' windows: the popups' glass, so mango's blur shows behind them.
     ("$WIN_BG", section_rgb("popups", "background", p.bg).alpha(shell.num("popups", "background-alpha").unwrap_or(1.0))),
+    // The windows of their own (Atualizar, Painel Rápido) float over other
+    // windows, not over the bar: the same glass, nearly opaque, to stay
+    // readable over text.
+    ("$APP_BG", section_rgb("popups", "background", p.bg).alpha(shell.num("popups", "background-alpha").unwrap_or(1.0).max(APP_ALPHA))),
     ("$ACCENT", p.accent.css()),
     ("$URGENT", p.urgent.css()),
     ("$OK", p.ok.css()),

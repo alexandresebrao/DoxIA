@@ -41,6 +41,7 @@ impl App {
       .default_height(640)
       .build();
     window.add_css_class("doxia");
+    window.add_css_class("app");
     let styler = Styler::install(include_str!("style.css"));
 
     let overlay = gtk::Overlay::new();

@@ -144,6 +144,7 @@ impl Window {
       .build();
     window.set_size_request(480, 520);
     window.add_css_class("doxia");
+    window.add_css_class("app");
     let styler = Styler::install(include_str!("style.css"));
 
     // Header: icon, title, tabs
