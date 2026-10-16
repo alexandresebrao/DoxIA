@@ -6,14 +6,15 @@ use crate::apps::App;
 use gtk::glib;
 
 // The first category that matches, in this order (Settings before System,
-// which often come together); the rest go to Outros.
+// which often come together; Internet before Escritório, so mail clients that
+// also say Office, like Evolution, sit with Thunderbird); the rest go to Outros.
 const CATEGORIES: [(&[&str], &str, &str); 11] = [
   (&["Game"], "Jogos", "applications-games"),
   (&["Development"], "Desenvolvimento", "applications-development"),
-  (&["Office"], "Escritório", "applications-office"),
   (&["Graphics"], "Gráficos", "applications-graphics"),
   (&["AudioVideo", "Audio", "Video"], "Multimídia", "applications-multimedia"),
-  (&["Network"], "Internet", "applications-internet"),
+  (&["Network", "Email"], "Internet", "applications-internet"),
+  (&["Office"], "Escritório", "applications-office"),
   (&["Education"], "Educação", "applications-education"),
   (&["Science"], "Ciência", "applications-science"),
   (&["Settings"], "Configurações", "preferences-system"),
@@ -139,10 +140,11 @@ mod tests {
       app("Misc", &[]),
       app("Code", &["Development", "Utility"]),
       app("Mpv", &["AudioVideo"]),
+      app("Evolution", &["GNOME", "GTK", "Office", "Email", "Calendar"]),
     ];
     let f = folders(&apps);
     let labels: Vec<&str> = f.iter().map(|f| f.label).collect();
-    assert_eq!(labels, ["Configurações", "Desenvolvimento", "Jogos", "Multimídia", "Outros"]);
+    assert_eq!(labels, ["Configurações", "Desenvolvimento", "Internet", "Jogos", "Multimídia", "Outros"]);
     assert_eq!(f[0].apps[0].name, "Settings");
   }
 
