@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Depois da troca de tema: as cores do tema nos apps GTK 3 (Evolution etc.). O
+# omarchy-theme-set gera gtk3.css a partir de ~/.config/omarchy/themed/gtk3.css.tpl;
+# aqui ele vai para ~/.config/gtk-3.0/doxia-theme.css, que o gtk.css importa. Fica
+# nessa pasta (e não no estado do omarchy) porque é a que os flatpaks enxergam,
+# com a permissão xdg-config/gtk-3.0:ro.
+
+css=$HOME/.local/state/omarchy/current/theme/gtk3.css
+dir=$HOME/.config/gtk-3.0
+
+[[ -f $css ]] || exit 0
+mkdir -p "$dir"
+cp "$css" "$dir/doxia-theme.css"
+grep -qF "@import 'doxia-theme.css';" "$dir/gtk.css" 2>/dev/null ||
+  printf "\n@import 'doxia-theme.css';\n" >>"$dir/gtk.css"
