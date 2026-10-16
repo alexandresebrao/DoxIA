@@ -1,16 +1,38 @@
 #!/bin/bash
 
-# Depois da troca de tema: as cores do tema nos apps GTK 3 (Evolution etc.). O
-# omarchy-theme-set gera gtk3.css a partir de ~/.config/omarchy/themed/gtk3.css.tpl;
-# aqui ele vai para ~/.config/gtk-3.0/doxia-theme.css, que o gtk.css importa. Fica
-# nessa pasta (e não no estado do omarchy) porque é a que os flatpaks enxergam,
-# com a permissão xdg-config/gtk-3.0:ro.
+# Depois da troca de tema: as cores do tema nos apps GTK 3 (Evolution etc.), já
+# abertos inclusive. O omarchy-theme-set gera gtk3.css a partir de
+# ~/.config/omarchy/themed/gtk3.css.tpl; aqui ele vira um tema GTK (o Adwaita do
+# modo do tema + essas regras) em ~/.local/share/themes, pasta que os flatpaks
+# leem com a permissão xdg-data/themes:ro. O GTK 3 só relê o ~/.config/gtk-3.0/gtk.css
+# ao abrir, mas recarrega o tema quando o nome dele muda: por isso dois nomes,
+# DoxIA e DoxIA-alt, alternados a cada troca.
 
 css=$HOME/.local/state/omarchy/current/theme/gtk3.css
-dir=$HOME/.config/gtk-3.0
+themes=$HOME/.local/share/themes
 
 [[ -f $css ]] || exit 0
-mkdir -p "$dir"
-cp "$css" "$dir/doxia-theme.css"
-grep -qF "@import 'doxia-theme.css';" "$dir/gtk.css" 2>/dev/null ||
-  printf "\n@import 'doxia-theme.css';\n" >>"$dir/gtk.css"
+
+[[ $(omarchy-theme-color mode) == "light" ]] && adwaita=gtk-contained.css || adwaita=gtk-contained-dark.css
+[[ $(gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null) == "'DoxIA'" ]] && name=DoxIA-alt || name=DoxIA
+
+mkdir -p "$themes/$name/gtk-3.0"
+{
+  echo "@import url(\"resource:///org/gtk/libgtk/theme/Adwaita/$adwaita\");"
+  echo
+  cat "$css"
+} >"$themes/$name/gtk-3.0/gtk.css"
+cp "$themes/$name/gtk-3.0/gtk.css" "$themes/$name/gtk-3.0/gtk-dark.css"
+printf '[Desktop Entry]\nType=X-GNOME-Metatheme\nName=%s\nComment=Cores do tema atual do DoxIA (gerado)\n' "$name" >"$themes/$name/index.theme"
+
+gsettings set org.gnome.desktop.interface gtk-theme "$name" 2>/dev/null || true
+for ini in "$HOME/.config/gtk-3.0/settings.ini"; do
+  if [[ -f $ini ]] && grep -q '^gtk-theme-name=' "$ini"; then
+    sed -i "s/^gtk-theme-name=.*/gtk-theme-name=$name/" "$ini"
+  fi
+done
+
+# Antes as cores iam no gtk.css do usuário, que vale mais que o tema e não
+# acompanha a troca: tira de lá.
+sed -i "/^@import 'doxia-theme.css';$/d" "$HOME/.config/gtk-3.0/gtk.css" 2>/dev/null || true
+rm -f "$HOME/.config/gtk-3.0/doxia-theme.css"

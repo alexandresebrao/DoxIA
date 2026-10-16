@@ -235,8 +235,8 @@ if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then
   echo "@import url('file://$HOME/.local/state/omarchy/current/theme/gtk.css');" >> "$gtk_css"
 fi
 # GTK 3 apps (Evolution etc.) in the theme's colors: the theme-set hook gtk3-colors
-# copies the theme's gtk3.css into ~/.config/gtk-3.0, the folder flatpaks may read.
-flatpak override --user --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro
+# turns the theme's gtk3.css into a GTK theme in ~/.local/share/themes, which flatpaks may read.
+flatpak override --user --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro --filesystem=xdg-data/themes:ro
 # A kept theme set before gtk3.css.tpl existed gets it by being set again.
 if ! $reapply_theme && [[ -n $current_theme && ! -f $HOME/.local/state/omarchy/current/theme/gtk3.css ]]; then
   reapply_theme=true

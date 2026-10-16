@@ -1,9 +1,9 @@
 /* Gerado pelo omarchy-theme-set a partir de ~/.config/omarchy/themed/gtk3.css.tpl.
    Cores do tema atual nos apps GTK 3 (Evolution etc.). O Adwaita do GTK 3 tem as
    cores compiladas nas regras, então não basta redefinir as cores com nome:
-   aqui vão também as regras dos widgets. O hook theme-set.d/gtk3-colors copia
-   este arquivo para ~/.config/gtk-3.0/doxia-theme.css, que o gtk.css importa
-   (pasta que os flatpaks enxergam). */
+   aqui vão também as regras dos widgets. O hook theme-set.d/gtk3-colors junta
+   este arquivo ao Adwaita do modo do tema num tema GTK em ~/.local/share/themes
+   (pasta que os flatpaks enxergam), trocado com os apps abertos. */
 @define-color theme_bg_color {{ background }};
 @define-color theme_fg_color {{ foreground }};
 @define-color theme_base_color {{ background }};

@@ -132,8 +132,8 @@ if ! grep -q 'nautilus-grid-view' "$gtk_css"; then
 CSS
 fi
 # GTK 3 apps (Evolution etc.) in the theme's colors: the theme-set hook gtk3-colors
-# copies the theme's gtk3.css into ~/.config/gtk-3.0, the folder flatpaks may read.
-flatpak override --user --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro
+# turns the theme's gtk3.css into a GTK theme in ~/.local/share/themes, which flatpaks may read.
+flatpak override --user --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro --filesystem=xdg-data/themes:ro
 # No minimize/maximize/close or app icon in GTK title bars: mango manages windows.
 for ini in ~/.config/gtk-3.0/settings.ini ~/.config/gtk-4.0/settings.ini; do
   if [[ -f $ini ]] && grep -q '^gtk-decoration-layout=' "$ini"; then
