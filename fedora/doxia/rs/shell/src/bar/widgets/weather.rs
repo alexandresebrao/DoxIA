@@ -129,11 +129,8 @@ impl Weather {
       }
       for attempt in 0..4 {
         if let Some(report) = curl(10, &format!("https://wttr.in/{query}?format=j1")).await {
-          if !me.has_coordinates() && me.st.borrow().icon.is_empty() {
-            let icon = m::wttr_current(&report).map(|c| c.icon).unwrap_or_default();
-            me.st.borrow_mut().icon = icon;
-          }
           me.st.borrow_mut().wttr = Some(report.clone());
+          me.update_icon();
           me.changed();
           if !me.has_coordinates() {
             me.fetch_meteo(Some(&report)).await;
@@ -172,18 +169,24 @@ impl Weather {
     );
     for attempt in 0..4 {
       if let Some(report) = curl(5, &url).await {
-        if let Some(cur) = m::open_meteo_current(&report) {
-          if !cur.icon.is_empty() {
-            self.st.borrow_mut().icon = cur.icon;
-          }
-        }
         self.st.borrow_mut().meteo = Some(report);
+        self.update_icon();
         self.changed();
         return;
       }
       if attempt < 3 {
         glib::timeout_future(Duration::from_millis(2500)).await;
       }
+    }
+  }
+
+  fn update_icon(&self) {
+    let icon = {
+      let st = self.st.borrow();
+      m::current_icon(st.meteo.as_ref(), st.wttr.as_ref())
+    };
+    if !icon.is_empty() {
+      self.st.borrow_mut().icon = icon;
     }
   }
 

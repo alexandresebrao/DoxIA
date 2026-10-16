@@ -145,6 +145,27 @@ pub fn wttr_current(report: &Value) -> Option<Current> {
   })
 }
 
+// The icon for now: Open-Meteo's, unless its model says dry while wttr.in's
+// observation says it is raining or snowing (the model often ends a rain
+// hours before it does); then wttr.in's, with Open-Meteo's day or night.
+pub fn current_icon(meteo: Option<&Value>, wttr: Option<&Value>) -> String {
+  let c = meteo.map(|m| &m["current"]);
+  let code = c.and_then(|c| num(&c["weather_code"])).map(|n| n as i64);
+  let night = c.and_then(|c| num(&c["is_day"])) == Some(0.0);
+  let observed = wttr.and_then(|w| w["current_condition"].get(0)).and_then(|o| num(&o["weatherCode"])).map(|n| n as i64);
+  match (code, observed) {
+    (Some(code), Some(obs)) if code < 51 && wet_code(obs) => icon_code(obs, night),
+    (Some(code), _) => icon_open_meteo(code, night),
+    (None, Some(obs)) => icon_code(obs, night),
+    (None, None) => String::new(),
+  }
+}
+
+// wttr.in (WWO) codes with rain, drizzle, sleet, snow or thunder.
+fn wet_code(code: i64) -> bool {
+  !matches!(code, 113 | 116 | 119 | 122 | 143 | 248 | 260)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Day {
   pub date: String,
@@ -307,5 +328,18 @@ mod tests {
     assert_eq!(hourly(Some(&meteo), "2026-10-14").len(), 1);
     assert_eq!(format_precip(1.25, false), "1,2 mm");
     assert_eq!(parse_geocoding(r#"{"results": [{"name": "Lapa", "latitude": 1, "longitude": 2, "admin1": "PR", "country": "Brasil"}]}"#)[0].description, "PR, Brasil");
+  }
+
+  #[test]
+  fn observed_rain_wins_over_a_dry_model() {
+    let meteo = json!({"current": {"weather_code": 3, "is_day": 0}});
+    let raining = json!({"current_condition": [{"weatherCode": "353"}]});
+    let cloudy = json!({"current_condition": [{"weatherCode": "119"}]});
+    assert_eq!(current_icon(Some(&meteo), Some(&raining)), icon_code(353, true));
+    assert_eq!(current_icon(Some(&meteo), Some(&cloudy)), icon_open_meteo(3, true));
+    let storm = json!({"current": {"weather_code": 95, "is_day": 1}});
+    assert_eq!(current_icon(Some(&storm), Some(&raining)), icon_open_meteo(95, false));
+    assert_eq!(current_icon(None, Some(&raining)), icon_code(353, false));
+    assert_eq!(current_icon(None, None), "");
   }
 }
