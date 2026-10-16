@@ -132,7 +132,7 @@ base-size = 12
 # widths accept one CSS-style scalar/list: N, "Y X", "T X B", or "T R B L";
 # individual border-width-top/right/bottom/left keys override the list.
 background       = "#120a0a"
-background-alpha = 0.62
+background-alpha = 0.90
 text             = "#f2e4de"
 border           = "hyprland.active-border"
 border-alpha     = 1.0
