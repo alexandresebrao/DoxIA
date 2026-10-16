@@ -375,6 +375,8 @@ categories	user-info	user
 apps	org.gnome.Nautilus	folder
 apps	nautilus	folder
 apps	org.gnome.TextEditor	file-pen-line
+apps	org.gnome.Evolution	mail
+apps	evolution	mail
 apps	org.gnome.Evince	book-open-text
 apps	org.gnome.DiskUtility	hard-drive
 apps	gnome-disks	hard-drive
