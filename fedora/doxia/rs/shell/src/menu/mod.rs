@@ -290,13 +290,17 @@ impl Menu {
       std::mem::forget(monitor);
     }
     let me = Rc::downgrade(self);
-    gio::AppInfoMonitor::get().connect_changed(move |_| {
+    let apps = gio::AppInfoMonitor::get();
+    apps.connect_changed(move |_| {
       let Some(me) = me.upgrade() else { return };
       let loaded = me.st.borrow().loaded.contains("apps");
       if loaded {
         me.load_apps();
       }
     });
+    // Kept too: GIO drops the monitor, and its signal, with the last
+    // reference, so apps installed later never showed up.
+    std::mem::forget(apps);
   }
 
   // One bash run answers every `when:` and `checked:`; the menu opens on the
