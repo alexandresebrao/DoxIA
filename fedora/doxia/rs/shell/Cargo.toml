@@ -16,3 +16,4 @@ pangocairo = "0.22"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 glib-unix = "0.22"
+libc = "0.2"

@@ -328,7 +328,7 @@ mod tests {
 
   #[test]
   fn shows_the_fixed_tags_and_busy_ones() {
-    let tag = |index, active, clients| mango::Tag { index, active, urgent: false, clients };
+    let tag = |index, active, clients| mango::Tag { index, active, urgent: false, clients, layout: String::new() };
     assert_eq!(workspace_ids(&[]), [1, 2, 3, 4, 5, 6]);
     assert_eq!(workspace_ids(&[tag(8, false, 2), tag(9, true, 0), tag(7, false, 0)]), [1, 2, 3, 4, 5, 6, 8, 9]);
   }

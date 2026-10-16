@@ -168,7 +168,13 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
   `colors.toml` and `shell.toml`: as the band starts doxia-shell reloads its
   CSS and passes them on to Quickshell's `shell applyTheme` (which does not
   watch the files), so the bar changes with the picture. Double-click picks a
-  background, a right double-click a theme.
+  background, a right double-click a theme. Parallax: the picture is drawn a
+  quarter wider than the screen and slides 15% of the way mango's scroller
+  strip scrolls (`mmsg watch all-clients`), up to its edge. mango reports the
+  windows only once they have moved, so during a three-finger swipe the
+  picture follows the fingers off the touchpad's evdev node (`touchpad.rs`),
+  readable through the udev rule `fedora/doxia/install-touchpad-access`
+  installs; without it the picture moves when the swipe is over.
 
 - The battery warning (`battery.rs`), replacing `shell/services/battery`:
   UPower's display device every 30 s and on every switch to or from battery;

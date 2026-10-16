@@ -39,6 +39,7 @@ mod quickshell;
 mod reminders;
 mod run;
 mod sni;
+mod touchpad;
 mod upower;
 mod watch;
 

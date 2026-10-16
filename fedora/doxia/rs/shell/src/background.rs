@@ -6,6 +6,13 @@
 // popups change with the picture. Double-click picks a background, a
 // right double-click a theme.
 //
+// Parallax, on a tag laid out as mango's scroller: the picture zooms in
+// ZOOM times and slides PARALLAX of the way the tiled windows scroll, easing
+// over PAN like mango's own move animation, and stops at its edge, so a long
+// strip leaves it there. Any other layout eases it back to the plain picture. While three fingers swipe on the
+// touchpad (touchpad.rs) it follows them, LIVE of the screen's width per
+// width of pad, until mango moves the windows.
+//
 // IPC target "background": refresh, set <path>, setInstant <path>,
 // transition <from> <path>, themeTransition <from> <path> <final> <colors>
 // <shell> (bin/omarchy-theme-set, bin/omarchy-theme-bg-set).
@@ -14,18 +21,59 @@ use gtk::gdk_pixbuf::Pixbuf;
 use gtk::prelude::*;
 use gtk::{cairo, gdk, gio, glib};
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 pub const REVEAL: Duration = Duration::from_millis(420);
 const SLANT: f64 = -0.18;
 const THEME_FALLBACK: Duration = Duration::from_millis(300);
+const PARALLAX: f64 = 0.15;
+const ZOOM: f64 = 1.25;
+const LIVE: f64 = 0.3;
+// mango's animation_duration_move.
+const PAN: Duration = Duration::from_millis(500);
 
 // Easing.InOutCubic.
 pub fn ease(t: f64) -> f64 {
   let t = t.clamp(0.0, 1.0);
   if t < 0.5 { 4.0 * t * t * t } else { 1.0 - (-2.0 * t + 2.0).powi(3) / 2.0 }
+}
+
+// Close to mango's animation_curve_move (0.46,1.0,0.29,1): fast, then settles.
+fn ease_out(t: f64) -> f64 {
+  1.0 - (1.0 - t.clamp(0.0, 1.0)).powi(4)
+}
+
+// Where the picture goes on a screen `w` wide for a strip scrolled
+// `scrolled` pixels: [how far it slides, its zoom]. PARALLAX of the strip,
+// up to the picture's extra width, on a scroller; plain otherwise.
+pub fn pan_target(scrolled: i64, w: f64, scroller: bool) -> [f64; 2] {
+  if !scroller {
+    return [0.0, 1.0];
+  }
+  [(PARALLAX * scrolled as f64).clamp(0.0, w * (ZOOM - 1.0)), ZOOM]
+}
+
+// Redraws `s` while its picture slides. A timer, like the band's: the
+// background layer may get no frame callbacks, and a tick callback would
+// then stall with the slide.
+fn slide(s: &Rc<Screen>) {
+  if s.ticking.replace(true) {
+    return;
+  }
+  let weak = Rc::downgrade(s);
+  glib::timeout_add_local(Duration::from_millis(16), move || {
+    let Some(s) = weak.upgrade() else { return glib::ControlFlow::Break };
+    s.area.queue_draw();
+    let mut pan = s.pan.borrow_mut();
+    if pan.started.is_some_and(|t| t.elapsed() >= PAN) {
+      pan.started = None;
+    }
+    let going = pan.started.is_some();
+    s.ticking.set(going);
+    if going { glib::ControlFlow::Continue } else { glib::ControlFlow::Break }
+  });
 }
 
 // The band's corners at `progress`: top left, top right, bottom right,
@@ -63,9 +111,49 @@ struct State {
   theme: Option<(String, String)>,
 }
 
+// The picture's [slide, zoom] on its way from `from` to `to`.
+struct Pan {
+  from: [f64; 2],
+  to: [f64; 2],
+  // Some while it slides.
+  started: Option<Instant>,
+}
+
+impl Default for Pan {
+  fn default() -> Pan {
+    Pan { from: [0.0, 1.0], to: [0.0, 1.0], started: None }
+  }
+}
+
+impl Pan {
+  fn now(&self) -> [f64; 2] {
+    match self.started {
+      Some(t) => {
+        let p = ease_out(t.elapsed().as_secs_f64() / PAN.as_secs_f64());
+        [0, 1].map(|i| self.from[i] + (self.to[i] - self.from[i]) * p)
+      }
+      None => self.to,
+    }
+  }
+
+  // From where it shows (plus the fingers' `live` slide) to `to`.
+  fn go(&mut self, live: f64, to: [f64; 2]) {
+    let [x, z] = self.now();
+    *self = Pan { from: [x + live, z], to, started: Some(Instant::now()) };
+  }
+}
+
 struct Screen {
   window: gtk::Window,
   area: gtk::DrawingArea,
+  // mango's name for the output and its left edge, to follow its strip.
+  name: String,
+  left: i64,
+  pan: RefCell<Pan>,
+  // How far the fingers have taken the picture past `pan`, and whether the
+  // timer that redraws a slide runs.
+  live: Cell<f64>,
+  ticking: Cell<bool>,
   // The images cropped to this screen, newest first: (path, w, h, surface).
   cache: RefCell<Vec<(String, i32, i32, cairo::ImageSurface)>>,
 }
@@ -75,6 +163,9 @@ pub struct Background {
   screens: RefCell<Vec<Rc<Screen>>>,
   st: RefCell<State>,
   themed: Box<dyn Fn()>,
+  // A three-finger swipe under way: where its travel stood when it started
+  // (or when mango last moved the windows) and where it stands.
+  touch: Cell<Option<(f64, f64)>>,
 }
 
 fn cover(pixbuf: &Pixbuf, w: i32, h: i32) -> Option<cairo::ImageSurface> {
@@ -103,14 +194,14 @@ impl Screen {
     }
     let surface = cover(pixbuf, w, h)?;
     cache.insert(0, (image.path.clone(), w, h, surface.clone()));
-    cache.truncate(3);
+    cache.truncate(4);
     Some(surface)
   }
 }
 
 impl Background {
   pub fn new(app: &gtk::Application, themed: impl Fn() + 'static) -> Rc<Background> {
-    let me = Rc::new(Background { app: app.clone(), screens: RefCell::default(), st: RefCell::default(), themed: Box::new(themed) });
+    let me = Rc::new(Background { app: app.clone(), screens: RefCell::default(), st: RefCell::default(), themed: Box::new(themed), touch: Cell::default() });
     if let Some(display) = gdk::Display::default() {
       let weak = Rc::downgrade(&me);
       display.monitors().connect_items_changed(move |_, _, _, _| {
@@ -120,6 +211,18 @@ impl Background {
       });
     }
     me.place();
+    let weak = Rc::downgrade(&me);
+    crate::mango::get().connect(move || {
+      if let Some(me) = weak.upgrade() {
+        me.follow();
+      }
+    });
+    let weak = Rc::downgrade(&me);
+    crate::touchpad::watch(move |travel| {
+      if let Some(me) = weak.upgrade() {
+        me.swipe(travel);
+      }
+    });
     crate::quickshell::disable("omarchy.background");
     me.refresh();
     me
@@ -182,7 +285,11 @@ impl Background {
     window.set_exclusive_zone(-1);
     let area = gtk::DrawingArea::new();
     window.set_child(Some(&area));
-    let screen = Rc::new(Screen { window, area, cache: RefCell::default() });
+    let name = monitor.connector().map(|c| c.to_string()).unwrap_or_default();
+    let left = monitor.geometry().x() as i64;
+    let screen = Rc::new(Screen { window, area, name, left, pan: RefCell::default(), live: Cell::default(), ticking: Cell::default(), cache: RefCell::default() });
+    let mango = crate::mango::get();
+    screen.pan.borrow_mut().to = pan_target(mango.scrolled(&screen.name, screen.left), monitor.geometry().width() as f64, mango.scroller(&screen.name));
 
     let (weak, s) = (Rc::downgrade(self), Rc::downgrade(&screen));
     screen.area.set_draw_func(move |_, cr, w, h| {
@@ -211,9 +318,29 @@ impl Background {
     let st = self.st.borrow();
     cr.set_source_rgb(0.0, 0.0, 0.0);
     let _ = cr.paint();
+    let [slide, zoom] = screen.pan.borrow().now();
+    let (fw, fh) = (w as f64, h as f64);
+    let offset = (slide + screen.live.get()).clamp(0.0, fw * (zoom - 1.0)).round();
+    // Plain and fully zoomed are drawn as cropped; in between, the zoomed
+    // crop scaled down to `zoom`, centered.
+    let (wide, tall) = ((fw * ZOOM).ceil() as i32, (fh * ZOOM).ceil() as i32);
     let paint = |image: &Option<Image>| {
-      let Some(surface) = image.as_ref().and_then(|i| screen.surface(i, w, h)) else { return false };
-      cr.set_source_surface(&surface, 0.0, 0.0).is_ok() && cr.paint().is_ok()
+      let Some(image) = image.as_ref() else { return false };
+      if (zoom - 1.0).abs() < 1e-3 {
+        let Some(surface) = screen.surface(image, w, h) else { return false };
+        return cr.set_source_surface(&surface, 0.0, 0.0).is_ok() && cr.paint().is_ok();
+      }
+      let Some(surface) = screen.surface(image, wide, tall) else { return false };
+      let k = zoom / ZOOM;
+      cr.save().ok();
+      cr.translate(-offset - (wide as f64 * k - fw * zoom) / 2.0, (fh - tall as f64 * k) / 2.0);
+      cr.scale(k, k);
+      let ok = cr.set_source_surface(&surface, 0.0, 0.0).is_ok() && {
+        cr.source().set_filter(cairo::Filter::Good);
+        cr.paint().is_ok()
+      };
+      cr.restore().ok();
+      ok
     };
     let Some(incoming) = st.incoming.as_ref().filter(|_| st.started.is_some()) else {
       paint(&st.displayed);
@@ -231,6 +358,58 @@ impl Background {
     cr.clip();
     paint(&Some(incoming.clone()));
     cr.reset_clip();
+  }
+
+  // Slides each screen's picture after its strip when the windows move.
+  // A swipe that moved the picture hands it over from where it shows.
+  fn follow(&self) {
+    let mango = crate::mango::get();
+    for s in self.screens.borrow().iter() {
+      let target = pan_target(mango.scrolled(&s.name, s.left), s.area.width() as f64, mango.scroller(&s.name));
+      let mut pan = s.pan.borrow_mut();
+      if (target[0] - pan.to[0]).abs() < 0.5 && target[1] == pan.to[1] {
+        continue;
+      }
+      pan.go(s.live.replace(0.0), target);
+      drop(pan);
+      if let Some((_, at)) = self.touch.get() {
+        self.touch.set(Some((at, at)));
+      }
+      slide(s);
+    }
+  }
+
+  // Three fingers on the touchpad: the picture of the focused screen goes
+  // with them while its strip overflows; on lifting it eases back to where
+  // mango says, which a moment later is where the windows went.
+  fn swipe(&self, travel: Option<f64>) {
+    let Some(at) = travel else {
+      self.touch.set(None);
+      for s in self.screens.borrow().iter().filter(|s| s.live.get() != 0.0) {
+        let mut pan = s.pan.borrow_mut();
+        let to = pan.to;
+        pan.go(s.live.replace(0.0), to);
+        drop(pan);
+        slide(s);
+      }
+      return;
+    };
+    let (start, _) = self.touch.get().unwrap_or((at, at));
+    self.touch.set(Some((start, at)));
+    let mango = crate::mango::get();
+    let focused = mango.focused_monitor();
+    for s in self.screens.borrow().iter().filter(|s| s.name == focused) {
+      let w = s.area.width() as f64;
+      if !mango.scroller(&s.name) || !mango.overflows(&s.name, s.left, w as i64) {
+        continue;
+      }
+      // Fingers to the left bring the windows on the right in: the picture
+      // moves left with them.
+      let [base, _] = s.pan.borrow().now();
+      let live = (base - (at - start) * w * LIVE).clamp(0.0, w * (ZOOM - 1.0)) - base;
+      s.live.set(live);
+      s.area.queue_draw();
+    }
   }
 
   fn redraw(&self) {
@@ -373,5 +552,15 @@ mod tests {
     assert!(tl.0 < 0.0 && bl.0 < 0.0 && tr.0 > 1000.0 && br.0 > 1000.0);
     assert_eq!(ease(0.5), 0.5);
     assert_eq!((ease(0.0), ease(1.0), ease(2.0)), (0.0, 1.0, 1.0));
+  }
+
+  #[test]
+  fn the_picture_slides_with_the_strip_up_to_its_extra_width() {
+    assert_eq!(pan_target(0, 1000.0, true), [0.0, ZOOM]);
+    assert_eq!(pan_target(-50, 1000.0, true), [0.0, ZOOM]);
+    assert!((pan_target(1000, 1000.0, true)[0] - 150.0).abs() < 1e-9);
+    assert!((pan_target(10_000, 1000.0, true)[0] - 250.0).abs() < 1e-9);
+    assert_eq!(pan_target(1000, 1000.0, false), [0.0, 1.0]);
+    assert_eq!((ease_out(0.0), ease_out(1.0)), (0.0, 1.0));
   }
 }

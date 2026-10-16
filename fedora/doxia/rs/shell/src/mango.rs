@@ -1,6 +1,7 @@
 // What the shell needs from mango, read off its IPC (mmsg), as
 // shell/Commons/Compositor.qml does: the tags of each output, the output in
-// focus and the keyboard layout. Each `mmsg watch` prints the state, then a
+// focus, the keyboard layout and where the tiled windows sit (the background's
+// parallax). Each `mmsg watch` prints the state, then a
 // line per change. One instance per process (mango::get()).
 
 use gtk::glib;
@@ -15,10 +16,56 @@ pub struct Tag {
   pub active: bool,
   pub urgent: bool,
   pub clients: u32,
+  // mango's symbol for its layout: "S" is the scroller.
+  pub layout: String,
+}
+
+// A window's place: what the background needs to follow a scroller strip.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Client {
+  pub id: u64,
+  pub monitor: String,
+  pub tags: Vec<u32>,
+  pub x: i64,
+  pub width: i64,
+  // Floating or minimized: not part of the strip.
+  pub loose: bool,
+}
+
+pub fn parse_clients(json: &Value) -> Option<Vec<Client>> {
+  let all = json.get("clients")?.as_array()?;
+  let flag = |c: &Value, k: &str| c.get(k).and_then(Value::as_bool).unwrap_or(false);
+  Some(
+    all
+      .iter()
+      .map(|c| Client {
+        id: c.get("id").and_then(Value::as_u64).unwrap_or(0),
+        monitor: c.get("monitor").and_then(Value::as_str).unwrap_or("").to_string(),
+        tags: c.get("tags").and_then(Value::as_array).map(|t| t.iter().filter_map(Value::as_u64).map(|t| t as u32).collect()).unwrap_or_default(),
+        x: c.get("x").and_then(Value::as_i64).unwrap_or(0),
+        width: c.get("width").and_then(Value::as_i64).unwrap_or(0),
+        loose: flag(c, "is_floating") || flag(c, "is_minimized") || flag(c, "is_scratchpad") || flag(c, "is_namedscratchpad"),
+      })
+      .collect(),
+  )
+}
+
+// How far the tiled windows of `tag` on `monitor` are scrolled past the
+// screen's left edge `left`: 0 when the strip starts on screen (every layout
+// but a scroller that overflows).
+pub fn scrolled(clients: &[Client], monitor: &str, tag: u32, left: i64) -> i64 {
+  clients
+    .iter()
+    .filter(|c| c.monitor == monitor && !c.loose && c.tags.contains(&tag))
+    .map(|c| left - c.x)
+    .max()
+    .unwrap_or(0)
+    .max(0)
 }
 
 #[derive(Default)]
 struct State {
+  clients: Vec<Client>,
   tags: HashMap<String, Vec<Tag>>,
   focused_monitor: String,
   keyboard_layout: String,
@@ -63,6 +110,7 @@ pub fn parse_tags(json: &Value) -> Option<HashMap<String, Vec<Tag>>> {
             active: t.get("is_active").and_then(Value::as_bool).unwrap_or(false),
             urgent: t.get("is_urgent").and_then(Value::as_bool).unwrap_or(false),
             clients: t.get("client_count").and_then(Value::as_u64).unwrap_or(0) as u32,
+            layout: t.get("layout").and_then(Value::as_str).unwrap_or("").to_string(),
           })
           .collect()
       })
@@ -106,6 +154,14 @@ impl Mango {
       }
     });
     let weak = Rc::downgrade(self);
+    crate::watch::lines(&["mmsg", "watch", "all-clients"], move |line| {
+      let (Some(me), Ok(json)) = (weak.upgrade(), serde_json::from_str::<Value>(line)) else { return };
+      if let Some(clients) = parse_clients(&json).filter(|c| *c != me.st.borrow().clients) {
+        me.st.borrow_mut().clients = clients;
+        me.changed();
+      }
+    });
+    let weak = Rc::downgrade(self);
     crate::watch::lines(&["mmsg", "watch", "keyboardlayout"], move |line| {
       let (Some(me), Ok(json)) = (weak.upgrade(), serde_json::from_str::<Value>(line)) else { return };
       if let Some(layout) = json.get("layout").and_then(Value::as_str) {
@@ -141,6 +197,27 @@ impl Mango {
     st.tags.get(name).cloned().unwrap_or_default()
   }
 
+  // How far the active tag's strip on `monitor` is scrolled (see scrolled()).
+  pub fn scrolled(&self, monitor: &str, left: i64) -> i64 {
+    let st = self.st.borrow();
+    let Some(tag) = st.tags.get(monitor).and_then(|t| t.iter().find(|t| t.active)).map(|t| t.index) else { return 0 };
+    scrolled(&st.clients, monitor, tag, left)
+  }
+
+  // Whether the active tag on `monitor` lays its windows out as a scroller.
+  pub fn scroller(&self, monitor: &str) -> bool {
+    let st = self.st.borrow();
+    st.tags.get(monitor).and_then(|t| t.iter().find(|t| t.active)).is_some_and(|t| t.layout == "S")
+  }
+
+  // Whether the active tag's tiled windows on `monitor` run past the screen
+  // (`left`, `width` wide): a scroller with somewhere to go.
+  pub fn overflows(&self, monitor: &str, left: i64, width: i64) -> bool {
+    let st = self.st.borrow();
+    let Some(tag) = st.tags.get(monitor).and_then(|t| t.iter().find(|t| t.active)).map(|t| t.index) else { return false };
+    st.clients.iter().filter(|c| c.monitor == monitor && !c.loose && c.tags.contains(&tag)).any(|c| c.x < left || c.x + c.width > left + width)
+  }
+
   pub fn focused_client(&self) -> Option<(u64, String)> {
     self.st.borrow().focused_client.clone()
   }
@@ -171,12 +248,25 @@ mod tests {
   #[test]
   fn reads_tags_per_monitor() {
     let json: Value = serde_json::from_str(
-      r#"{"all_tags":[{"monitor":"Virtual-1","tags":[{"index":1,"is_active":true,"is_urgent":false,"client_count":3},{"index":2,"is_active":false,"is_urgent":true,"client_count":0}]}]}"#,
+      r#"{"all_tags":[{"monitor":"Virtual-1","tags":[{"index":1,"is_active":true,"is_urgent":false,"layout":"S","client_count":3},{"index":2,"is_active":false,"is_urgent":true,"client_count":0}]}]}"#,
     )
     .unwrap();
     let tags = parse_tags(&json).unwrap();
-    assert_eq!(tags["Virtual-1"][0], Tag { index: 1, active: true, urgent: false, clients: 3 });
+    assert_eq!(tags["Virtual-1"][0], Tag { index: 1, active: true, urgent: false, clients: 3, layout: "S".into() });
     assert!(tags["Virtual-1"][1].urgent);
     assert!(parse_tags(&serde_json::json!({"layout": "x"})).is_none());
+  }
+
+  #[test]
+  fn measures_how_far_the_strip_scrolled() {
+    let json: Value = serde_json::from_str(
+      r#"{"clients":[{"id":1,"monitor":"eDP-1","tags":[1],"x":-253},{"id":2,"monitor":"eDP-1","tags":[1],"x":399},{"id":3,"monitor":"eDP-1","tags":[1],"x":-900,"is_floating":true},{"id":4,"monitor":"eDP-1","tags":[2],"x":-2000}]}"#,
+    )
+    .unwrap();
+    let clients = parse_clients(&json).unwrap();
+    assert_eq!(scrolled(&clients, "eDP-1", 1, 0), 253);
+    assert_eq!(scrolled(&clients, "eDP-1", 1, -300), 0);
+    assert_eq!(scrolled(&clients, "eDP-1", 3, 0), 0);
+    assert_eq!(scrolled(&clients, "HDMI-A-1", 1, 0), 0);
   }
 }
