@@ -52,6 +52,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> Option<gtk::Widget> {
     "doxia.fortivpn" => Some(fortivpn::build(ctx, entry)),
     "omarchy.agents" => Some(agents::build(ctx, entry)),
     "omarchy.indicators" => Some(indicators::build(ctx, entry)),
+    "doxia.notifications" => notifications::build(ctx),
     "omarchy.menu" => Some(system::menu_button(ctx)),
     "omarchy.workspaces" => Some(system::omarchy_workspaces(ctx)),
     "omarchy.keyboard-layout" => Some(system::keyboard_layout(ctx)),

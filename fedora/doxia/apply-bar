@@ -108,6 +108,13 @@ jq '
           else . + [{id: "doxia.services"}] end)
       end
     | (.left, .center, .right) |= map(select(.id != "doxia.painel"))
+    # The notification bell (its panel is the history) just before the clock.
+    | if (.left + .center + .right | has("doxia.notifications")) then .
+      else .right |= (
+        (map(.id) | index("omarchy.clock")) as $c
+        | if $c != null then .[:$c] + [{id: "doxia.notifications"}] + .[$c:]
+          else . + [{id: "doxia.notifications"}] end)
+      end
     # FortiVPN right after the services panel.
     | if (.left + .center + .right | has("doxia.fortivpn")) then .
       else .right |= (

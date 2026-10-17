@@ -1,4 +1,4 @@
-// The notification bell (the indicators' "Dnd"), like KDE's: a badge while
+// The notification bell (doxia.notifications, or the indicators' "Dnd"), like KDE's: a badge while
 // notifications arrived unseen, the struck bell while they are silenced. A
 // click lists the history (newest first; a click on one acts like its popup
 // would, a right click or its × drops it), with do-not-disturb and "Limpar
@@ -6,7 +6,7 @@
 
 use super::super::panel::Panel;
 use super::super::ui;
-use super::super::widget::{Button, Slot};
+use super::super::widget::{Button, Kind, Slot};
 use super::super::Ctx;
 use crate::notify::model::Entry;
 use gtk::glib;
@@ -38,6 +38,17 @@ fn app_name(entry: &Entry) -> String {
     "" | "omarchy-action" | "notify-send" => "DoxIA".into(),
     app => app.into(),
   }
+}
+
+// doxia.notifications: the bell on its own.
+pub fn build(ctx: &Rc<Ctx>) -> Option<gtk::Widget> {
+  let b = Button::new(ctx, Kind::Status, "\u{f009a}");
+  let shown = b.clone();
+  let slot = bell(ctx, &b, move |_, text, tip| {
+    shown.set_text(text);
+    shown.set_tooltip(tip);
+  })?;
+  Some(slot.widget.clone().upcast())
 }
 
 // The bell's slot, around the indicator button `b`.
