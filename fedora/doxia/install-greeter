@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# The login screen, as root, for install-system.sh and update.sh: greetd with
+# doxia-greeter (fedora/doxia/rs/greeter, installed by install-rs) on a bare
+# mango, drawn like the lock screen. Replaces SDDM and its QML theme.
+#
+#   install-greeter <user>   the account the screen starts on when it
+#                            remembers none yet (the installer's owner)
+#
+# Switching from SDDM on a running machine takes effect on the next boot:
+# SDDM is disabled and uninstalled without its scriptlets, which would stop
+# sddm.service, and with it the desktop session it started.
+
+set -euo pipefail
+
+omarchy_path=$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")
+owner=${1:-}
+data=/usr/share/doxia/greeter
+state=/var/lib/greetd/doxia-greeter.state
+
+missing=()
+for package in greetd greetd-selinux; do
+  rpm -q "$package" &>/dev/null || missing+=("$package")
+done
+if (( ${#missing[@]} )); then
+  dnf install -y "${missing[@]}"
+fi
+
+install -Dm644 "$omarchy_path/default/greetd/config.toml" /etc/greetd/config.toml
+# In /usr/libexec so SELinux labels it bin_t.
+install -Dm755 "$omarchy_path/default/greetd/doxia-greeter-session" /usr/libexec/doxia-greeter-session
+install -d "$data"
+install -m644 "$omarchy_path"/default/greetd/mango.conf "$omarchy_path"/default/greetd/mango-hyperv.conf \
+  "$omarchy_path"/default/login/brand.png "$omarchy_path"/default/login/power.png "$data/"
+restorecon -R /etc/greetd /usr/libexec/doxia-greeter-session "$data" 2>/dev/null || true
+
+# The screen preselects the last account and session: SDDM's, when moving
+# from it, or the owner on the DoxIA session.
+if [[ ! -s $state ]]; then
+  user=$(sed -n 's/^User=//p' /var/lib/sddm/state.conf 2>/dev/null | head -1)
+  session=$(sed -n 's/^Session=//p' /var/lib/sddm/state.conf 2>/dev/null | head -1)
+  [[ -n $user ]] || user=$owner
+  [[ $session == /* ]] || session=/usr/share/wayland-sessions/${session:-omarchy.desktop}
+  if [[ -n $user ]]; then
+    printf 'user=%s\nsession=%s\n' "$user" "$session" > "$state"
+    chown greetd:greetd "$state"
+    restorecon "$state" 2>/dev/null || true
+  fi
+fi
+
+# Replaces whichever display manager was enabled (SDDM, or the Fedora spin's
+# Plasma Login or GDM): greetd.service is display-manager.service now.
+systemctl enable --force greetd.service
+
+if rpm -q sddm &>/dev/null; then
+  systemctl disable sddm.service 2>/dev/null || true
+  sddm=(sddm)
+  rpm -q sddm-wayland-generic &>/dev/null && sddm+=(sddm-wayland-generic)
+  dnf remove -y --setopt=tsflags=noscripts --setopt=clean_requirements_on_remove=False "${sddm[@]}"
+fi
+# What DoxIA put next to SDDM, which the package removal leaves behind.
+rm -rf /usr/share/sddm/themes/omarchy /var/lib/sddm/state.conf
+rm -f /usr/share/sddm/mango.conf /usr/share/sddm/mango-hyperv.conf /usr/share/sddm/hyprland.lua \
+  /etc/sddm.conf.d/10-theme.conf /etc/sddm.conf.d/10-wayland.conf /etc/sddm.conf.d/20-doxia-vm.conf \
+  /etc/sddm.conf.d/autologin.conf \
+  /etc/systemd/system/sddm.service.d/10-doxia.conf \
+  /usr/libexec/doxia-sddm-greeter /usr/libexec/doxia-sddm-greeter-env
+rmdir /usr/share/sddm/themes /usr/share/sddm /etc/sddm.conf.d /etc/systemd/system/sddm.service.d 2>/dev/null || true
+systemctl daemon-reload

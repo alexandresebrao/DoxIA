@@ -51,7 +51,7 @@ lorax \
   --add-template "$iso_dir/doxia-theme.tmpl" \
   --add-template-var "themedir=$iso_dir/anaconda" \
   --add-template-var "wizarddir=$iso_dir/wizard" \
-  --add-template-var "brand=$omarchy_path/default/sddm/omarchy/brand.png" \
+  --add-template-var "brand=$omarchy_path/default/login/brand.png" \
   --logfile "$out/lorax.log" --tmp "$work" \
   "$work/lorax"
 

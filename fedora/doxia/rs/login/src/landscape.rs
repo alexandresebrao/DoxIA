@@ -1,11 +1,11 @@
-// The lock screen's backdrop, the login screen's landscape redrawn with cairo:
-// default/sddm/omarchy/Landscape.qml, step by step (keep the two in step). A
+// The login screen's and the lock screen's backdrop, drawn with cairo: a
 // layered landscape, flat-shaded like an indie game's title screen. The sky,
 // the light and the layers' tints follow the clock; the sun and the moon cross
 // on an arc. Wind sways the pines and the grass in gusts, cloud shadows drift
 // over the hills, each tree casts a shadow away from the sun, and leaves fly by
 // day and fireflies glow at night. The weather is wttr.in's current conditions
-// (the bar's weather fetches them): cloud cover, rain, snow, fog, storm, wind.
+// (the bar's on the lock screen, the greeter's own fetch at the login): cloud
+// cover, rain, snow, fog, storm, wind.
 
 use gtk::cairo;
 use serde_json::Value;
@@ -463,7 +463,7 @@ pub fn draw(cr: &cairo::Context, s: &Scene) {
   fill_line(cr, s, &ground, s.fg);
 
   // Cloud shadows sliding over the hills and the foreground: soft-edged
-  // patches (the QML blurs a pill by 64 px).
+  // patches (a pill blurred by 64 px).
   let shade = 0.16 * s.sunlight * (s.sky.cover * 3.0).min(1.0);
   if shade > 0.005 {
     for i in 0..3 {
@@ -636,7 +636,7 @@ pub fn draw(cr: &cairo::Context, s: &Scene) {
     }
   }
 
-  // Shade under the clock and under the sign-in (Main.qml), so the text reads
+  // Shade under the clock and under the sign-in, so the text reads
   // on a bright daytime sky and on the grass.
   let g = cairo::LinearGradient::new(0.0, 0.0, w, 0.0);
   g.add_color_stop_rgba(0.0, 0.0, 0.0, 0.0, 0.38);

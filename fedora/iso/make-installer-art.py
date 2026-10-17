@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Gera as imagens do tema DoxIA do instalador (Anaconda GTK) a partir da marca da
-tela de login (default/sddm/omarchy/brand.png e infinity.png).
+tela de login (default/login/brand.png).
 
   fedora/iso/anaconda/sidebar-bg.png    fundo da barra lateral (boas-vindas e resumo)
   fedora/iso/anaconda/sidebar-logo.png  ∞ DoxIA deitado, de baixo para cima, no pé da barra lateral
@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
-SDDM = ROOT / "default/sddm/omarchy"
+LOGIN = ROOT / "default/login"
 OUT = Path(__file__).parent / "anaconda"
 
 TOP = (16, 17, 18)       # #101112, o mesmo carvão da tela de login
@@ -37,7 +37,7 @@ def sidebar_logo():
     # A barra lateral tem 15% da largura da janela (154 px a 1024x768), estreita demais
     # para a marca na horizontal: ela vai girada, lida de baixo para cima, com o ∞ embaixo.
     # O CSS a prende no rodapé (background-position: 50% 100%); a margem já vem na imagem.
-    brand = Image.open(SDDM / "brand.png").convert("RGBA")
+    brand = Image.open(LOGIN / "brand.png").convert("RGBA")
     thickness, margin = 60, 56
     length = round(thickness * brand.width / brand.height)
     brand = brand.resize((length, thickness), Image.LANCZOS).transpose(Image.Transpose.ROTATE_90)

@@ -1,7 +1,0 @@
-[SddmGreeterTheme]
-Name=DoxIA
-Description=DoxIA login screen: an animated landscape that follows the clock, sign-in card on the right
-Author=Omarchy
-Type=sddm-theme
-Version=1.0
-QtVersion=6

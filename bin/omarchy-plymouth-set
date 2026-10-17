@@ -23,9 +23,6 @@ elif (( $# == 1 )); then
   --refresh-default)
     mode=refresh-plymouth
     ;;
-  --refresh-sddm-default)
-    mode=refresh-sddm
-    ;;
   *)
     usage
     ;;
@@ -108,7 +105,7 @@ run_root_transaction() {
     max_asset_size=$5
 
     failure_context="the arguments of the privileged transaction"
-    [[ $mode == "set" || $mode == "refresh-plymouth" || $mode == "refresh-sddm" ]]
+    [[ $mode == "set" || $mode == "refresh-plymouth" ]]
     [[ $source_root == /* ]]
     [[ $max_asset_size =~ ^[0-9]+$ ]]
     (( max_asset_size > 0 ))
@@ -192,7 +189,6 @@ run_root_transaction() {
     fi
 
     theme_dir=/usr/share/plymouth/themes/omarchy
-    sddm_dir=/usr/share/sddm/themes/omarchy
     plymouth_theme_assets=(
       bullet.png
       entry.png
@@ -205,21 +201,13 @@ run_root_transaction() {
       progress_box.png
     )
     plymouth_default_assets=("${plymouth_theme_assets[@]}" logos/oma.png)
-    sddm_theme_assets=(Main.qml bullet.png entry-failed.png entry.png lock-failed.png lock.png logo.png)
-    sddm_default_assets=("${sddm_theme_assets[@]}" metadata.desktop theme.conf brand.png gear.png infinity.png power.png Landscape.qml)
 
-    plymouth_assets=()
-    sddm_assets=()
     case "$mode" in
     set)
       plymouth_assets=("${plymouth_theme_assets[@]}")
-      sddm_assets=("${sddm_theme_assets[@]}")
       ;;
     refresh-plymouth)
       plymouth_assets=("${plymouth_default_assets[@]}")
-      ;;
-    refresh-sddm)
-      sddm_assets=("${sddm_default_assets[@]}")
       ;;
     esac
 
@@ -260,8 +248,7 @@ run_root_transaction() {
     chmod 0700 -- "$staging_dir"
 
     plymouth_stage=$staging_dir/plymouth
-    sddm_stage=$staging_dir/sddm
-    mkdir -m 0700 -p -- "$plymouth_stage/logos" "$sddm_stage"
+    mkdir -m 0700 -p -- "$plymouth_stage/logos"
 
     for asset in "${plymouth_assets[@]}"; do
       copy_trusted_file "$source_root/default/plymouth/$asset" "$plymouth_stage/$asset"
@@ -276,7 +263,6 @@ run_root_transaction() {
       (( logo_size > 0 && logo_size <= max_asset_size ))
       chown 0:0 -- "$plymouth_stage/logo.png"
       chmod 0600 -- "$plymouth_stage/logo.png"
-      cp --reflink=never -- "$plymouth_stage/logo.png" "$sddm_stage/logo.png"
 
       bg_r=$(awk -v n=$((16#${bg_hex:0:2})) "BEGIN{printf \"%.3f\", n/255}")
       bg_g=$(awk -v n=$((16#${bg_hex:2:2})) "BEGIN{printf \"%.3f\", n/255}")
@@ -291,26 +277,8 @@ run_root_transaction() {
         magick "$plymouth_stage/$asset" -channel RGB +level-colors "#$text_hex","#$text_hex" "$plymouth_stage/$asset"
       done
 
-      copy_trusted_file "$source_root/default/sddm/omarchy/Main.qml" "$sddm_stage/Main.qml"
-      sed -i \
-        -e "s/#1a1b26/#__OMARCHY_SDDM_BG__/g" \
-        -e "s/#ffffff/#__OMARCHY_SDDM_TEXT__/g" \
-        -e "s/#__OMARCHY_SDDM_BG__/#$bg_hex/g" \
-        -e "s/#__OMARCHY_SDDM_TEXT__/#$text_hex/g" \
-        "$sddm_stage/Main.qml"
-
-      for asset in bullet.png entry.png lock.png; do
-        cp --reflink=never -- "$plymouth_stage/$asset" "$sddm_stage/$asset"
-      done
-      for asset in entry lock; do
-        magick "$plymouth_stage/$asset.png" -channel RGB +level-colors "#f7768e","#f7768e" "$sddm_stage/$asset-failed.png"
-      done
       chown -R 0:0 -- "$staging_dir"
       find "$staging_dir" -type f -exec chmod 0600 -- {} +
-    elif (( ${#sddm_assets[@]} )); then
-      for asset in "${sddm_assets[@]}"; do
-        copy_trusted_file "$source_root/default/sddm/omarchy/$asset" "$sddm_stage/$asset"
-      done
     fi
 
     if (( ${#plymouth_assets[@]} )); then
@@ -318,9 +286,6 @@ run_root_transaction() {
       if [[ $mode == "refresh-plymouth" ]]; then
         validate_trusted_directory "$theme_dir/logos"
       fi
-    fi
-    if (( ${#sddm_assets[@]} )); then
-      validate_trusted_directory "$sddm_dir"
     fi
 
     publish_asset() {
@@ -353,14 +318,6 @@ run_root_transaction() {
         publish_asset "$plymouth_stage/$asset" "$theme_dir/$asset"
       done
     fi
-
-    if (( ${#sddm_assets[@]} )); then
-      for asset in "${sddm_assets[@]}"; do
-        publish_asset "$sddm_stage/$asset" "$sddm_dir/$asset"
-      done
-      validate_trusted_directory "$sddm_dir"
-      rm -f -- "$sddm_dir/logo.svg"
-    fi
   ' bash "$mode" "$OMARCHY_PATH" "$bg_hex" "$text_hex" "$((64 * 1024 * 1024))"
 }
 
@@ -370,15 +327,13 @@ else
   run_root_transaction </dev/null
 fi
 
-if [[ $mode != "refresh-sddm" ]]; then
-  sudo plymouth-set-default-theme omarchy
+sudo plymouth-set-default-theme omarchy
 
-  if omarchy-cmd-present limine-mkinitcpio; then
-    sudo limine-mkinitcpio
-  elif omarchy-cmd-present mkinitcpio; then
-    sudo mkinitcpio -P
-  else
-    # Fedora builds its initramfs with dracut.
-    sudo dracut -f --regenerate-all
-  fi
+if omarchy-cmd-present limine-mkinitcpio; then
+  sudo limine-mkinitcpio
+elif omarchy-cmd-present mkinitcpio; then
+  sudo mkinitcpio -P
+else
+  # Fedora builds its initramfs with dracut.
+  sudo dracut -f --regenerate-all
 fi

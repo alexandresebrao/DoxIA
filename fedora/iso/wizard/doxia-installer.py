@@ -319,7 +319,7 @@ class Wizard(Gtk.Window):
         side.get_style_context().add_class("sidebar")
         side.set_size_request(262, -1)
         # the ISO gets a copy next to this file; from the repository, use the login screen's
-        brand = next((p for p in (HERE / "brand.png", HERE.parents[2] / "default/sddm/omarchy/brand.png")
+        brand = next((p for p in (HERE / "brand.png", HERE.parents[2] / "default/login/brand.png")
                       if p.exists()), None)
         if brand:
             from gi.repository import GdkPixbuf

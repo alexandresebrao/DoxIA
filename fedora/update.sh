@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, the mango user config (once), /etc/motd, the login session
-# name, the SDDM theme, the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Evolution as the default mail client, LibreWolf and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the login screen (greetd, replacing SDDM), the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Evolution as the default mail client, LibreWolf and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
 # added; the rest of the bar stays as it is).
 #
@@ -82,7 +82,7 @@ omarchy-pkg-add openfortivpn
 
 echo "==> GNOME Shell out (ISO installs got it through the yaru-theme metapackage)"
 # Only Yaru's icons are used. The keyring PAM module came in as one of GNOME
-# Shell's dependencies but unlocks the keyring at the SDDM login, so it is marked
+# Shell's dependencies but unlocks the keyring at the login, so it is marked
 # as wanted before dnf drops the rest (GDM, Mutter, GNOME Settings...). So are
 # malcontent (its polkit policy lets flatpak read the parental controls; without
 # it every flatpak dies with "Not allowed to query parental controls data") and
@@ -399,7 +399,7 @@ fi
 ROOT
 
 echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"
-sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" <<'ROOT'
+sudo bash -s "$OMARCHY_PATH" "$(rpm -E %fedora)" "$USER" <<'ROOT'
 set -euo pipefail
 omarchy_path=$1
 { echo; sed 's/^/  /' "$omarchy_path/fedora/doxia/brand.ansi"; echo; sed "s/@FEDORA@/$2/" "$omarchy_path/fedora/doxia/motd"; } > /etc/motd
@@ -414,19 +414,14 @@ install -Dm755 "$omarchy_path/fedora/doxia/kernel-install/95-doxia-title.install
   /etc/kernel/install.d/95-doxia-title.install
 /etc/kernel/install.d/95-doxia-title.install retitle
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" /usr/share/wayland-sessions/omarchy.desktop
-install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
-install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
-install -m644 "$omarchy_path"/default/sddm/mango.conf "$omarchy_path"/default/sddm/mango-hyperv.conf \
-  /usr/share/sddm/
-install -Dm755 "$omarchy_path/default/sddm/doxia-greeter" /usr/libexec/doxia-sddm-greeter
-install -Dm755 "$omarchy_path/default/sddm/doxia-greeter-env" /usr/libexec/doxia-sddm-greeter-env
-install -Dm644 "$omarchy_path/default/sddm/sddm.service.d/10-doxia.conf" /etc/systemd/system/sddm.service.d/10-doxia.conf
-install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
-/usr/libexec/doxia-sddm-greeter-env
-systemctl daemon-reload
-rm -f /usr/share/sddm/hyprland.lua
-restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter \
-  /usr/libexec/doxia-sddm-greeter-env /etc/systemd/system/sddm.service.d 2>/dev/null || true
+# The login screen: greetd and doxia-greeter replace SDDM from the next boot
+# on. Only once install-rs (above) brought doxia-greeter, or the next boot
+# would land on the console login greetd falls back to.
+if [[ -x /usr/local/bin/doxia-greeter ]]; then
+  bash "$omarchy_path/fedora/doxia/install-greeter" "$3"
+else
+  echo "  doxia-greeter is not installed yet: the login screen stays as it is."
+fi
 bash "$omarchy_path/fedora/doxia/install-browser-policy" "$omarchy_path"
 # The touchpad for doxia-shell (the background follows three-finger swipes)
 bash "$omarchy_path/fedora/doxia/install-touchpad-access"

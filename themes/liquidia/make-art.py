@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 HERE = Path(__file__).parent
-BRAND = HERE.parents[1] / "default/sddm/omarchy/brand.png"
+BRAND = HERE.parents[1] / "default/login/brand.png"
 W, H = 3840, 2160
 
 BG = (18, 10, 10)          # background de colors.toml

@@ -2,7 +2,7 @@
 """Gera o fundo, o emblema da barra, a imagem de unlock e a prévia do tema DoxIA.
 
 O ∞ vem de infinito.png (gerado por infinito/infinito_flat3d.py, variante D) e a
-marca da prévia, da tela de login (default/sddm/omarchy/brand.png).
+marca da prévia, da tela de login (default/login/brand.png).
 
 Rode de novo para regenerar: python3 make-art.py
 """
@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image
 
 HERE = Path(__file__).parent
-BRAND = HERE.parents[1] / "default/sddm/omarchy/brand.png"
+BRAND = HERE.parents[1] / "default/login/brand.png"
 W, H = 3840, 2160
 
 CHARCOAL = (33, 36, 39)  # lighter_background de colors.toml

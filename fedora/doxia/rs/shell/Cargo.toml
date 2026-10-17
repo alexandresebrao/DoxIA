@@ -10,6 +10,7 @@ publish.workspace = true
 gtk.workspace = true
 serde_json.workspace = true
 doxia-theme.workspace = true
+doxia-login.workspace = true
 gtk4-layer-shell = "0.8"
 gio-unix = "0.22"
 pangocairo = "0.22"

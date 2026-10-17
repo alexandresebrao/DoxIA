@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Gera as imagens e fontes do tema DoxIA do GRUB a partir da marca da tela de login
-(default/sddm/omarchy/brand.png) e do fundo do tema LiquidIA.
+(default/login/brand.png) e do fundo do tema LiquidIA.
 
   default/grub/doxia/background.png       fundo líquido do LiquidIA, desfocado e escurecido
   default/grub/doxia/logo.png             ∞ DoxIA no topo do menu
@@ -18,7 +18,7 @@ from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "default/grub/doxia"
-BRAND = ROOT / "default/sddm/omarchy/brand.png"
+BRAND = ROOT / "default/login/brand.png"
 FONT = "/usr/share/fonts/redhat/RedHatText-Regular.otf"
 
 WALLPAPER = ROOT / "themes/liquidia/backgrounds/1-liquidia.png"

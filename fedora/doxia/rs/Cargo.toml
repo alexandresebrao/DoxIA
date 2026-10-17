@@ -2,10 +2,10 @@
 # See README.md for building and shipping them.
 [workspace]
 resolver = "3"
-members = ["doxia-theme", "atualizar", "painel", "shell"]
+members = ["doxia-theme", "login", "atualizar", "painel", "shell", "greeter"]
 
 [workspace.package]
-version = "0.11.5"
+version = "0.12.0"
 edition = "2024"
 license = "MIT"
 publish = false
@@ -14,6 +14,7 @@ publish = false
 gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 doxia-theme = { path = "doxia-theme" }
+doxia-login = { path = "login" }
 
 [profile.release]
 lto = true

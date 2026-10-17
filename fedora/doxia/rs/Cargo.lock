@@ -98,7 +98,7 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 
 [[package]]
 name = "doxia-atualizar"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -106,8 +106,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "doxia-greeter"
+version = "0.12.0"
+dependencies = [
+ "doxia-login",
+ "gtk4",
+ "gtk4-layer-shell",
+ "serde_json",
+]
+
+[[package]]
+name = "doxia-login"
+version = "0.12.0"
+dependencies = [
+ "gtk4",
+ "pangocairo",
+ "serde_json",
+]
+
+[[package]]
 name = "doxia-painel"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "doxia-theme",
  "gtk4",
@@ -118,8 +137,9 @@ dependencies = [
 
 [[package]]
 name = "doxia-shell"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
+ "doxia-login",
  "doxia-theme",
  "gio-unix",
  "glib-unix",
@@ -134,7 +154,7 @@ dependencies = [
 
 [[package]]
 name = "doxia-theme"
-version = "0.11.5"
+version = "0.12.0"
 dependencies = [
  "gtk4",
  "serde_json",

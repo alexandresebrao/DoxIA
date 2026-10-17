@@ -1,0 +1,9 @@
+# The DoxIA login screen, installed as /etc/greetd/config.toml by
+# fedora/install-system.sh and fedora/update.sh.
+
+[terminal]
+vt = 1
+
+[default_session]
+command = "/usr/libexec/doxia-greeter-session"
+user = "greetd"

@@ -10,7 +10,7 @@ You can use `omarchy plymouth preview` to see what your custom logo and colors w
 omarchy plymouth preview '#1d2021' '#ebdbb2' logo.png preview.png
 ```
 
-Then apply the setup with `omarchy plymouth set '#1d2021' '#ebdbb2' logo.png`, which will also give the SDDM login screen the same colors and logo. If you want to revert, you can use `omarchy plymouth reset`.
+Then apply the setup with `omarchy plymouth set '#1d2021' '#ebdbb2' logo.png`; the login and lock screens keep their own look. If you want to revert, you can use `omarchy plymouth reset`.
 
  ![branding-plymouth-shopify](images/branding-plymouth-shopify.webp)
 

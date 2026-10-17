@@ -98,55 +98,6 @@ entry.polkit-entry image { color: $PK_TEXT; }
   font-size: $FS_SMALL;
 }
 
-/* Lock screen, like the login screen (default/sddm/omarchy/Main.qml): its own
-   palette over the landscape, whatever the theme. */
-window.lock-window { background: #000000; }
-window.lock-window label { text-shadow: 0 1px rgba(0, 0, 0, 0.35); }
-window.lock-window .lock-clock { font-family: "Red Hat Display"; font-weight: 300; color: #f2f2f2; }
-window.lock-window .lock-accent { background: #ee0000; border-radius: 2px; min-height: 4px; }
-window.lock-window .lock-date { font-family: "Red Hat Display"; font-size: 22px; color: alpha(#f2f2f2, 0.85); }
-window.lock-window .lock-name { font-family: "Red Hat Display"; font-size: 24px; font-weight: bold; color: #f2f2f2; }
-window.lock-window .lock-host { font-family: "Red Hat Text"; font-size: 13px; color: alpha(#c9ccd1, 0.7); }
-window.lock-window .lock-status { font-family: "Red Hat Text"; font-size: 13px; color: #ff8a8a; }
-window.lock-window .lock-line {
-  min-height: 44px;
-  margin: 0 38px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-  transition: margin 180ms ease-out, border-color 180ms ease-out;
-}
-window.lock-window .lock-line:focus-within { margin: 0; border-bottom: 2px solid #f2f2f2; }
-window.lock-window .lock-line.error { border-bottom-color: #ff8a8a; }
-window.lock-window entry.lock-entry {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  outline: none;
-  padding: 0;
-  min-height: 42px;
-  color: #f2f2f2;
-  font-family: "Red Hat Text";
-  font-size: 16px;
-  letter-spacing: 3px;
-}
-window.lock-window entry.lock-entry text placeholder { color: alpha(#c9ccd1, 0.8); font-size: 15px; letter-spacing: 0; }
-window.lock-window entry.lock-entry text selection { background: #ee0000; }
-window.lock-window entry.lock-entry image { color: alpha(#c9ccd1, 0.8); }
-window.lock-window .lock-fingerprint { color: alpha(#c9ccd1, 0.8); font-size: 18px; }
-window.lock-window button.lock-submit {
-  min-width: 34px;
-  min-height: 34px;
-  padding: 0;
-  border-radius: 17px;
-  border: none;
-  box-shadow: none;
-  background: alpha(#ee0000, 0.75);
-  color: #f2f2f2;
-  font-family: "Red Hat Text";
-  font-size: 17px;
-  font-weight: bold;
-}
-window.lock-window button.lock-submit:hover { background: #ff1a1a; }
-
 /* The Omarchy menu, like shell/plugins/menu/Menu.qml: [menu] colors, the card
    drawn in card.rs, rows that fill with the selected color. */
 window.menu-window { background: $MENU_SCRIM; }

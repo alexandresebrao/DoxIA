@@ -22,8 +22,6 @@ plymouth_theme_assets=(
   progress_box.png
 )
 plymouth_default_assets=("${plymouth_theme_assets[@]}" logos/oma.png)
-sddm_theme_assets=(Main.qml bullet.png entry-failed.png entry.png lock-failed.png lock.png logo.png)
-sddm_default_assets=("${sddm_theme_assets[@]}" metadata.desktop theme.conf brand.png gear.png infinity.png power.png)
 
 # Keep the refresh allowlist synchronized with every packaged Plymouth asset.
 # An added default file must make this test fail until its publication contract
@@ -35,14 +33,6 @@ allowlisted_plymouth_assets=$(printf '%s\n' "${plymouth_default_assets[@]}" | LC
 [[ $packaged_plymouth_assets == "$allowlisted_plymouth_assets" ]] ||
   fail "Plymouth refresh allowlist differs from the packaged asset set" "$packaged_plymouth_assets"
 pass "Plymouth refresh allowlist covers every packaged asset"
-
-# SDDM reset is also a fixed-file publication contract. New packaged files
-# must fail this test until their trust and reset behavior are reviewed.
-packaged_sddm_assets=$(find "$ROOT/default/sddm/omarchy" -type f -printf '%P\n' | LC_ALL=C sort)
-allowlisted_sddm_assets=$(printf '%s\n' "${sddm_default_assets[@]}" | LC_ALL=C sort)
-[[ $packaged_sddm_assets == "$allowlisted_sddm_assets" ]] ||
-  fail "SDDM refresh allowlist differs from the packaged asset set" "$packaged_sddm_assets"
-pass "SDDM refresh allowlist covers every packaged asset"
 
 # omarchy-plymouth-set-by-theme hands over a theme's unlock.png from
 # ~/.config/omarchy/themes. Both installed copies are world-readable, so a
@@ -214,14 +204,12 @@ case "$1" in
   code=${code/PATH=\/usr\/bin:\/bin/PATH=$TEST_ROOT_TOOLS:\/usr\/bin:\/bin}
   code=${code/omarchy_conf=\/etc\/omarchy.conf/omarchy_conf=$TEST_OMARCHY_CONF}
   code=${code/theme_dir=\/usr\/share\/plymouth\/themes\/omarchy/theme_dir=$TEST_FAKE_ROOT\/usr\/share\/plymouth\/themes\/omarchy}
-  code=${code/sddm_dir=\/usr\/share\/sddm\/themes\/omarchy/sddm_dir=$TEST_FAKE_ROOT\/usr\/share\/sddm\/themes\/omarchy}
 
   # Each rewrite above silently no-ops if the production text drifts, which
   # would point this simulation at the real /usr/share. Refuse instead.
   [[ $code == *"PATH=$TEST_ROOT_TOOLS:/usr/bin:/bin"* ]] || exit 94
   [[ $code == *"omarchy_conf=$TEST_OMARCHY_CONF"* ]] || exit 94
   [[ $code == *"theme_dir=$TEST_FAKE_ROOT/usr/share/plymouth/themes/omarchy"* ]] || exit 94
-  [[ $code == *"sddm_dir=$TEST_FAKE_ROOT/usr/share/sddm/themes/omarchy"* ]] || exit 94
 
   PATH="$TEST_ROOT_TOOLS:/usr/bin:/bin" \
     /bin/bash -c "$code" "$shell_name" "$@"
@@ -315,19 +303,15 @@ setup_run() {
   leak_log="$run_dir/leaked-stage-path.log"
   omarchy_conf="$run_dir/omarchy.conf"
   theme="$fake_root/usr/share/plymouth/themes/omarchy"
-  sddm="$fake_root/usr/share/sddm/themes/omarchy"
 
-  mkdir -p "$theme/logos" "$sddm"
+  mkdir -p "$theme/logos"
   chmod 0755 \
     "$fake_root/usr" \
     "$fake_root/usr/share" \
     "$fake_root/usr/share/plymouth" \
     "$fake_root/usr/share/plymouth/themes" \
     "$theme" \
-    "$theme/logos" \
-    "$fake_root/usr/share/sddm" \
-    "$fake_root/usr/share/sddm/themes" \
-    "$sddm"
+    "$theme/logos"
 
   local asset destination
   for asset in "${plymouth_default_assets[@]}"; do
@@ -335,24 +319,13 @@ setup_run() {
     printf 'old plymouth %s\n' "$asset" >"$destination"
     chmod 0600 "$destination"
   done
-  for asset in "${sddm_default_assets[@]}"; do
-    destination="$sddm/$asset"
-    printf 'old sddm %s\n' "$asset" >"$destination"
-    chmod 0600 "$destination"
-  done
 
   plymouth_victim="$run_dir/plymouth-victim"
-  sddm_victim="$run_dir/sddm-victim"
-  legacy_victim="$run_dir/legacy-victim"
   printf 'PLYMOUTH VICTIM\n' >"$plymouth_victim"
-  printf 'SDDM VICTIM\n' >"$sddm_victim"
-  printf 'LEGACY VICTIM\n' >"$legacy_victim"
-  chmod 0600 "$plymouth_victim" "$sddm_victim" "$legacy_victim"
+  chmod 0600 "$plymouth_victim"
 
-  rm -f "$theme/omarchy.script" "$sddm/Main.qml"
+  rm -f "$theme/omarchy.script"
   ln -s "$plymouth_victim" "$theme/omarchy.script"
-  ln -s "$sddm_victim" "$sddm/Main.qml"
-  ln -s "$legacy_victim" "$sddm/logo.svg"
 }
 
 setup_fresh_run() {
@@ -364,12 +337,6 @@ setup_fresh_run() {
     rm -f -- "$destination"
     /usr/bin/install -m 0644 -- "$ROOT/default/plymouth/$asset" "$destination"
   done
-  for asset in "${sddm_default_assets[@]}"; do
-    destination="$sddm/$asset"
-    rm -f -- "$destination"
-    /usr/bin/install -m 0644 -- "$ROOT/default/sddm/omarchy/$asset" "$destination"
-  done
-  rm -f -- "$sddm/logo.svg"
 }
 
 run_in_fake_root() {
@@ -407,10 +374,6 @@ run_refresh_plymouth() {
   run_in_fake_root 022 "$@" /bin/bash "$ROOT/bin/omarchy-refresh-plymouth"
 }
 
-run_refresh_sddm() {
-  run_in_fake_root 022 "$@" /bin/bash "$ROOT/bin/omarchy-refresh-sddm"
-}
-
 run_reset() {
   run_in_fake_root 022 "$@" /bin/bash "$ROOT/bin/omarchy-plymouth-reset"
 }
@@ -446,62 +409,33 @@ for requested_umask in 022 027 077; do
     [[ $(stat -c %a "$destination") == 644 ]] || fail "Plymouth $asset is mode 0644 under umask $requested_umask"
     [[ -s $destination ]] || fail "Plymouth $asset is nonempty under umask $requested_umask"
   done
-  for asset in "${sddm_theme_assets[@]}"; do
-    destination="$sddm/$asset"
-    [[ -f $destination && ! -L $destination ]] || fail "SDDM $asset is a regular file under umask $requested_umask"
-    [[ $(stat -c %a "$destination") == 644 ]] || fail "SDDM $asset is mode 0644 under umask $requested_umask"
-    [[ -s $destination ]] || fail "SDDM $asset is nonempty under umask $requested_umask"
-  done
 
   cmp -s "$test_tmp/logo.png" "$theme/logo.png" || fail "Plymouth receives the selected logo under umask $requested_umask"
-  cmp -s "$test_tmp/logo.png" "$sddm/logo.png" || fail "SDDM receives the selected logo under umask $requested_umask"
-  cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$sddm/Main.qml" || fail "SDDM Main.qml keeps DoxIA's own palette under umask $requested_umask"
   grep -Fq 'Window.SetBackgroundTopColor(0.114, 0.125, 0.129);' "$theme/omarchy.script" || fail "Plymouth script receives the selected background under umask $requested_umask"
 
   cmp -s "$ROOT/default/plymouth/logos/oma.png" "$theme/logos/oma.png" || fail "theme set leaves the packaged nested logo unchanged"
-  cmp -s "$ROOT/default/sddm/omarchy/metadata.desktop" "$sddm/metadata.desktop" || fail "theme set leaves packaged SDDM metadata unchanged"
-  cmp -s "$ROOT/default/sddm/omarchy/theme.conf" "$sddm/theme.conf" || fail "theme set leaves packaged SDDM configuration unchanged"
   [[ ! -s $leak_log ]] || fail "no privileged command receives a user-writable staged pathname" "$(cat "$leak_log")"
-  [[ $(stat -c %a "$theme") == 755 && $(stat -c %a "$sddm") == 755 && $(stat -c %a "$theme/logos") == 755 ]] || fail "publication preserves destination directory modes under umask $requested_umask"
+  [[ $(stat -c %a "$theme") == 755 && $(stat -c %a "$theme/logos") == 755 ]] || fail "publication preserves destination directory modes under umask $requested_umask"
   grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "theme set activates the published Plymouth theme"
   grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "theme set rebuilds the initramfs"
   assert_no_temporary_files "$fake_root"
 done
 
-pass "a fresh installation receives complete mode-0644 Plymouth and SDDM theme files across restrictive umasks"
+pass "a fresh installation receives complete mode-0644 Plymouth theme files across restrictive umasks"
 
-# An upgraded machine may already contain restrictive modes, destination
-# symlinks, and the legacy SDDM logo. Setting a theme must replace only the
-# destination entries and must never write through those symlinks.
+# An upgraded machine may already contain restrictive modes and destination
+# symlinks. Setting a theme must replace only the destination entries and must
+# never write through those symlinks.
 setup_run
 output=$(run_set 022 env 2>&1)
 status=$?
 
-(( status == 0 )) || fail "theme set repairs migrated Plymouth and SDDM destinations" "$output"
+(( status == 0 )) || fail "theme set repairs migrated Plymouth destinations" "$output"
 [[ -f $theme/omarchy.script && ! -L $theme/omarchy.script ]] || fail "theme set replaces a migrated Plymouth destination symlink"
-[[ -f $sddm/Main.qml && ! -L $sddm/Main.qml ]] || fail "theme set replaces a migrated SDDM destination symlink"
 [[ $(cat "$plymouth_victim") == 'PLYMOUTH VICTIM' && $(stat -c %a "$plymouth_victim") == 600 ]] || fail "theme set never changes a Plymouth symlink victim"
-[[ $(cat "$sddm_victim") == 'SDDM VICTIM' && $(stat -c %a "$sddm_victim") == 600 ]] || fail "theme set never changes an SDDM symlink victim"
-[[ $(cat "$legacy_victim") == 'LEGACY VICTIM' && $(stat -c %a "$legacy_victim") == 600 ]] || fail "theme set never changes the legacy logo victim"
-[[ ! -e $sddm/logo.svg && ! -L $sddm/logo.svg ]] || fail "theme set removes the legacy SDDM logo"
 assert_no_temporary_files "$fake_root"
 
 pass "theme set repairs migrated destinations without following existing symlinks"
-
-# DoxIA's login screen keeps its own palette: its Main.qml carries neither of
-# the colors omarchy-plymouth-set recolors, so even a white theme (#ffffff
-# behind #000000, the case that once produced a black-on-black greeter) must
-# publish it unchanged.
-setup_run
-output=$(run_set_colors 022 '#ffffff' '#000000' env 2>&1)
-status=$?
-(( status == 0 )) || fail "White theme publishes through the safe asset pipeline" "$output"
-cmp -s "$ROOT/default/sddm/omarchy/Main.qml" "$sddm/Main.qml" ||
-  fail "a theme leaves DoxIA's SDDM palette alone" "$(diff "$ROOT/default/sddm/omarchy/Main.qml" "$sddm/Main.qml" | head -5)"
-if grep -Fq '__OMARCHY_SDDM_' "$sddm/Main.qml"; then
-  fail "SDDM color substitution left an intermediate token behind"
-fi
-pass "a white theme leaves DoxIA's SDDM palette alone"
 
 # Swap the selected logo to an unreadable file in the DEBUG hook immediately
 # before Bash opens its descriptor. The caller-side open must fail, so sudo
@@ -624,7 +558,7 @@ setup_run
 symlink_source_root=$(mktemp -d "$test_tmp/symlink-source.XXXXXXXX")
 symlink_source_root=$(realpath -e -- "$symlink_source_root")
 mkdir -p "$symlink_source_root/default"
-cp -a "$ROOT/default/plymouth" "$ROOT/default/sddm" "$symlink_source_root/default/"
+cp -a "$ROOT/default/plymouth" "$symlink_source_root/default/"
 rm -f "$symlink_source_root/default/plymouth/bullet.png"
 ln -s "$secret" "$symlink_source_root/default/plymouth/bullet.png"
 printf 'export OMARCHY_PATH="%s"\n' "$symlink_source_root" >"$omarchy_conf"
@@ -788,7 +722,7 @@ setup_run
 writable_directory_root=$(mktemp -d "$test_tmp/writable-directory-source.XXXXXXXX")
 writable_directory_root=$(realpath -e -- "$writable_directory_root")
 mkdir -p "$writable_directory_root/default"
-cp -a "$ROOT/default/plymouth" "$ROOT/default/sddm" "$writable_directory_root/default/"
+cp -a "$ROOT/default/plymouth" "$writable_directory_root/default/"
 chmod 0777 "$writable_directory_root/default/plymouth"
 output=$(run_set 022 env OMARCHY_PATH="$writable_directory_root" 2>&1)
 status=$?
@@ -807,7 +741,7 @@ setup_run
 writable_root=$(mktemp -d "$test_tmp/writable-source.XXXXXXXX")
 writable_root=$(realpath -e -- "$writable_root")
 mkdir -p "$writable_root/default"
-cp -a "$ROOT/default/plymouth" "$ROOT/default/sddm" "$writable_root/default/"
+cp -a "$ROOT/default/plymouth" "$writable_root/default/"
 chmod 0666 "$writable_root/default/plymouth/bullet.png"
 output=$(run_set 022 env OMARCHY_PATH="$writable_root" 2>&1)
 status=$?
@@ -852,39 +786,18 @@ assert_no_temporary_files "$fake_root"
 pass "a logo larger than the publication bound cannot be published"
 
 # Refresh uses the same publisher but its explicit contract includes the
-# packaged nested logos/oma.png asset. It must not touch the SDDM theme.
+# packaged nested logos/oma.png asset.
 setup_run
 output=$(run_refresh_plymouth 2>&1)
 status=$?
 (( status == 0 )) || fail "Plymouth refresh succeeds through the safe publisher" "$output"
 
 assert_packaged_assets "Plymouth refresh" "$ROOT/default/plymouth" "$theme" "${plymouth_default_assets[@]}"
-[[ -L $sddm/Main.qml && $(cat "$sddm_victim") == 'SDDM VICTIM' ]] || fail "Plymouth refresh leaves SDDM unchanged"
-! grep -Fq 'transaction /usr/share/sddm/' "$sudo_log" || fail "Plymouth refresh does not publish SDDM assets"
 [[ ! -s $leak_log ]] || fail "refresh never gives root a user-writable source pathname" "$(cat "$leak_log")"
 grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "Plymouth refresh activates the restored theme"
 grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "Plymouth refresh rebuilds the initramfs"
 
 pass "refresh safely publishes its complete fixed asset set, including logos/oma.png"
-
-# SDDM refresh has the same fixed-file contract but must leave Plymouth and the
-# boot image alone. It also replaces legacy destination symlinks without
-# changing their victims.
-setup_run
-output=$(run_refresh_sddm 2>&1)
-status=$?
-(( status == 0 )) || fail "SDDM refresh succeeds through the safe publisher" "$output"
-
-assert_packaged_assets "SDDM refresh" "$ROOT/default/sddm/omarchy" "$sddm" "${sddm_default_assets[@]}"
-[[ -L $theme/omarchy.script && $(cat "$plymouth_victim") == 'PLYMOUTH VICTIM' ]] || fail "SDDM refresh leaves Plymouth unchanged"
-[[ $(cat "$sddm_victim") == 'SDDM VICTIM' && $(stat -c %a "$sddm_victim") == 600 ]] || fail "SDDM refresh never changes a destination symlink victim"
-[[ $(cat "$legacy_victim") == 'LEGACY VICTIM' && $(stat -c %a "$legacy_victim") == 600 ]] || fail "SDDM refresh never changes the legacy logo victim"
-[[ ! -e $sddm/logo.svg && ! -L $sddm/logo.svg ]] || fail "SDDM refresh removes the legacy logo.svg"
-! grep -Fq 'command plymouth-set-default-theme' "$sudo_log" || fail "SDDM refresh does not activate Plymouth"
-! grep -Eq 'command (mkinitcpio|dracut)' "$sudo_log" || fail "SDDM refresh does not rebuild the initramfs"
-[[ ! -s $leak_log ]] || fail "SDDM refresh never gives root a user-writable source pathname" "$(cat "$leak_log")"
-
-pass "SDDM refresh safely restores its complete packaged asset set without rebuilding Plymouth"
 
 # A fresh package installation already contains the complete default file set.
 # Reset must be safe and idempotent in that ordinary state.
@@ -894,7 +807,6 @@ status=$?
 (( status == 0 )) || fail "reset succeeds on a fresh installation" "$output"
 
 assert_packaged_assets "fresh reset Plymouth" "$ROOT/default/plymouth" "$theme" "${plymouth_default_assets[@]}"
-assert_packaged_assets "fresh reset SDDM" "$ROOT/default/sddm/omarchy" "$sddm" "${sddm_default_assets[@]}"
 grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "fresh reset activates the packaged Plymouth theme"
 grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "fresh reset rebuilds the initramfs"
 assert_no_temporary_files "$fake_root"
@@ -907,19 +819,15 @@ pass "reset is safe and idempotent on a fresh package installation"
 setup_run
 output=$(run_reset 2>&1)
 status=$?
-(( status == 0 )) || fail "combined Plymouth and SDDM reset succeeds" "$output"
+(( status == 0 )) || fail "Plymouth reset succeeds" "$output"
 
 assert_packaged_assets "migrated reset Plymouth" "$ROOT/default/plymouth" "$theme" "${plymouth_default_assets[@]}"
-assert_packaged_assets "migrated reset SDDM" "$ROOT/default/sddm/omarchy" "$sddm" "${sddm_default_assets[@]}"
 [[ $(cat "$plymouth_victim") == 'PLYMOUTH VICTIM' && $(stat -c %a "$plymouth_victim") == 600 ]] || fail "reset never changes a Plymouth destination symlink victim"
-[[ $(cat "$sddm_victim") == 'SDDM VICTIM' && $(stat -c %a "$sddm_victim") == 600 ]] || fail "reset never changes an SDDM destination symlink victim"
-[[ $(cat "$legacy_victim") == 'LEGACY VICTIM' && $(stat -c %a "$legacy_victim") == 600 ]] || fail "reset never changes the legacy logo victim"
-[[ ! -e $sddm/logo.svg && ! -L $sddm/logo.svg ]] || fail "reset removes the legacy logo.svg"
 grep -Fq 'command plymouth-set-default-theme omarchy' "$sudo_log" || fail "reset activates the restored Plymouth theme"
 grep -Eq 'command (mkinitcpio -P|dracut -f --regenerate-all)' "$sudo_log" || fail "reset rebuilds the initramfs"
 [[ ! -s $leak_log ]] || fail "reset never gives root a user-writable source pathname" "$(cat "$leak_log")"
 
-pass "reset safely repairs a migrated Plymouth and SDDM installation"
+pass "reset safely repairs a migrated Plymouth installation"
 
 # A damaged installation may retain its package-owned directories while some
 # destination files are missing. Reset must recreate every allowlisted leaf.
@@ -927,46 +835,22 @@ setup_run
 for asset in "${plymouth_default_assets[@]}"; do
   rm -f -- "$theme/$asset"
 done
-for asset in "${sddm_default_assets[@]}"; do
-  rm -f -- "$sddm/$asset"
-done
-rm -f -- "$sddm/logo.svg"
 output=$(run_reset 2>&1)
 status=$?
-(( status == 0 )) || fail "reset repairs missing Plymouth and SDDM destinations" "$output"
+(( status == 0 )) || fail "reset repairs missing Plymouth destinations" "$output"
 assert_packaged_assets "missing-file reset Plymouth" "$ROOT/default/plymouth" "$theme" "${plymouth_default_assets[@]}"
-assert_packaged_assets "missing-file reset SDDM" "$ROOT/default/sddm/omarchy" "$sddm" "${sddm_default_assets[@]}"
 
 pass "reset recreates missing files in package-owned destination trees"
 
-# The two refreshes are independently hardened. If Plymouth succeeds and SDDM
-# then refuses its unsafe destination, the completed Plymouth refresh remains
-# valid while SDDM and its symlink victims remain unchanged.
-setup_run
-chmod 0777 "$sddm"
-output=$(run_reset 2>&1)
-status=$?
-
-(( status != 0 )) || fail "reset rejects an unsafe SDDM destination" "$output"
-assert_packaged_assets "Plymouth before SDDM refusal" "$ROOT/default/plymouth" "$theme" "${plymouth_default_assets[@]}"
-[[ $(cat "$plymouth_victim") == 'PLYMOUTH VICTIM' ]] || fail "the successful Plymouth refresh never changes its old symlink victim"
-[[ -L $sddm/Main.qml && $(cat "$sddm_victim") == 'SDDM VICTIM' ]] || fail "a rejected reset leaves SDDM unchanged"
-[[ $output == *"refusing to publish"* ]] || fail "an unsafe reset destination says why it refused" "$output"
-assert_no_temporary_files "$fake_root"
-
-pass "an SDDM refusal cannot make either refresh follow an unsafe destination"
-
-# A packaged source that fails the root trust checks must stop the combined
-# reset; it cannot fall through into a second legacy SDDM copy.
+# A packaged source that fails the root trust checks must stop the reset.
 setup_run
 output=$(run_reset env TEST_UNTRUSTED_SOURCE="$ROOT" 2>&1)
 status=$?
 
 (( status != 0 )) || fail "reset rejects an untrusted packaged source" "$output"
 [[ $(cat "$theme/bullet.png") == 'old plymouth bullet.png' ]] || fail "an untrusted reset source leaves Plymouth unchanged"
-[[ -L $sddm/Main.qml && $(cat "$sddm_victim") == 'SDDM VICTIM' ]] || fail "an untrusted reset source leaves SDDM unchanged"
 [[ $output == *"refusing to publish"* ]] || fail "an untrusted reset source says why it refused" "$output"
-[[ $(grep -c '^root transaction$' "$sudo_log") == 1 ]] || fail "reset stops before SDDM when Plymouth refuses"
+[[ $(grep -c '^root transaction$' "$sudo_log") == 1 ]] || fail "reset stops at the refused transaction"
 assert_no_temporary_files "$fake_root"
 
-pass "a reset refusal cannot fall through to an unhardened SDDM copy"
+pass "a reset refusal publishes nothing"

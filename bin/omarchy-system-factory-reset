@@ -313,7 +313,7 @@ sanitize_factory_baseline() {
   rm -f "$factory"/etc/ssh/ssh_host_*
   rm -f "$factory"/etc/NetworkManager/system-connections/*
   rm -rf "$factory"/var/lib/NetworkManager/* "$factory/var/lib/tailscale" "$factory/var/lib/iwd"
-  rm -f "$factory/var/lib/sddm/state.conf" "$factory/etc/sddm.conf.d/autologin.conf"
+  rm -f "$factory/var/lib/greetd/doxia-greeter.state"
   : >"$factory/etc/machine-id"
 
   btrfs property set -ts "$factory" ro true
@@ -335,7 +335,7 @@ stage_full_reset() {
   rm -f "$next"/etc/ssh/ssh_host_*
   rm -f "$next"/etc/NetworkManager/system-connections/*
   rm -rf "$next"/var/lib/NetworkManager/* "$next/var/lib/tailscale" "$next/var/lib/iwd"
-  rm -f "$next/var/lib/sddm/state.conf" "$next/etc/sddm.conf.d/autologin.conf"
+  rm -f "$next/var/lib/greetd/doxia-greeter.state"
 
   # A factory snapshot from a normal (normal) install contains the original
   # user account; first-boot setup must start from none. A leftover account

@@ -12,7 +12,7 @@ Saídas (rode da raiz do repositório depois de mudar a marca):
   fedora/doxia/branding/screensaver.txt  versão grande, 12 linhas
   fedora/doxia/brand.ansi                  saudação do terminal e /etc/motd, 8 linhas
   default/plymouth/doxia/watermark.png     marca no rodapé do boot splash
-  default/sddm/omarchy/brand.png             marca no rodapé da tela de login (e nos
+  default/login/brand.png                  marca da tela de login e do bloqueio (e nos
                                              terminais com imagem, em tema escuro)
   fedora/doxia/brand-light.png               a mesma com "Dox" escuro, para tema claro
 
@@ -185,8 +185,8 @@ def main():
     print("wrote default/plymouth/doxia/watermark.png")
 
     login, _ = brand(110, smooth=True)
-    login.crop(login.getbbox()).save(ROOT / "default/sddm/omarchy/brand.png", optimize=True)
-    print("wrote default/sddm/omarchy/brand.png")
+    login.crop(login.getbbox()).save(ROOT / "default/login/brand.png", optimize=True)
+    print("wrote default/login/brand.png")
 
     light, _ = brand(110, smooth=True, text=DARK)
     light.crop(light.getbbox()).save(ROOT / "fedora/doxia/brand-light.png", optimize=True)

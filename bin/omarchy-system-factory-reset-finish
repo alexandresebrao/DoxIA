@@ -93,7 +93,7 @@ scrub_legacy_degraded_state() {
   rm -f /etc/ssh/ssh_host_*
   rm -f /etc/NetworkManager/system-connections/*
   rm -rf /var/lib/NetworkManager/* /var/lib/tailscale /var/lib/iwd
-  rm -f /var/lib/sddm/state.conf /etc/sddm.conf.d/autologin.conf
+  rm -f /var/lib/greetd/doxia-greeter.state
 
   # Fresh machine identity from the next boot on.
   systemd-id128 new >/etc/machine-id 2>/dev/null || :>/etc/machine-id

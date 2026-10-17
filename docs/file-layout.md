@@ -109,11 +109,10 @@ default/**                     ──►  omarchy-settings    /usr/share/omarchy
   ├─ systemd/system-sleep/unmount-fuse                  /usr/lib/systemd/system-sleep/
   ├─ systemd/zram-generator.conf.d/90-omarchy.conf      /usr/lib/systemd/zram-generator.conf.d/
   ├─ fonts/omarchy/omarchy.ttf                          /usr/share/fonts/omarchy/
-  ├─ sddm/omarchy/                                      /usr/share/sddm/themes/omarchy/
-  ├─ sddm/mango.conf, mango-hyperv.conf                /usr/share/sddm/
-  ├─ sddm/doxia-greeter                                 /usr/libexec/doxia-sddm-greeter
-  ├─ sddm/doxia-greeter-env                             /usr/libexec/doxia-sddm-greeter-env
-  ├─ sddm/sddm.service.d/10-doxia.conf                 /etc/systemd/system/sddm.service.d/
+  ├─ greetd/config.toml                                 /etc/greetd/config.toml
+  ├─ greetd/doxia-greeter-session                       /usr/libexec/doxia-greeter-session
+  ├─ greetd/mango.conf, mango-hyperv.conf              /usr/share/doxia/greeter/
+  ├─ login/brand.png, power.png                         /usr/share/doxia/greeter/
   ├─ wayland-sessions/omarchy.desktop                   /usr/local/share/wayland-sessions/
   ├─ plymouth/                                          /usr/share/plymouth/themes/omarchy/
   └─ security/faillock, nsswitch, cups-browsed,

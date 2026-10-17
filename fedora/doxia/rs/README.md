@@ -7,6 +7,8 @@ falls back to the shell piece while the app is not installed.
 | Crate | Binary | Replaces |
 | --- | --- | --- |
 | `doxia-theme` | (library) | `shell/Commons` Color and Style: the look, from the current theme |
+| `login` | (library `doxia-login`) | the login and lock screens' look, shared by both: the landscape, the clock, the sign-in pieces, `login.css` |
+| `greeter` | `doxia-greeter` | SDDM and its QML theme: the login screen, a greetd greeter |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
 | `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent, the lock screen, the Omarchy menu, the Start menu and the pickers (clipboard, emojis, images) so far |
@@ -99,7 +101,8 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 - `lock`: the lock screen, replacing `shell/plugins/lock` (`lock`,
   `isLocked`, `status`, `preview`, `hidePreview`). ext-session-lock through
   gtk4-layer-shell's session lock API (FFI to `gtk4-session-lock.h`; the Rust
-  crate has no binding), one field per monitor over the blurred wallpaper.
+  crate has no binding), one view per monitor drawn with `doxia-login` (the
+  login screen's landscape, clock and sign-in).
   PAM runs in a child, `doxia-shell --pam <service>` (`lock/pam.rs`, FFI to
   libpam; needs `pam-devel` to build), started through `/proc/self/exe` so it
   still works after an update replaced the binary: the password against
@@ -192,6 +195,35 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 - Commands the menus start run in a scope of their own
   (`systemd-run --user --scope`, `run.rs`): doxia-shell is a service, and
   restarting it (the update does) would otherwise end everything it started.
+
+## doxia-greeter
+
+The login screen. greetd (`/etc/greetd/config.toml`, from
+`default/greetd/config.toml`) runs `default/greetd/doxia-greeter-session` as
+the `greetd` user on VT 1: the same VM environment fixes as the desktop
+session, the system keyboard layout from `localectl`, then a bare mango
+(`default/greetd/mango.conf`, no bindings) that starts `doxia-greeter` and
+quits when it exits. The greeter talks greetd's IPC over `$GREETD_SOCK`
+(`greeter/src/greetd.rs`): the password answers the one secret prompt, then
+`start_session` with the chosen session's `Exec` through the account's login
+shell (greetd joins the words for `sh -c`, so they go quoted). Accounts come
+from `/etc/passwd` within `/etc/login.defs`' uid range, pictures from
+AccountsService's icons, sessions from `wayland-sessions`, the last account
+and session from `/var/lib/greetd/doxia-greeter.state`, power actions from
+logind. If it can't run (missing, or three failures in two minutes) the
+session script falls back to agreety on the console.
+
+`fedora/doxia/install-greeter` installs it all and moves a machine off SDDM
+(next boot; SDDM is removed without its scriptlets, which would stop the
+running session).
+
+To look at it without logging out (the PNG comes from GTK, so it works even
+where grim doesn't):
+
+```bash
+DOXIA_GREETER_DATA=$OMARCHY_PATH/default/login doxia-greeter --windowed
+DOXIA_GREETER_DATA=$OMARCHY_PATH/default/login doxia-greeter --windowed --snapshot /tmp/g.png Tab,Down
+```
 
 ## CSS gotchas
 

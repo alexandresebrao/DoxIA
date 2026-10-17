@@ -65,6 +65,7 @@ fn main() -> glib::ExitCode {
 
   app.connect_startup(|app| {
     let styler = Rc::new(doxia_theme::Styler::install(include_str!("style.css")));
+    doxia_login::install_css();
     let ipc = Rc::new(ipc::Ipc::default());
 
     let osd = osd::Osd::new(app);

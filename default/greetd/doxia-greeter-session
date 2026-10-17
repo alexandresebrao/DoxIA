@@ -1,0 +1,70 @@
+#!/bin/bash
+
+# The login screen. greetd runs this as its greeter (default/greetd/config.toml),
+# as the greetd user on VT 1: doxia-greeter draws the screen inside a bare
+# mango, and when someone signs in it tells greetd which session to start and
+# exits; mango quits with it, and greetd starts that session.
+#
+# When the graphical greeter can't run (not installed, or it failed three times
+# in two minutes), agreety asks for the login on the console instead and starts
+# the DoxIA session, so the machine never ends up without a way in.
+
+data=/usr/share/doxia/greeter
+config=$data/mango.conf
+greeter=/usr/local/bin/doxia-greeter
+fails=/tmp/doxia-greeter.fails
+
+recent=0
+if [[ -f $fails ]]; then
+  recent=$(awk -v now="$(date +%s)" 'now - $1 < 120' "$fails" | wc -l)
+fi
+if (( recent >= 3 )) || [[ ! -x $greeter ]] || ! command -v mango >/dev/null; then
+  exec agreety --cmd "$(sed -n 's/^Exec=//p' /usr/share/wayland-sessions/omarchy.desktop | head -1)"
+fi
+
+# Same environment fixes as bin/omarchy-mango-session, which the greeter can't
+# use: it runs as greetd, without uwsm or an Omarchy checkout.
+# No render node (Hyper-V's hyperv_drm, plain KMS framebuffers): render with
+# llvmpipe on the primary node instead of refusing to start.
+if ! compgen -G "/dev/dri/renderD*" >/dev/null; then
+  export WLR_RENDERER_ALLOW_SOFTWARE=1
+fi
+virt=$(systemd-detect-virt 2>/dev/null)
+if [[ $virt == "microsoft" || $virt == "vmware" ]]; then
+  # No cursor plane: the hardware cursor is invisible.
+  export WLR_NO_HARDWARE_CURSORS=1
+fi
+if [[ $virt == "microsoft" ]]; then
+  # Partial redraws leave stale squares flickering on hyperv_drm's dumb buffers.
+  export WLR_SCENE_DEBUG_DAMAGE=rerender
+  export WLR_SCENE_DISABLE_DIRECT_SCANOUT=1
+  config=$data/mango-hyperv.conf
+fi
+
+run=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/doxia-greeter.XXXXXX")
+trap 'rm -rf "$run"' EXIT
+
+# The system keyboard layout (localectl set-x11-keymap), so the password is
+# typed on the keyboard it was set with.
+keyboard=/etc/X11/xorg.conf.d/00-keyboard.conf
+xkb() {
+  sed -n "s/^[[:space:]]*Option[[:space:]]*\"Xkb$1\"[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$keyboard" 2>/dev/null | head -1
+}
+layout=$(xkb Layout)
+if [[ -n $layout ]]; then
+  {
+    echo "source=$config"
+    echo "xkb_rules_layout=$layout"
+    variant=$(xkb Variant)
+    [[ -n $variant ]] && echo "xkb_rules_variant=$variant"
+    options=$(xkb Options)
+    [[ -n $options ]] && echo "xkb_rules_options=$options"
+  } > "$run/mango.conf"
+  config=$run/mango.conf
+fi
+
+mango -c "$config" -s "$greeter; echo \$? > $run/status; mmsg dispatch quit"
+
+if [[ $(cat "$run/status" 2>/dev/null) != "0" ]]; then
+  date +%s >> "$fails"
+fi

@@ -8,5 +8,5 @@ dir=$(dirname "$(readlink -f "$0")")
 if [[ $(omarchy-theme-color mode 2>/dev/null) == light ]]; then
   echo "$dir/brand-light.png"
 else
-  echo "$(dirname "$(dirname "$dir")")/default/sddm/omarchy/brand.png"
+  echo "$(dirname "$(dirname "$dir")")/default/login/brand.png"
 fi

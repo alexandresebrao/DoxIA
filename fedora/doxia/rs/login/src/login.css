@@ -1,0 +1,94 @@
+/* The login and lock screens: their own palette over the landscape, whatever
+   the theme. */
+window.login-window { background: #000000; }
+window.login-window label { text-shadow: 0 1px rgba(0, 0, 0, 0.35); }
+window.login-window .login-clock { font-family: "Red Hat Display"; font-weight: 300; color: #f2f2f2; }
+window.login-window .login-accent { background: #ee0000; border-radius: 2px; min-height: 4px; }
+window.login-window .login-date { font-family: "Red Hat Display"; font-size: 22px; color: alpha(#f2f2f2, 0.85); }
+window.login-window .login-name { font-family: "Red Hat Display"; font-size: 24px; font-weight: bold; color: #f2f2f2; }
+window.login-window .login-host { font-family: "Red Hat Text"; font-size: 13px; color: alpha(#c9ccd1, 0.7); }
+window.login-window .login-status { font-family: "Red Hat Text"; font-size: 13px; color: #ff8a8a; }
+window.login-window .login-line {
+  min-height: 44px;
+  margin: 0 38px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+  transition: margin 180ms ease-out, border-color 180ms ease-out;
+}
+window.login-window .login-line:focus-within { margin: 0; border-bottom: 2px solid #f2f2f2; }
+window.login-window .login-line.error { border-bottom-color: #ff8a8a; }
+window.login-window entry.login-entry, window.login-window text.login-entry {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+  min-height: 42px;
+  color: #f2f2f2;
+  font-family: "Red Hat Text";
+  font-size: 16px;
+  letter-spacing: 3px;
+}
+window.login-window entry.login-entry.name { font-size: 18px; letter-spacing: 0; }
+window.login-window entry.login-entry text placeholder { color: alpha(#c9ccd1, 0.8); font-size: 15px; letter-spacing: 0; }
+window.login-window entry.login-entry text selection { background: #ee0000; }
+window.login-window entry.login-entry image { color: alpha(#c9ccd1, 0.8); }
+window.login-window .login-fingerprint { color: alpha(#c9ccd1, 0.8); font-size: 18px; }
+window.login-window button.login-submit {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: 17px;
+  border: none;
+  box-shadow: none;
+  background: alpha(#ee0000, 0.75);
+  color: #f2f2f2;
+  font-family: "Red Hat Text";
+  font-size: 17px;
+  font-weight: bold;
+}
+window.login-window button.login-submit:hover { background: #ff1a1a; }
+
+/* The login screen's own controls: the arrows between accounts, the links
+   under the password, the session menu, the power actions. */
+window.login-window button.login-arrow, window.login-window button.login-power, window.login-window button.login-link {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  min-height: 0;
+  color: #c9ccd1;
+  font-family: "Red Hat Text";
+}
+window.login-window button.login-arrow {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 0 4px 0;
+  border-radius: 18px;
+  color: #f2f2f2;
+  font-size: 28px;
+}
+window.login-window button.login-power { min-height: 32px; padding: 0 12px; border-radius: 16px; font-size: 13px; }
+window.login-window button.login-arrow:hover, window.login-window button.login-power:hover { background: rgba(255, 255, 255, 0.14); color: #f2f2f2; }
+window.login-window button.login-link { padding: 0; font-size: 13px; }
+window.login-window button.login-link:hover, window.login-window button.login-link.active { color: #f2f2f2; }
+window.login-window button.login-link:hover label { text-decoration: underline; }
+window.login-window .login-dot { font-family: "Red Hat Text"; font-size: 13px; color: #c9ccd1; }
+window.login-window .login-power image { color: #c9ccd1; }
+window.login-window .login-menu {
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(20, 23, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+window.login-window button.login-menu-row {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  color: #f2f2f2;
+  font-family: "Red Hat Text";
+  font-size: 14px;
+}
+window.login-window button.login-menu-row:hover { background: rgba(242, 242, 242, 0.08); }

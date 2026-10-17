@@ -54,7 +54,7 @@ echo "==> Installing packages"
 packages=(
   # Session and portals. mangowm ships mango-portals.conf, which routes screen
   # sharing and screenshots to the wlr portal.
-  xdg-desktop-portal-wlr xdg-desktop-portal-gtk uwsm sddm
+  xdg-desktop-portal-wlr xdg-desktop-portal-gtk uwsm
   # Output layout (monitor panel, captures), virtual pointer (capture-region),
   # color picker and the nightlight
   wlr-randr wlrctl hyprpicker gammastep
@@ -66,7 +66,7 @@ packages=(
   # Terminal + default apps
   kitty nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
   # Only Yaru's icons: the yaru-theme metapackage pulls in GNOME Shell, GDM and Mutter.
-  # gnome-keyring-pam unlocks the keyring at the SDDM login (Chrome's passwords).
+  # gnome-keyring-pam unlocks the keyring at the login (Chrome's passwords).
   gnome-keyring gnome-keyring-pam yaru-icon-theme
   # Red folders of the DoxIA theme (themes/doxia/make-icons.sh) and applying
   # them without a session (install-user.sh)
@@ -230,30 +230,9 @@ echo "==> Installing Omarchy session entry"
 install -Dm644 "$omarchy_path/default/wayland-sessions/omarchy.desktop" \
   /usr/share/wayland-sessions/omarchy.desktop
 
-echo "==> Login screen (SDDM with the DoxIA theme on a mango greeter)"
-install -d /usr/share/sddm/themes/omarchy /etc/sddm.conf.d
-install -m644 "$omarchy_path"/default/sddm/omarchy/* /usr/share/sddm/themes/omarchy/
-install -m644 "$omarchy_path"/default/sddm/mango.conf "$omarchy_path"/default/sddm/mango-hyperv.conf \
-  /usr/share/sddm/
-# In /usr/libexec so SELinux labels it bin_t, like the start-hyprland it replaces.
-install -Dm755 "$omarchy_path/default/sddm/doxia-greeter" /usr/libexec/doxia-sddm-greeter
-install -Dm755 "$omarchy_path/default/sddm/doxia-greeter-env" /usr/libexec/doxia-sddm-greeter-env
-install -Dm644 "$omarchy_path/default/sddm/sddm.service.d/10-doxia.conf" /etc/systemd/system/sddm.service.d/10-doxia.conf
-install -m644 "$omarchy_path"/etc/sddm.conf.d/*.conf /etc/sddm.conf.d/
-/usr/libexec/doxia-sddm-greeter-env
-rm -f /usr/share/sddm/hyprland.lua
-restorecon -R /usr/share/sddm /etc/sddm.conf.d /usr/libexec/doxia-sddm-greeter \
-  /usr/libexec/doxia-sddm-greeter-env /etc/systemd/system/sddm.service.d 2>/dev/null || true
-# The theme preselects SDDM's last user and session, which a fresh SDDM doesn't
-# have yet (the Arch ISO seeds it): start on the DoxIA session.
-if [[ ! -s /var/lib/sddm/state.conf ]]; then
-  install -d -o sddm -g sddm /var/lib/sddm
-  printf '[Last]\nUser=%s\nSession=/usr/share/wayland-sessions/omarchy.desktop\n' "$target_user" > /var/lib/sddm/state.conf
-  chown sddm:sddm /var/lib/sddm/state.conf
-fi
-# Replaces whichever display manager the Fedora spin enabled (Plasma Login, GDM).
-systemctl enable --force sddm.service
-# The ISO installs from @core, where Anaconda picks multi-user.target before SDDM exists.
+echo "==> Login screen (greetd with doxia-greeter on mango)"
+bash "$omarchy_path/fedora/doxia/install-greeter" "$target_user"
+# The ISO installs from @core, where Anaconda picks multi-user.target before greetd exists.
 systemctl set-default graphical.target
 
 echo "==> Configuring lock screen PAM (Fedora variant of omarchy-apply-lock)"
