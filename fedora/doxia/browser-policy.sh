@@ -2,7 +2,13 @@
 # stay 0755 root:root; omarchy-theme-set-browser-policy is the privileged
 # write for color.json.
 
-source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/as-root.sh"
+as_root() {
+  if (( EUID == 0 )); then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
 
 BROWSER_POLICY_MANAGED_DIRS=(
   /etc/chromium/policies/managed

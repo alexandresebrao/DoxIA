@@ -103,11 +103,7 @@ if [[ ! -f ~/.config/fontconfig/fonts.conf ]]; then
 XML
 fi
 
-echo "==> Marking Omarchy first-run/provisioning as done (Arch-only steps)"
-# provision-user would reassign XDG Desktop/Templates, set Chromium as default
-# browser, HEY as mailto handler and install a set of AI CLIs via mise.
-omarchy-done mark finalize-user
-omarchy-done mark first-run-user
+echo "==> Marking the migrations as done (a fresh install already is what they lead to)"
 mkdir -p ~/.local/state/omarchy/migrations
 for migration in "$OMARCHY_PATH"/migrations/*.sh; do
   [[ -f $migration ]] && touch ~/.local/state/omarchy/migrations/"$(basename "$migration")"
@@ -151,7 +147,7 @@ bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
 # color on every theme change by the theme-set hook.
 bash "$OMARCHY_PATH/fedora/doxia/lucide/make-theme"
 # The shell's Nerd Font icons redrawn with Lucide (DoxIA Shell font, used only
-# by Quickshell), redone by the font-set hook when the font changes.
+# by doxia-shell), redone by the font-set hook when the font changes.
 python3 "$OMARCHY_PATH/fedora/doxia/lucide/make-shell-font"
 mkdir -p ~/.config/omarchy/hooks
 cp -r "$OMARCHY_PATH/fedora/doxia/hooks/." ~/.config/omarchy/hooks/
@@ -170,9 +166,17 @@ dbus-run-session -- bash -c 'omarchy-theme-set-gnome
 
 echo "==> XCompose"
 if [[ ! -f ~/.XCompose ]]; then
-  OMARCHY_USER_NAME=$(git config --global user.name || true) \
-  OMARCHY_USER_EMAIL=$(git config --global user.email || true) \
-    bash -c 'source "$OMARCHY_PATH/install/user/xcompose.sh"'
+  # CapsLock is the compose key (omarchy-restart-xcompose applies changes).
+  cat >~/.XCompose <<EOF
+# Run omarchy-restart-xcompose to apply changes
+
+# Include fast emoji access
+include "$OMARCHY_PATH/default/xcompose"
+
+# Identification
+<Multi_key> <space> <n> : "$(git config --global user.name || true)"
+<Multi_key> <space> <e> : "$(git config --global user.email || true)"
+EOF
 fi
 
 echo "==> Lock-on-sleep user unit (started only from mango, never in KDE)"

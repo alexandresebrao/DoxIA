@@ -4,7 +4,7 @@
 # omarchy:args=<chrome|brave|brave-origin|edge|firefox|zen>
 # omarchy:examples=omarchy install browser firefox | omarchy install browser brave
 
-source "$OMARCHY_PATH/install/helpers/browser-policy.sh"
+source "$OMARCHY_PATH/fedora/doxia/browser-policy.sh"
 
 setup_chromium_policy_directory() {
   browser_policy_setup_dir "$1"

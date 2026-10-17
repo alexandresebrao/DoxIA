@@ -50,7 +50,7 @@ grep -Fx 'ConditionPathExists=!%h/.local/state/omarchy/toggles/crash-capture-off
   fail "the watcher is pulled back in at every login, so disabling it never survives a logout"
 pass "crash watcher stays disabled across logins"
 
-grep -F 'omarchy-crash-watch.service' "$ROOT/install/user/first-run/enable-user-units.sh" >/dev/null ||
+grep -F 'omarchy-crash-watch' "$ROOT/fedora/doxia/install-user-units" >/dev/null ||
   fail "crash capture is no longer on by default for new installs"
 pass "crash capture is on by default"
 

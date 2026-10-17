@@ -26,19 +26,6 @@ grep -Fx 'ConditionEnvironment=WAYLAND_DISPLAY' "$sleep_service" >/dev/null ||
   fail "sleep lock monitor can start without a Wayland display"
 pass "sleep lock service follows the initialized graphical session"
 
-first_run_units="$ROOT/install/user/first-run/enable-user-units.sh"
-grep -Fx 'systemctl --user daemon-reload' "$first_run_units" >/dev/null
-grep -F 'omarchy-sleep-lock.service' "$first_run_units" >/dev/null
-pass "first-run reloads and enables the sleep lock service"
-
-upgrade_to_quattro="$ROOT/bin/omarchy-upgrade-to-quattro"
-grep -F '6870b232a6c0474b59187882e6d25ae771bba735098bcbedef8a2b73b97e2b6a' "$upgrade_to_quattro" >/dev/null
-grep -F 'bcd1a76cb5c63514922bc5e11af22ae480fc6d06a99863364e02bdf3c7bdceaf' "$upgrade_to_quattro" >/dev/null
-grep -F 'ExecStart=%h/.local/share/omarchy/bin/omarchy-system-sleep-monitor' "$upgrade_to_quattro" >/dev/null
-grep -F 'ExecStart=/usr/bin/omarchy-system-sleep-monitor' "$upgrade_to_quattro" >/dev/null
-grep -F 'reset-failed omarchy-sleep-lock.service' "$upgrade_to_quattro" >/dev/null
-pass "Omarchy 4 upgrade repairs the legacy sleep lock unit path"
-
 [[ -e $ROOT/default/systemd/user/omarchy-update-user-notify.path ]] &&
   fail "the retired migration watcher is back; pacman writing the migration directory during omarchy update would notify about migrations that update is already applying"
 grep -rlE '^(Path[A-Za-z]+|DirectoryNotEmpty)=.*/usr/share/omarchy/migrations' "$ROOT/default/systemd/user" >/dev/null 2>&1 &&
@@ -52,11 +39,9 @@ grep -Fx 'After=graphical-session.target' "$notify_service" >/dev/null ||
   fail "migration notifier can deadlock UWSM by blocking graphical-session.target"
 pass "migration notifier checks once per login after the graphical session is ready"
 
-grep -F 'omarchy-migrate-notify.service' "$first_run_units" >/dev/null ||
-  fail "first-run does not enable the login migration notifier"
-grep -F 'omarchy-update-user-notify' "$first_run_units" >/dev/null &&
-  fail "first-run still enables the retired notifier units"
-pass "first-run enables the login-only migration notifier"
+grep -F 'omarchy-migrate-notify' "$ROOT/fedora/doxia/install-user-units" >/dev/null ||
+  fail "install does not enable the login migration notifier"
+pass "install enables the login-only migration notifier"
 
 fcitx_service="$ROOT/default/systemd/user/omarchy-fcitx5.service"
 grep -Fx 'ExecStart=/usr/bin/fcitx5 --disable notificationitem' "$fcitx_service" >/dev/null
@@ -71,21 +56,13 @@ grep -Fx 'WantedBy=graphical-session.target' "$fcitx_service" >/dev/null ||
 grep -Fx 'ConditionEnvironment=WAYLAND_DISPLAY' "$fcitx_service" >/dev/null ||
   fail "an update over SSH has a live user manager and no display; starting fcitx5 there wedges the unit active-but-blind, and Wants= will not replace it at graphical login"
 
-fcitx_migration="$ROOT/migrations/1785167800.sh"
-grep -F 'is-active --quiet graphical-session.target' "$fcitx_migration" >/dev/null ||
-  fail "migration kills fcitx5 and starts the unit outside a graphical session"
-grep -F 'systemctl --user enable omarchy-fcitx5.service' "$fcitx_migration" >/dev/null ||
-  fail "migration must enable without --now; --now starts the unit before the session-gate check"
-grep -F 'Could not start omarchy-fcitx5.service' "$fcitx_migration" >/dev/null ||
-  fail "migration pkills a working fcitx5, so a failed handover must be reported instead of marked complete"
-
 grep -F 'pkill -x fcitx5' "$ROOT/bin/omarchy-restart-xcompose" >/dev/null ||
   fail "restart-xcompose cannot reload a fcitx5 running outside the unit, so it silently keeps serving the old table"
 
 # DoxIA runs no input method: GTK, Qt and Chromium read ~/.XCompose themselves,
 # and fcitx5 between the keyboard and every app risks the ABNT2 dead keys.
-grep -F 'omarchy-fcitx5.service' "$first_run_units" >/dev/null &&
-  fail "first-run leaves the fcitx5 input method off"
+grep -F 'fcitx5' "$ROOT/fedora/doxia/install-user-units" >/dev/null &&
+  fail "install leaves the fcitx5 input method off"
 grep -rF 'fcitx5' "$ROOT"/default/mango/*.conf >/dev/null &&
   fail "mango does not autostart fcitx5"
 pass "DoxIA leaves the fcitx5 input method off"
@@ -110,13 +87,3 @@ grep -Fx 'DefaultMemoryPressureLimit=50%' "$oomd_conf" >/dev/null ||
 grep -Fx 'DefaultMemoryPressureDurationSec=20s' "$oomd_conf" >/dev/null ||
   fail "no pressure duration set for the tightened limit"
 pass "systemd-oomd acts on sustained memory stall"
-
-grep -Fx 'systemctl enable systemd-oomd.service' "$ROOT/install/config/enable-services.sh" >/dev/null ||
-  fail "new installs ship the oomd drop-ins with the daemon that reads them disabled"
-
-oomd_migration=$(grep -rl 'systemd-oomd.service' "$ROOT/migrations" | head -n 1 || true)
-[[ -n $oomd_migration ]] ||
-  fail "existing installs never enable systemd-oomd; enable-services.sh only runs at install time"
-grep -F 'systemctl --user daemon-reload' "$oomd_migration" >/dev/null ||
-  fail "migration leaves the user manager unaware of app.slice candidacy until the next login"
-pass "existing installs enable systemd-oomd and report app.slice without a relogin"

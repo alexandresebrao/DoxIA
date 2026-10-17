@@ -4,10 +4,8 @@ Deeper instructions for specific kinds of work live in `agents/skills/`. Read th
 matching guide before starting:
 
 - [`agents/skills/command-metadata.md`](agents/skills/command-metadata.md) - adding or changing commands in `bin/`
-- [`agents/skills/install-scripts.md`](agents/skills/install-scripts.md) - working under `install/` or on system/user setup commands
-- [`agents/skills/shell-dev.md`](agents/skills/shell-dev.md) - editing the Quickshell desktop under `shell/`
+- `fedora/install-system.sh` (root) and `fedora/install-user.sh` set a machine up; `fedora/update.sh` brings an installed one along. The shell, lock screen, greeter and apps are the Rust workspace in `fedora/doxia/rs` (see its README)
 - [`agents/skills/icon-font.md`](agents/skills/icon-font.md) - adding branded glyphs to `default/fonts/omarchy/omarchy.ttf`
-- [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md) - writing or running graphical acceptance tests under `test/acceptance.d/`
 - [`agents/skills/visual-verification.md`](agents/skills/visual-verification.md) - verifying any change with a visual effect in the running UI
 - [`docs/migrations.md`](docs/migrations.md) - creating or changing migrations under `migrations/`
 
@@ -51,7 +49,7 @@ guidance does not drift from the router.
 # Runtime Environment
 
 - `$OMARCHY_PATH` is set at the top level by the uwsm session environment and is always available to Omarchy runtime code.
-- Commands in `bin/` and Quickshell QML should rely on `$OMARCHY_PATH` / `Quickshell.env("OMARCHY_PATH")`; do not derive fallback paths from `HOME`, `Quickshell.shellDir`, or re-export/default `OMARCHY_PATH` manually.
+- Commands in `bin/` should rely on `$OMARCHY_PATH`; do not derive fallback paths from `HOME`, or re-export/default `OMARCHY_PATH` manually.
 
 # Privileged Commands
 
@@ -73,7 +71,7 @@ Use these instead of raw shell commands:
 - `omarchy-pkg-add` - install packages (handles both pacman and AUR)
 - `omarchy-pkg-drop` - remove packages; use this instead of raw `pacman -R*`
 - `omarchy-notification-send` - send desktop notifications; do not call `notify-send` directly
-- `omarchy-hw-asus-rog` - detect ASUS ROG hardware (and similar `hw-*` commands)
+- `omarchy-hw-nvidia` - detect NVIDIA hardware (and similar `hw-*` commands)
 
 Commands installed by Omarchy's default package set are runtime invariants. Invoke them directly; do not add defensive `omarchy-cmd-present` / `omarchy-cmd-missing` checks around them. Use command-presence helpers only for genuinely optional dependencies or code that can run before the default package set is installed.
 
@@ -95,14 +93,11 @@ Exceptions are allowed for migration and package-helper scripts where the helper
 
 Run focused automated tests for the area you changed. Current test entry points:
 
-- `./test/all` - aggregate runner for CLI and shell tests; it intentionally does not run graphical acceptance tests
+- `./test/all` - aggregate runner for CLI and shell tests
 - `./test/cli` - CLI routing, command metadata, theme helpers, and safe dispatch coverage
 - `./test/shell` - all Omarchy shell tests under `test/shell.d/`
 
 New Omarchy shell tests should live in `test/shell.d/*-test.sh` so `./test/shell` picks them up automatically. Source `test/shell.d/base-test.sh` for shared root-path discovery, assertions, and Node test helpers.
-
-The graphical acceptance suite runs in a disposable VM, not in the active
-development session; see [`agents/skills/acceptance-tests.md`](agents/skills/acceptance-tests.md).
 
 Visual changes must be verified in the running UI in addition to automated
 tests; follow [`agents/skills/visual-verification.md`](agents/skills/visual-verification.md).
