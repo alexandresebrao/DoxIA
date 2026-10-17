@@ -10,9 +10,12 @@ pub const LOW: u8 = 0;
 pub const NORMAL: u8 = 1;
 pub const CRITICAL: u8 = 2;
 
-pub const HISTORY_LIMIT: usize = 10;
+pub const HISTORY_LIMIT: usize = 50;
+// Popups on screen at once; an older one beyond them goes to history.
+pub const MAX_VISIBLE: usize = 3;
 const LOW_MS: u64 = 5000;
 const NORMAL_MS: u64 = 8000;
+const CRITICAL_MS: u64 = 20000;
 const MAX_MS: u64 = 30000;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -134,12 +137,12 @@ impl Entry {
   }
 }
 
-// How long a popup stays: critical never expires; the sender's timeout is
-// honoured within [5 s or 8 s, 30 s].
+// How long a popup stays: the sender's timeout, honoured within [5 s, 8 s or
+// 20 s (critical), 30 s]. Nothing stays for good: the history keeps it.
 pub fn duration_for(urgency: u8, expire_timeout: f64) -> u64 {
   let requested = if expire_timeout.is_finite() && expire_timeout > 0.0 { expire_timeout.round() as u64 } else { 0 };
   match urgency {
-    CRITICAL => 0,
+    CRITICAL => requested.max(CRITICAL_MS).min(MAX_MS),
     LOW => requested.max(LOW_MS).min(MAX_MS),
     _ => requested.max(NORMAL_MS).min(MAX_MS),
   }
@@ -229,7 +232,7 @@ mod tests {
 
   #[test]
   fn durations() {
-    assert_eq!(duration_for(CRITICAL, 5000.0), 0);
+    assert_eq!(duration_for(CRITICAL, 5000.0), 20000);
     assert_eq!(duration_for(LOW, 0.0), 5000);
     assert_eq!(duration_for(NORMAL, 3000.0), 8000);
     assert_eq!(duration_for(NORMAL, 12000.0), 12000);

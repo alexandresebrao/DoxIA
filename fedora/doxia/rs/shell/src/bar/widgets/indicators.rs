@@ -2,7 +2,8 @@
 // indicators/): small status glyphs. The active ones always show; the
 // inactive ones show dimmed while the pointer is over the widget (or always
 // with "alwaysShow"). "items" picks and orders them; by default: dictation,
-// screen recording, reminders, night light, do-not-disturb, stay awake.
+// screen recording, reminders, night light, notifications (the bell and its
+// history), stay awake.
 // IPC target "omarchy.indicators": refresh (screen recording, reminders).
 
 use super::super::config::setting;
@@ -143,25 +144,11 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
         });
       }
       "Dnd" => {
-        // Always shown; dimmer while notifications are silenced.
-        let path = format!("{}/.local/state/omarchy/notifications.json", home());
-        let s = set.clone();
-        let b2 = b.clone();
-        let read = Rc::new(move || {
-          let text = std::fs::read_to_string(&path).unwrap_or_default();
-          let dnd = serde_json::from_str::<Value>(&text).ok().and_then(|v| v["dnd"].as_bool()) == Some(true);
-          s(true, if dnd { "\u{f009b}" } else { "\u{f009a}" }, if dnd { "Permitir notificações" } else { "Silenciar notificações" });
-          if dnd { b2.widget.add_css_class("silenced") } else { b2.widget.remove_css_class("silenced") }
-        });
-        read();
-        if let Ok(m) = gio::File::for_path(format!("{}/.local/state/omarchy/notifications.json", home())).monitor_file(gio::FileMonitorFlags::NONE, gio::Cancellable::NONE) {
-          let r = read.clone();
-          m.connect_changed(move |_, _, _, _| r());
-          b.widget.connect_destroy(move |_| {
-            let _ = &m;
-          });
-        }
-        b.on_press(|_| crate::run::argv(&["omarchy-toggle-notification-silencing"]));
+        // The bell, with the notification history in its panel.
+        let Some(slot) = super::notifications::bell(ctx, &b, set.clone()) else { continue };
+        row.append(&slot.widget);
+        indicators.borrow_mut().push(ind);
+        continue;
       }
       "StayAwake" => {
         // The flag file both idle services keep; the toggle goes to

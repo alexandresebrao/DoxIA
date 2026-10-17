@@ -14,6 +14,7 @@ mod media;
 mod monitor;
 mod network;
 mod network_model;
+mod notifications;
 mod power;
 mod services;
 mod system;

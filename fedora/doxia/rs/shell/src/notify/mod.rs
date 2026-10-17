@@ -1,8 +1,10 @@
 // The notification server (org.freedesktop.Notifications) and its popups,
-// replacing shell/plugins/notifications. Same rules: lifetimes by urgency,
-// hover pauses the countdown, do-not-disturb with its bypasses, replaces_id
-// updates in place, popups survive restarts and the last ten that left the
-// screen are the history. Same IPC (`omarchy-shell notifications <method>`).
+// replacing shell/plugins/notifications. Lifetimes by urgency (critical ones
+// too), hover pauses the countdown, do-not-disturb with its bypasses,
+// replaces_id updates in place, a repeat replaces its older copy, at most
+// three popups at once, popups survive restarts. Whatever leaves the screen
+// goes to the history (the last fifty), which the bar's bell lists, like
+// KDE's. Same IPC (`omarchy-shell notifications <method>`).
 //
 // The bus name has one owner. doxia-shell queues for it and turns Quickshell's
 // service off in shell.json (crate::quickshell::disable); the name
@@ -73,8 +75,27 @@ struct Popup {
   card: gtk::Box,
 }
 
+thread_local! {
+  static INSTANCE: RefCell<std::rc::Weak<Notifications>> = const { RefCell::new(std::rc::Weak::new()) };
+}
+
+// The server, for the bar's history panel.
+pub fn get() -> Option<Rc<Notifications>> {
+  INSTANCE.with(|i| i.borrow().upgrade())
+}
+
+// A history entry as a card, for the history panel.
+pub fn history_card(entry: &Entry) -> gtk::Box {
+  card::build(entry)
+}
+
 pub struct Notifications {
   store: Store,
+  // History entries newer than this have not been seen in the panel.
+  seen: Cell<i64>,
+  listeners: RefCell<Vec<Box<dyn Fn()>>>,
+  // The bar's history panel, for showHistory.
+  history_opener: RefCell<Option<Box<dyn Fn()>>>,
   dnd: Cell<bool>,
   owns_name: Cell<bool>,
   next_id: Cell<u32>,
@@ -108,6 +129,9 @@ impl Notifications {
     let me = Rc::new(Notifications {
       dnd: Cell::new(store.load_dnd()),
       store,
+      seen: Cell::new(now_ms()),
+      listeners: RefCell::default(),
+      history_opener: RefCell::default(),
       owns_name: Cell::new(false),
       next_id: Cell::new(1),
       popups: RefCell::default(),
@@ -126,7 +150,66 @@ impl Notifications {
 
     me.restore();
     me.store.sweep_images();
+    INSTANCE.with(|i| *i.borrow_mut() = Rc::downgrade(&me));
     me
+  }
+
+  // ---- the history, for the bar ----------------------------------------------
+
+  // Called whenever the history or do-not-disturb changes.
+  pub fn connect_changed(&self, f: impl Fn() + 'static) {
+    self.listeners.borrow_mut().push(Box::new(f));
+  }
+
+  fn changed(&self) {
+    for f in self.listeners.borrow().iter() {
+      f();
+    }
+  }
+
+  pub fn set_history_opener(&self, f: impl Fn() + 'static) {
+    *self.history_opener.borrow_mut() = Some(Box::new(f));
+  }
+
+  // Newest first.
+  pub fn history(&self) -> Vec<Entry> {
+    self.store.history()
+  }
+
+  pub fn unread(&self) -> usize {
+    let seen = self.seen.get();
+    self.store.history().iter().filter(|e| e.timestamp > seen).count()
+  }
+
+  pub fn mark_seen(&self) {
+    self.seen.set(now_ms());
+    self.changed();
+  }
+
+  pub fn forget(&self, entry: &Entry) {
+    self.store.forget(entry);
+    self.changed();
+  }
+
+  pub fn clear_history(&self) {
+    self.store.clear_history();
+    self.changed();
+  }
+
+  // A click on a history entry: what a click on its popup would have done,
+  // short of the sender's action (that popup is gone); then it leaves.
+  pub fn activate(&self, entry: &Entry) {
+    if let Some(argv) = model::parse_exec_argv(&entry.exec_argv) {
+      spawn(&argv);
+    } else if !entry.app.is_empty() {
+      let focus = format!("{}/bin/omarchy-mango-focus-app", std::env::var("OMARCHY_PATH").unwrap_or_default());
+      spawn(&[focus, entry.app.clone()]);
+    }
+    self.forget(entry);
+  }
+
+  pub fn dnd(&self) -> bool {
+    self.dnd.get()
   }
 
   // Top-right, clear of the bar when it sits on the top or right edge.
@@ -263,6 +346,7 @@ impl Notifications {
       // Never on screen, so history is the only trace it can leave.
       if !transient && !model::is_ephemeral_app(&entry.app) {
         self.store.write_history(&entry);
+        self.changed();
       }
       self.emit("NotificationClosed", (id, DISMISSED).to_variant());
       return Some(id);
@@ -286,6 +370,18 @@ impl Notifications {
         p.card = new_card;
       }
     } else {
+      // A repeat (same sender, same text) takes the older copy's place.
+      let repeats: Vec<usize> = self
+        .popups
+        .borrow()
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.entry.app == persisted.app && p.entry.summary == persisted.summary && p.entry.body == persisted.body)
+        .map(|(i, _)| i)
+        .collect();
+      for i in repeats.into_iter().rev() {
+        self.drop_repeat(i);
+      }
       self.insert(0, persisted, false, true, has_default_action);
     }
     Some(id)
@@ -333,8 +429,25 @@ impl Notifications {
     let mut popups = self.popups.borrow_mut();
     let at = at.min(popups.len());
     popups.insert(at, popup);
+    let excess = popups.len().saturating_sub(model::MAX_VISIBLE);
     drop(popups);
     self.window.set_visible(true);
+    // The oldest go to history, as if they had expired.
+    for _ in 0..excess {
+      let last = self.popups.borrow().len() - 1;
+      self.remove(last, EXPIRED);
+    }
+  }
+
+  fn drop_repeat(&self, i: usize) {
+    let popup = self.popups.borrow_mut().remove(i);
+    self.column.remove(&popup.card);
+    if popup.has_file {
+      self.store.discard(&popup.entry);
+    }
+    if !popup.restored {
+      self.emit("NotificationClosed", (popup.entry.original_id, CLOSED).to_variant());
+    }
   }
 
   fn card_for(self: &Rc<Self>, entry: &Entry) -> gtk::Box {
@@ -408,6 +521,7 @@ impl Notifications {
     self.column.remove(&popup.card);
     if popup.has_file {
       self.store.archive(&popup.entry);
+      self.changed();
     }
     if !popup.restored {
       self.emit("NotificationClosed", (popup.entry.original_id, reason).to_variant());
@@ -465,9 +579,10 @@ impl Notifications {
 
   // ---- IPC (omarchy-shell notifications <method>) ---------------------------
 
-  fn set_dnd(&self, on: bool) -> String {
+  pub fn set_dnd(&self, on: bool) -> String {
     self.dnd.set(on);
     self.store.save_dnd(on);
+    self.changed();
     self.dnd_state()
   }
 
@@ -517,11 +632,14 @@ impl Notifications {
       "toggleDnd" => self.set_dnd(!self.dnd.get()),
       "setDnd" => self.set_dnd(matches!(arg.to_lowercase().as_str(), "true" | "1" | "on" | "yes")),
       "showHistory" => {
-        self.show_history();
+        match self.history_opener.borrow().as_ref() {
+          Some(open) => open(),
+          None => self.show_history(),
+        }
         "ok".into()
       }
       "clear" => {
-        self.store.clear_history();
+        self.clear_history();
         "ok".into()
       }
       "dismissAll" => {

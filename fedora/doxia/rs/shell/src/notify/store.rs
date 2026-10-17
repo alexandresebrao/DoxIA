@@ -1,7 +1,7 @@
 // The notification files under ~/.local/state/omarchy, shared with the
 // Quickshell service: notifications.json (the do-not-disturb preference),
 // notifications/<stem>.json (one per popup on screen, so popups survive a
-// restart), notifications/history/ (the last ten that left the screen) and
+// restart), notifications/history/ (the last fifty that left the screen) and
 // notifications/images/ (copies of the images those entries show, which their
 // senders delete on close). Small files, written synchronously.
 
@@ -125,6 +125,18 @@ impl Store {
     if fs::rename(self.popups.join(&name), self.history.join(&name)).is_ok() {
       self.trim_history();
     }
+  }
+
+  // A popup that left no trace (a repeat replaced by its newer copy).
+  pub fn discard(&self, entry: &Entry) {
+    let _ = fs::remove_file(self.popups.join(entry.file_name()));
+    self.remove_images(&entry.stem());
+  }
+
+  // One history entry, dismissed from the history panel.
+  pub fn forget(&self, entry: &Entry) {
+    let _ = fs::remove_file(self.history.join(entry.file_name()));
+    self.remove_images(&entry.stem());
   }
 
   // A notification do-not-disturb kept off the screen goes straight to history.
