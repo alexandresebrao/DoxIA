@@ -2,10 +2,8 @@
 """Gera a fonte "DoxIA Shell": a fonte monospace atual com os ícones Nerd Font
 do nerd.tsv redesenhados com o Lucide, nos mesmos codepoints.
 
-O doxia-shell (barra, painéis e menus) a pede pelo nome; onde o Quickshell
-ainda é o shell, uma regra do fontconfig (60-doxia-shell.conf, ao lado deste
-arquivo) faz o monospace virar essa fonte só para ele. Terminais e o resto do
-sistema continuam com a fonte original. Letras e métricas são as da fonte
+O doxia-shell (barra, painéis e menus) a pede pelo nome. Terminais e o resto
+do sistema continuam com a fonte original. Letras e métricas são as da fonte
 original. Roda no install-user.sh, no update.sh e no hook font-set (troca de
 fonte). Precisa do python3-fonttools.
 
@@ -167,14 +165,8 @@ def stamp(family, files):
 
 
 def install_conf():
-    # A regra só serve ao Quickshell, que só existe onde o doxia-shell não
-    # pôde ser instalado; o doxia-shell pede a DoxIA Shell pelo nome.
-    conf = Path.home() / ".config/fontconfig/conf.d/60-doxia-shell.conf"
-    if not shutil.which("quickshell"):
-        conf.unlink(missing_ok=True)
-        return
-    conf.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(here / "60-doxia-shell.conf", conf)
+    # A regra que fazia o monospace do Quickshell virar a DoxIA Shell.
+    (Path.home() / ".config/fontconfig/conf.d/60-doxia-shell.conf").unlink(missing_ok=True)
 
 
 def main():

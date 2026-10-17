@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fedora port of Omarchy: system-level setup (run with sudo).
-# Installs mango + Quickshell + Omarchy runtime deps side by side with KDE.
+# Installs mango + doxia-shell + the DoxIA runtime deps side by side with KDE.
 # Nothing here removes or reconfigures KDE/Plasma.
 
 set -euo pipefail
@@ -41,14 +41,8 @@ echo "==> scenefx (the DoxIA build, on VMware only)"
 bash "$omarchy_path/fedora/doxia/install-scenefx"
 
 echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
-# doxia-shell is the shell; only when it couldn't be downloaded does
-# Quickshell (the Omarchy shell in shell/) stand in.
-quickshell=()
-if ! bash "$omarchy_path/fedora/doxia/install-rs"; then
-  echo "  Not installed; Quickshell stands in."
-  dnf copr enable -y errornointernet/quickshell
-  quickshell=(quickshell qt6-qtwayland qt6-qtimageformats qt6-qtsvg qt6-qt5compat qt6-qtmultimedia)
-fi
+# doxia-shell is the shell: without it there is no desktop.
+bash "$omarchy_path/fedora/doxia/install-rs"
 
 echo "==> Installing packages"
 packages=(
@@ -61,7 +55,6 @@ packages=(
 
   # doxia-shell's layer surfaces (bar, menus, notifications, OSD, lock)
   gtk4-layer-shell
-  "${quickshell[@]}"
 
   # Terminal + default apps
   kitty nano nautilus nautilus-python sushi gnome-disk-utility evince-thumbnailer imv mpv mpv-mpris flatpak
@@ -106,9 +99,8 @@ packages=(
 )
 dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
 
-# Fedora's own quickshell (0.2.x) and uwsm can win over the COPR builds on first
-# install; Omarchy 4 needs quickshell >= 0.3.1.
-dnf upgrade -y --refresh "${quickshell[@]:0:1}" uwsm
+# Fedora's own uwsm can win over the COPR build on first install.
+dnf upgrade -y --refresh uwsm
 
 # Not every spin enables these presets (the Workstation one does).
 systemctl enable tuned.service tuned-ppd.service

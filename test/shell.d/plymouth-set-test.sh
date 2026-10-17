@@ -76,9 +76,9 @@ require_command node
 unlock_action=$(node -e '
   const fs = require("fs")
   const path = require("path")
-  const menu = require(path.join(process.env.ROOT, "shell/plugins/menu/MenuModel.js"))
-  const items = menu.parseMenuJsonc(fs.readFileSync(path.join(process.env.ROOT, "default/omarchy/omarchy-menu.jsonc"), "utf8"))
-  process.stdout.write(items.find(item => item.id === "style.unlock").action)
+  const text = fs.readFileSync(path.join(process.env.ROOT, "default/omarchy/omarchy-menu.jsonc"), "utf8")
+  const line = text.split("\n").find(l => l.trim().startsWith("\"style.unlock\":"))
+  process.stdout.write(JSON.parse(line.trim().replace(/^"style\.unlock":\s*/, "").replace(/,$/, "")).action)
 ')
 
 [[ -n $unlock_action ]] || fail "the shipped menu still carries a style.unlock action"

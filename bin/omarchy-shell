@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# omarchy:summary=Send an IPC call to the running Omarchy shell
+# omarchy:summary=Send an IPC call to the running DoxIA shell
 # omarchy:args=[-q] <target> <method> [args...]
 # omarchy:examples=omarchy shell shell ping | omarchy-shell shell toggle omarchy.menu '{"menu":"root"}'
 
@@ -20,7 +20,7 @@ if (( $# == 0 )) || [[ $1 == "-h" || $1 == "--help" ]]; then
   cat <<USAGE
 Usage: omarchy-shell [-q] <target> <method> [args...]
 
-Forwards an IPC call to the running Omarchy shell. The shell is expected
+Forwards an IPC call to the running DoxIA shell (doxia-shell). The shell is expected
 to already be running; this command does not start it.
 
 Options:
@@ -37,70 +37,15 @@ USAGE
 fi
 
 (( $# >= 2 )) || fail "Usage: omarchy-shell <target> <method> [args...]"
-[[ -n ${OMARCHY_PATH:-} ]] || fail "OMARCHY_PATH is not set"
-
-# qs matches instances by display, and a caller from outside the session (an
-# ssh or TTY omarchy-restart-shell, and the migrations it runs for) has none,
-# so recover it from the compositor socket.
-if [[ -z ${WAYLAND_DISPLAY:-} ]]; then
-  socket=$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$UID}"/wayland-[0-9]* 2>/dev/null | grep -v '\.lock$' | head -n1)
-  [[ -n $socket ]] && export WAYLAND_DISPLAY=${socket##*/}
-fi
-
 if [[ $1 == "shell" && ( $2 == "summon" || $2 == "toggle" ) ]] && (( $# == 3 )); then
   set -- "$1" "$2" "$3" "{}"
 fi
 
-# doxia-shell (fedora/doxia/rs/shell) answers for the targets it has taken over
-# from Quickshell; "Target not found." or no doxia-shell on the bus means the
-# call is Quickshell's. DOXIA_SHELL=0 skips it (the tests' throwaway shells).
-if [[ ${DOXIA_SHELL:-1} != "0" ]]; then
-  doxia=$(busctl --user --timeout=2 --json=short call org.doxia.Shell /org/doxia/Shell/Ipc \
-    org.doxia.Shell Call ssas "$1" "$2" $(( $# - 2 )) "${@:3}" 2>/dev/null | jq -r '.data[0] // empty' 2>/dev/null)
-  if [[ -n $doxia && $doxia != "Target not found." ]]; then
-    [[ $doxia == "Function not found." ]] && fail "$doxia"
-    (( QUIET )) || echo "$doxia"
-    exit 0
-  fi
-fi
+# doxia-shell (fedora/doxia/rs/shell) answers on the session bus.
+output=$(busctl --user --timeout=2 --json=short call org.doxia.Shell /org/doxia/Shell/Ipc \
+  org.doxia.Shell Call ssas "$1" "$2" $(( $# - 2 )) "${@:3}" 2>/dev/null | jq -r '.data[0] // empty' 2>/dev/null)
+[[ -n $output ]] || fail "doxia-shell is not running"
+[[ $output == "Target not found." || $output == "Function not found." ]] && fail "$output"
 
-# With doxia-shell doing everything, Quickshell isn't running: what it
-# couldn't answer, nothing can.
-if [[ -n ${doxia:-} ]] && omarchy-cmd-doxia-shell-full; then
-  fail "$doxia"
-fi
-[[ -f $OMARCHY_PATH/shell/shell.qml ]] || fail "omarchy-shell config not found: $OMARCHY_PATH/shell/shell.qml"
-
-# doxia-shell's plugins (doxia.menu, ...) are Quickshell's omarchy.* ones.
-if [[ $1 == "shell" && ${3:-} =~ ^doxia\.(menu|clipboard|emojis|image-picker|reminders)$ ]]; then
-  set -- "$1" "$2" "omarchy.${3#doxia.}" "${@:4}"
-fi
-
-# The -- keeps function names that shadow qs subcommands (e.g. show) as
-# positionals. qs reports connection failures with a nonzero exit, but IPC-level
-# failures (unknown target/function, bad arguments) go to stdout with exit 0.
-ipc_timeout=${OMARCHY_SHELL_IPC_TIMEOUT:-2s}
-output=$(timeout --kill-after=1s "$ipc_timeout" qs ipc -n -p "$OMARCHY_PATH/shell" call -- "$@" 2>/dev/null)
-ipc_status=$?
-
-if (( ipc_status == 124 || ipc_status == 137 )); then
-  fail "omarchy-shell is not responding"
-elif (( ipc_status != 0 )); then
-  fail "omarchy-shell is not running"
-fi
-
-case $output in
-  "Target not found." | "Function not found." | "Too few arguments provided"* | "Too many arguments provided"*)
-    fail "$output"
-    ;;
-  # A starting shell answers on stdout and exits 0, so a ping reads it as up
-  # and the next call's answer as a result. It is as unreachable as none.
-  "Not ready to accept queries yet"*)
-    fail "omarchy-shell is not ready"
-    ;;
-esac
-
-if (( !QUIET )) && [[ -n $output ]]; then
-  echo "$output"
-fi
+(( QUIET )) || echo "$output"
 exit 0

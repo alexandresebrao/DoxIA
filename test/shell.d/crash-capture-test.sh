@@ -54,15 +54,6 @@ grep -F 'omarchy-crash-watch.service' "$ROOT/install/user/first-run/enable-user-
   fail "crash capture is no longer on by default for new installs"
 pass "crash capture is on by default"
 
-run_node_test <<'JS'
-const fs = require('fs')
-const menu = requireFromRoot('shell/plugins/menu/MenuModel.js')
-const items = menu.parseMenuJsonc(fs.readFileSync(path.join(root, 'default/omarchy/omarchy-menu.jsonc'), 'utf8'))
-const byId = Object.fromEntries(items.map(item => [item.id, item]))
-
-assertEqual(
-  byId['trigger.toggle.crash-capture'].action,
-  'omarchy-toggle-crash-capture',
-  'menu toggles crash capture from Trigger > Toggle'
-)
-JS
+grep -F '"trigger.toggle.crash-capture":' "$ROOT/default/omarchy/omarchy-menu.jsonc" | grep -F '"action":"omarchy-toggle-crash-capture"' >/dev/null ||
+  fail "menu toggles crash capture from Trigger > Toggle"
+pass "menu toggles crash capture from Trigger > Toggle"

@@ -1,8 +1,9 @@
 # DoxIA apps in Rust + GTK 4
 
-DoxIA is moving off the Quickshell shell (`shell/`) one piece at a time; each
-piece that moves becomes an app in this Cargo workspace, and its launcher
-falls back to the shell piece while the app is not installed.
+DoxIA moved off the Quickshell shell (since deleted from the repository) one
+piece at a time; each piece became an app in this Cargo workspace. Notes below
+about living beside Quickshell describe code in doxia-shell (`quickshell.rs`)
+that only matters on a machine still running it.
 
 | Crate | Binary | Replaces |
 | --- | --- | --- |
@@ -48,11 +49,10 @@ and runs itself otherwise (`DOXIA_PAINEL_PY=1` forces it). HTTP goes through
 The long-running half: a GTK application that owns `org.doxia.Shell` on the
 session bus, run by the user unit `fedora/doxia/doxia-shell.service`
 (installed by `install-user-units`, started by mango's autostart, restarted
-if it dies). It answers the Quickshell IPC calls for the targets it has taken
-over, through `org.doxia.Shell.Call(target, method, args)` at
-`/org/doxia/Shell/Ipc`. `bin/omarchy-shell` asks it first and goes on to
-Quickshell on "Target not found." or when it is not running, so callers and
-key bindings stay as they are; `DOXIA_SHELL=0` skips it (the tests set it).
+if it dies). It answers the shell's IPC calls through
+`org.doxia.Shell.Call(target, method, args)` at `/org/doxia/Shell/Ipc`;
+`bin/omarchy-shell` forwards them, so callers and key bindings stay as they
+were under Quickshell.
 
 ```bash
 busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
@@ -116,8 +116,7 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 - `shell` (the plugin surface): `summon`, `toggle`, `hide` and `call` for
   the plugins doxia-shell has taken over, `doxia.menu`, `doxia.iniciar`,
   `doxia.clipboard`, `doxia.emojis`, `doxia.image-picker` and
-  `doxia.reminders` (Quickshell's `omarchy.*` names for them still work, and
-  `bin/omarchy-shell` hands `doxia.*` on to Quickshell under those); for any
+  `doxia.reminders` (Quickshell's `omarchy.*` names for them still work); for any
   other plugin, or a call without one (`ping`,
   `listPlugins`), it answers "Target not found." and the call goes on to
   Quickshell. Both plugins stay enabled there: the menu's bar button is a
