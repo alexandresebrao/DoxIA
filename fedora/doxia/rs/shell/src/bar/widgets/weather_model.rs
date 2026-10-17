@@ -148,13 +148,16 @@ pub fn wttr_current(report: &Value) -> Option<Current> {
 // The icon for now: Open-Meteo's, unless its model says dry while wttr.in's
 // observation says it is raining or snowing (the model often ends a rain
 // hours before it does); then wttr.in's, with Open-Meteo's day or night.
+// wttr.in's "nearby" codes only count with rain in the gauge.
 pub fn current_icon(meteo: Option<&Value>, wttr: Option<&Value>) -> String {
   let c = meteo.map(|m| &m["current"]);
   let code = c.and_then(|c| num(&c["weather_code"])).map(|n| n as i64);
   let night = c.and_then(|c| num(&c["is_day"])) == Some(0.0);
-  let observed = wttr.and_then(|w| w["current_condition"].get(0)).and_then(|o| num(&o["weatherCode"])).map(|n| n as i64);
+  let obs = wttr.and_then(|w| w["current_condition"].get(0));
+  let observed = obs.and_then(|o| num(&o["weatherCode"])).map(|n| n as i64);
+  let precip = obs.and_then(|o| num(&o["precipMM"])).unwrap_or(0.0);
   match (code, observed) {
-    (Some(code), Some(obs)) if code < 51 && wet_code(obs) => icon_code(obs, night),
+    (Some(code), Some(obs)) if code < 51 && wet_code(obs) && (precip > 0.0 || !nearby_code(obs)) => icon_code(obs, night),
     (Some(code), _) => icon_open_meteo(code, night),
     (None, Some(obs)) => icon_code(obs, night),
     (None, None) => String::new(),
@@ -164,6 +167,12 @@ pub fn current_icon(meteo: Option<&Value>, wttr: Option<&Value>) -> String {
 // wttr.in (WWO) codes with rain, drizzle, sleet, snow or thunder.
 fn wet_code(code: i64) -> bool {
   !matches!(code, 113 | 116 | 119 | 122 | 143 | 248 | 260)
+}
+
+// "Patchy rain/snow/sleet/drizzle nearby" and "thundery outbreaks nearby":
+// somewhere around, not necessarily here.
+fn nearby_code(code: i64) -> bool {
+  matches!(code, 176 | 179 | 182 | 185 | 200)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -341,5 +350,10 @@ mod tests {
     assert_eq!(current_icon(Some(&storm), Some(&raining)), icon_open_meteo(95, false));
     assert_eq!(current_icon(None, Some(&raining)), icon_code(353, false));
     assert_eq!(current_icon(None, None), "");
+    let sunny = json!({"current": {"weather_code": 2, "is_day": 1}});
+    let nearby = json!({"current_condition": [{"weatherCode": "176", "precipMM": "0.0"}]});
+    let nearby_wet = json!({"current_condition": [{"weatherCode": "176", "precipMM": "0.3"}]});
+    assert_eq!(current_icon(Some(&sunny), Some(&nearby)), icon_open_meteo(2, false));
+    assert_eq!(current_icon(Some(&sunny), Some(&nearby_wet)), icon_code(176, false));
   }
 }
