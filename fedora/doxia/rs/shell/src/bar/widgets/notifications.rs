@@ -42,7 +42,7 @@ fn app_name(entry: &Entry) -> String {
 
 // doxia.notifications: the bell on its own.
 pub fn build(ctx: &Rc<Ctx>) -> Option<gtk::Widget> {
-  let b = Button::new(ctx, Kind::Status, "\u{f009a}");
+  let b = Button::new(ctx, Kind::Icon, "\u{f009a}");
   let shown = b.clone();
   let slot = bell(ctx, &b, move |_, text, tip| {
     shown.set_text(text);
