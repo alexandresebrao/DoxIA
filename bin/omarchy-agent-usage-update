@@ -52,14 +52,23 @@ collect() {
 }
 
 pids=()
+found=0
 for collector in "$OMARCHY_PATH"/bin/omarchy-agent-usage-*; do
   [[ -x $collector ]] || continue
   agent="${collector##*/omarchy-agent-usage-}"
   [[ $agent == "update" ]] && continue
+  found=1
   wanted "$agent" || continue
   collect "$collector" "$agent" &
   pids+=($!)
 done
+
+# Found by the glob above only: without this, losing every collector
+# leaves the panel's records silently stale.
+if ((!found)); then
+  echo "omarchy-agent-usage-update: no omarchy-agent-usage-<agent> collector in $OMARCHY_PATH/bin" >&2
+  exit 1
+fi
 
 status=0
 for pid in "${pids[@]}"; do
