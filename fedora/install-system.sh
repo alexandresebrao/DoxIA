@@ -44,6 +44,9 @@ echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
 # doxia-shell is the shell: without it there is no desktop.
 bash "$omarchy_path/fedora/doxia/install-rs"
 
+echo "==> DoxMail, the mail, calendar and contacts app (from this repository's releases)"
+bash "$omarchy_path/fedora/doxia/install-doxmail" || echo "  DoxMail not installed; the next update tries again."
+
 echo "==> Installing packages"
 packages=(
   # Session and portals. mangowm ships mango-portals.conf, which routes screen
@@ -117,7 +120,7 @@ bash "$omarchy_path/fedora/doxia/install-chrome" --system || echo "  Chrome was 
 # evince-thumbnailer above keeps PDF thumbnails in Nautilus. ONLYOFFICE replaces
 # LibreOffice, which Fedora's spins install (removing it also drops the JDK only it
 # needed: java and node come from SDKMAN! and nvm, fedora/doxia/install-dev-tools).
-echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese, Evolution, Firefox, LibreWolf)"
+echo "==> Installing Flatpak apps (Evince, ONLYOFFICE in Brazilian Portuguese, Firefox, LibreWolf)"
 office_rpms=$(rpm -qa --qf '%{NAME}\n' 'libreoffice*' unoconv)
 if [[ -n $office_rpms ]]; then
   dnf remove -y $office_rpms
@@ -128,7 +131,7 @@ fi
 if rpm -q firefox &>/dev/null; then
   dnf remove -y --setopt=clean_requirements_on_remove=False firefox firefox-langpacks
 fi
-flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors org.gnome.Evolution org.mozilla.firefox io.gitlab.librewolf-community)
+flatpak_apps=(org.gnome.Evince org.onlyoffice.desktopeditors org.mozilla.firefox io.gitlab.librewolf-community)
 flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 # Brazilian Portuguese whatever the system's language: ONLYOFFICE takes its interface
 # language from LANG, and ships the pt-BR translation and spell checker itself. Its
@@ -161,8 +164,8 @@ else
   flatpak install -y --noninteractive flathub "${flatpak_apps[@]}"
 fi
 
-# Evolution is every user's default mail client (mailto: links, .eml files); it
-# follows the theme while open (GTK 3, gtk3-colors), which Thunderbird can't;
+# DoxMail is every user's default mail client (mailto: links, .eml files); it
+# follows the theme (GTK 4 and libadwaita, the gtk-4.0 gtk.css);
 # ~/.config/mimeapps.list still wins for anyone who picks another one.
 install -Dm644 "$omarchy_path/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
 

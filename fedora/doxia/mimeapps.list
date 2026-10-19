@@ -1,7 +1,7 @@
 # DoxIA: aplicativos padrão do sistema (todos os usuários); instalado em /etc/xdg/mimeapps.list.
 # Cada usuário pode trocar em ~/.config/mimeapps.list, que tem prioridade.
 [Default Applications]
-x-scheme-handler/mailto=org.gnome.Evolution.desktop
-x-scheme-handler/mid=org.gnome.Evolution.desktop
-message/rfc822=org.gnome.Evolution.desktop
-application/x-extension-eml=org.gnome.Evolution.desktop
+x-scheme-handler/mailto=org.doxia.DoxMail.desktop
+x-scheme-handler/mid=org.doxia.DoxMail.desktop
+message/rfc822=org.doxia.DoxMail.desktop
+application/x-extension-eml=org.doxia.DoxMail.desktop

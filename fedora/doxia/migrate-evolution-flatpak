@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Once per user, as the user: brings the mail, accounts and settings of the
+# Evolution Flatpak (org.gnome.Evolution, DoxIA's mail client before
+# DoxMail) to where DoxMail and the system evolution-data-server read them.
+# Copies only, the Flatpak's data stays in ~/.var/app; skipped when there is
+# nothing to bring or DoxMail already has its own mail.
+
+set -euo pipefail
+
+app="$HOME/.var/app/org.gnome.Evolution"
+data="${XDG_DATA_HOME:-$HOME/.local/share}/evolution"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/evolution"
+
+[[ -d $app/data/evolution || -d $app/config/evolution ]] || exit 0
+# DoxMail (or a native Evolution) already keeps mail here
+[[ -d $data/mail ]] && exit 0
+
+if pgrep -u "$USER" -x doxmail >/dev/null || pgrep -u "$USER" -f '^/app/bin/evolution' >/dev/null; then
+  echo "Close Evolution and DoxMail to bring the Evolution mail over; the next update tries again." >&2
+  exit 1
+fi
+
+echo "==> Evolution's mail, accounts and settings to DoxMail"
+mkdir -p "$data" "$config"
+# -n: what the system evolution-data-server made already (its default
+# address book, calendar, ...) stays; the Flatpak's accounts join it
+[[ -d $app/data/evolution ]] && cp -an "$app/data/evolution/." "$data/"
+[[ -d $app/config/evolution ]] && cp -an "$app/config/evolution/." "$config/"
+
+# The Flatpak keeps its GSettings in a keyfile, in dconf's own format
+keyfile="$app/config/glib-2.0/settings/keyfile"
+if [[ -f $keyfile ]] && command -v dconf >/dev/null; then
+  awk '/^\[/ { keep = ($0 ~ /^\[org\/gnome\/evolution/) } keep' "$keyfile" | dconf load / || true
+fi
+
+# The source registry reads the accounts again when it starts
+pkill -u "$USER" -x evolution-source-registry 2>/dev/null || true
+pkill -u "$USER" -f 'evolution-source-registry$' 2>/dev/null || true

@@ -3,7 +3,7 @@
 # Brings this machine up to date with the DoxIA repo: pulls it, then reapplies the
 # DoxIA theme (the default), branding, nvm and SDKMAN!, zsh with Oh My Zsh, the salsicha screensaver, the icon font, menu extensions, default
 # agent and editor, the mango user config (once), /etc/motd, the login session
-# name, the login screen (greetd, replacing SDDM), the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), Evolution as the default mail client, LibreWolf and the DoxIA bar widgets (fedora/doxia/apply-bar: the
+# name, the login screen (greetd, replacing SDDM), the GRUB boot menu theme, the keyring password window, ONLYOFFICE (instead of LibreOffice), DoxMail as the default mail client, LibreWolf and the DoxIA bar widgets (fedora/doxia/apply-bar: the
 # DoxIA plugins, the services panel included, are refreshed and the missing widgets
 # added; the rest of the bar stays as it is).
 #
@@ -237,10 +237,10 @@ fi
 # GTK 3 apps (Evolution etc.) in the theme's colors: the theme-set hook gtk3-colors
 # turns the theme's gtk3.css into a GTK theme in ~/.local/share/themes, which flatpaks may read.
 flatpak override --user --filesystem=xdg-config/gtk-3.0:ro --filesystem=xdg-config/gtk-4.0:ro --filesystem=xdg-data/themes:ro
-# Evolution's preview in the theme's colors, not the e-mail's own (once, so
-# turning it off in Evolution sticks).
-if ! omarchy-done check doxia-evolution-colors && flatpak info org.gnome.Evolution &>/dev/null; then
-  flatpak run --command=gsettings org.gnome.Evolution set org.gnome.evolution.mail preview-unset-html-colors true &&
+# The mail preview in the theme's colors, not the e-mail's own (once, so
+# turning it off in DoxMail sticks; it shares Evolution's settings).
+if ! omarchy-done check doxia-evolution-colors && command -v doxmail &>/dev/null; then
+  gsettings set org.gnome.evolution.mail preview-unset-html-colors true &&
     omarchy-done mark doxia-evolution-colors
 fi
 # A kept theme set before gtk3.css.tpl existed gets it by being set again.
@@ -309,10 +309,19 @@ flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
 flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
 ROOT
 
-echo "==> Mail: Evolution from Flathub as every user's default mail client (sudo)"
-# Thunderbird, the default before, stays installed with its mail and settings.
-sudo flatpak install -y --noninteractive --or-update flathub org.gnome.Evolution
-sudo install -Dm644 "$OMARCHY_PATH/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
+echo "==> Mail: DoxMail as every user's default mail client (sudo)"
+# DoxMail replaces the Evolution Flatpak: this user's mail, accounts and
+# settings come over once (the Flatpak's data stays in ~/.var/app); then the
+# Flatpak goes. Thunderbird, the default before that, stays installed.
+if sudo bash "$OMARCHY_PATH/fedora/doxia/install-doxmail"; then
+  if bash "$OMARCHY_PATH/fedora/doxia/migrate-evolution-flatpak" &&
+    flatpak info --system org.gnome.Evolution &>/dev/null; then
+    sudo flatpak uninstall -y --noninteractive --system org.gnome.Evolution || true
+  fi
+  sudo install -Dm644 "$OMARCHY_PATH/fedora/doxia/mimeapps.list" /etc/xdg/mimeapps.list
+else
+  echo "  DoxMail not installed; Evolution stays the mail client."
+fi
 
 echo "==> Firefox from Flathub instead of the RPM, in the theme's colors, and LibreWolf (sudo)"
 sudo flatpak install -y --noninteractive --or-update flathub org.mozilla.firefox io.gitlab.librewolf-community

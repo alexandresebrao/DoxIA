@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# DoxMail, the DoxIA mail, calendar and contacts app (Evolution ported to
+# GTK 4, github.com/alexandresebrao/DoxMail), as root, for install-system.sh
+# and update.sh. The RPM is a release asset of this repository, built by
+# doxmail/package in the DoxMail tree and checked against the sha256 below;
+# it uses the system evolution-data-server, and conflicts with the
+# evolution RPM (both install the same files and share the mail data).
+#
+# To ship a new build: upload the RPM as release doxmail-<version>, then
+# bump version and sha256 below.
+
+set -euo pipefail
+
+version=3.60.2-0.20261019git379d584769
+sha256=ad75e0d99847336120e290dc95b83912d3dab809a134781d7eec9ab7706d654b
+target="$version.fc$(rpm -E %fedora)"
+rpm_file="doxmail-$target.$(uname -m).rpm"
+url="https://github.com/alexandresebrao/DoxIA/releases/download/doxmail-$version/$rpm_file"
+
+installed=$(rpm -q --qf '%{VERSION}-%{RELEASE}' doxmail 2>/dev/null || true)
+[[ $installed == "$target" ]] && exit 0
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+# Published for one Fedora release and architecture at a time.
+if ! curl -sfL --retry 3 -o "$tmp/$rpm_file" "$url"; then
+  echo "No DoxMail build for this system: $url" >&2
+  exit 1
+fi
+if [[ $(sha256sum "$tmp/$rpm_file" | cut -d' ' -f1) != "$sha256" ]]; then
+  echo "DoxMail: checksum mismatch for $url" >&2
+  exit 1
+fi
+
+dnf install -y --setopt=install_weak_deps=False "$tmp/$rpm_file"

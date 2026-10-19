@@ -375,6 +375,8 @@ categories	user-info	user
 apps	org.gnome.Nautilus	folder
 apps	nautilus	folder
 apps	org.gnome.TextEditor	file-pen-line
+apps	org.doxia.DoxMail	mail
+apps	doxmail	mail
 apps	org.gnome.Evolution	mail
 apps	evolution	mail
 apps	org.gnome.Evince	book-open-text
