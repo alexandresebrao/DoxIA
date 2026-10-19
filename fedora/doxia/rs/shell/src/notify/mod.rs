@@ -53,6 +53,7 @@ const XML: &str = r#"<node>
     </method>
     <signal name="NotificationClosed"><arg name="id" type="u"/><arg name="reason" type="u"/></signal>
     <signal name="ActionInvoked"><arg name="id" type="u"/><arg name="action_key" type="s"/></signal>
+    <signal name="ActivationToken"><arg name="id" type="u"/><arg name="activation_token" type="s"/></signal>
   </interface>
 </node>"#;
 
@@ -549,6 +550,12 @@ impl Notifications {
     if let Some(argv) = model::parse_exec_argv(&entry.exec_argv) {
       spawn(&argv);
     } else if !restored && has_default {
+      // Without an xdg-activation token the sender may not raise its window
+      // (Chrome, kitty): mango keeps the focus where it is, on another tag.
+      // The spec has the token go first, then the action.
+      if let Some(token) = activation_token() {
+        self.emit("ActivationToken", (entry.original_id, token).to_variant());
+      }
       self.emit("ActionInvoked", (entry.original_id, "default").to_variant());
     } else if !entry.app.is_empty() {
       let focus = format!("{}/bin/omarchy-mango-focus-app", std::env::var("OMARCHY_PATH").unwrap_or_default());
@@ -680,6 +687,13 @@ impl Notifications {
       _ => return None,
     })
   }
+}
+
+// An xdg-activation token from the click just made on the card (GDK asks
+// the compositor with that input's serial).
+fn activation_token() -> Option<String> {
+  let ctx = gdk::Display::default()?.app_launch_context();
+  ctx.startup_notify_id(None::<&gio::AppInfo>, &[]).map(|t| t.to_string())
 }
 
 // Detached, argv as given (no shell).
