@@ -158,7 +158,9 @@ pub fn get() -> Rc<Pipewire> {
 impl Pipewire {
   fn start(self: &Rc<Self>) {
     let weak = Rc::downgrade(self);
-    crate::watch::lines(&["pactl", "subscribe"], move |line| {
+    // In C: translated, pactl says "em destino #54" (pt_BR) and no line
+    // would ever name a sink or a source.
+    crate::watch::lines(&["env", "LC_ALL=C", "pactl", "subscribe"], move |line| {
       if !line.contains("server") && !line.contains("sink") && !line.contains("source") {
         return;
       }
