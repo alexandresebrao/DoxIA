@@ -14,6 +14,17 @@ WINDOW_ID=$(mmsg get all-clients | jq -r --arg p "$WINDOW_PATTERN" '.clients[]|s
 
 if [[ -n $WINDOW_ID ]]; then
   mmsg dispatch focusid "client,$WINDOW_ID" >/dev/null
-else
-  eval exec setsid $LAUNCH_COMMAND
+  exit 0
 fi
+
+# A window takes a moment to map: a second call meanwhile (a double click)
+# would launch it again. One launch per pattern every 3 s.
+stamp="${XDG_RUNTIME_DIR:-/tmp}/omarchy-launch-or-focus-${WINDOW_PATTERN//[^[:alnum:]._-]/_}"
+exec 9>"$stamp.lock"
+flock -n 9 || exit 0
+if [[ -f $stamp ]] && (($(date +%s) - $(stat -c %Y "$stamp") < 3)); then
+  exit 0
+fi
+touch "$stamp"
+exec 9>&-
+eval exec setsid $LAUNCH_COMMAND

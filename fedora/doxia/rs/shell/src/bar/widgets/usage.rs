@@ -155,7 +155,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
       None => false,
     }
   });
-  widget::on_press(&area, |_| crate::run::shell("xdg-terminal-exec btop"));
+  widget::on_press(&area, |_| crate::run::shell("omarchy-launch-or-focus-tui btop"));
 
   // The bars ease to their values (about 400 ms), only while they move.
   let animating = Rc::new(Cell::new(false));
