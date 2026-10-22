@@ -241,9 +241,9 @@ pub fn build(ctx: &Rc<Ctx>, entry: &Value) -> gtk::Widget {
   let space = { let s = ctx.style.clone(); move |px: f64| s.space(px) };
   let palette = doxia_theme::palette();
 
-  let button = Button::new(ctx, Kind::Status, "");
-  // BarIconButton in a status slot: the icon font, not the caption one.
-  button.widget.add_css_class("bar-weather");
+  // A square icon slot like its neighbors: the glyph is wider than a status
+  // slot and touched the bar's rounded end.
+  let button = Button::new(ctx, Kind::Icon, "");
   button.widget.set_visible(false);
   let slot = Slot::new(ctx, &button.widget);
   let panel = Panel::centered(ctx, &button.widget, &slot, space(480.0));

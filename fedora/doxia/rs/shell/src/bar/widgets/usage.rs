@@ -1,14 +1,16 @@
-// doxia.usage (fedora/doxia/plugins/doxia.usage/Usage.qml): CPU, memory
-// and, while on battery or not full, the battery, each an icon with a
-// vertical bar beside it filling with the percentage, in the accent (gold
-// past 75%; the battery red under 20% and gold under 35%). The exact value
-// is each meter's tooltip; a click opens btop. Horizontal bars only.
+// doxia.usage (fedora/doxia/plugins/doxia.usage/Usage.qml): CPU and memory,
+// each an icon with a small graph of the last minute beside it, and, while
+// on battery or not full, the battery with a vertical bar filling with the
+// percentage; in the accent (gold past 75%; the battery red under 20% and
+// gold under 35%). The exact value is each meter's tooltip; a click opens
+// btop. Horizontal bars only.
 
 use super::super::widget::{self, Slot};
 use super::super::Ctx;
 use gtk::prelude::*;
 use gtk::{glib, pango};
 use std::cell::{Cell, RefCell};
+use std::collections::VecDeque;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -36,8 +38,14 @@ pub fn memory(meminfo: &str) -> Option<(u64, u64)> {
   Some((field("MemTotal:")?, field("MemAvailable:")?))
 }
 
+// Samples a graph keeps: a minute at the default 2 s interval.
+const HISTORY: usize = 30;
+
 struct Meter {
   icon: char,
+  // A graph of the last samples instead of a bar.
+  graph: bool,
+  history: VecDeque<f64>,
   rotation: f64,
   value: f64,
   // Shown: what the bar draws now, easing towards `value`.
@@ -65,9 +73,9 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
   let (gap_icon, gap_meter) = (space(3.0), space(6.0));
 
   let meters = Rc::new(RefCell::new(vec![
-    Meter { icon: '\u{EC19}', rotation: 0.0, value: 0.0, shown: 0.0, fill: accent, icon_color: None, tip: String::new(), visible: true, x0: 0.0, x1: 0.0 },
-    Meter { icon: '\u{EFC5}', rotation: -90.0, value: 0.0, shown: 0.0, fill: accent, icon_color: None, tip: String::new(), visible: true, x0: 0.0, x1: 0.0 },
-    Meter { icon: '\u{F140B}', rotation: 0.0, value: 0.0, shown: 0.0, fill: accent, icon_color: None, tip: String::new(), visible: false, x0: 0.0, x1: 0.0 },
+    Meter { icon: '\u{EC19}', graph: true, history: VecDeque::new(), rotation: 0.0, value: 0.0, shown: 0.0, fill: accent, icon_color: None, tip: String::new(), visible: true, x0: 0.0, x1: 0.0 },
+    Meter { icon: '\u{EFC5}', graph: true, history: VecDeque::new(), rotation: -90.0, value: 0.0, shown: 0.0, fill: accent, icon_color: None, tip: String::new(), visible: true, x0: 0.0, x1: 0.0 },
+    Meter { icon: '\u{F140B}', graph: false, history: VecDeque::new(), rotation: 0.0, value: 0.0, shown: 0.0, fill: accent, icon_color: None, tip: String::new(), visible: false, x0: 0.0, x1: 0.0 },
   ]));
   let area = gtk::DrawingArea::new();
   area.add_css_class("bar-usage");
@@ -75,6 +83,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
   area.set_content_height(ctx.bar_size());
   let bar_w = (unit * 0.24).round().max(3.0);
   let bar_h = (unit * 0.95).round();
+  let graph_w = (unit * 2.0).round();
   let m = meters.clone();
   let a = area.clone();
   area.set_draw_func(move |_, cr, _w, h| {
@@ -106,8 +115,15 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
       cr.restore().ok();
       let _ = ih;
       x += iw.ceil() + gap_icon;
-      // The bar: a faint track, filled from the bottom.
       let by = ((h - bar_h) / 2.0).round();
+      if meter.graph {
+        draw_graph(cr, &meter.history, x, by, graph_w, bar_h, stroke, meter.fill);
+        x += graph_w;
+        meter.x1 = x;
+        x += gap_meter;
+        continue;
+      }
+      // The bar: a faint track, filled from the bottom.
       widget::rounded(cr, x, by, bar_w, bar_h, bar_w / 2.0);
       cr.set_source_rgba(stroke[0], stroke[1], stroke[2], 0.16);
       let _ = cr.fill();
@@ -133,7 +149,7 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
         layout.set_font_description(Some(&font));
         let (ink, _) = layout.pixel_extents();
         let iw = if meter.rotation % 180.0 != 0.0 { ink.height() } else { ink.width() } as f64;
-        w += iw.ceil() + gap_icon + bar_w;
+        w += iw.ceil() + gap_icon + if meter.graph { graph_w } else { bar_w };
         n += 1;
       }
       w += gap_meter * (n.max(1) - 1) as f64;
@@ -199,6 +215,8 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
       let stat = std::fs::read_to_string("/proc/stat").unwrap_or_default();
       let meminfo = std::fs::read_to_string("/proc/meminfo").unwrap_or_default();
       let mut ms = m.borrow_mut();
+      // The first CPU value needs a second sample: no graph point yet.
+      let first = last.get().is_none();
       if let Some((sum, idle)) = cpu_sample(&stat) {
         if let Some(prev) = last.get() {
           let (dt, di) = (sum.saturating_sub(prev.sum), idle.saturating_sub(prev.idle));
@@ -220,6 +238,12 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
         );
       }
       ms[1].fill = if ms[1].value > 0.75 { yellow } else { accent };
+      for meter in ms.iter_mut().filter(|m| m.graph).skip(first as usize) {
+        meter.history.push_back(meter.value);
+        if meter.history.len() > HISTORY {
+          meter.history.pop_front();
+        }
+      }
       let up = crate::upower::get();
       let present = up.present();
       let bat = up.fraction();
@@ -253,6 +277,41 @@ pub fn build(ctx: &Rc<Ctx>, entry: &serde_json::Value) -> Option<gtk::Widget> {
     r();
   });
   Some(Slot::new(ctx, &area).widget.clone().upcast())
+}
+
+// The samples as an area filled under a line, the newest at the right end,
+// over a faint rounded track.
+fn draw_graph(cr: &gtk::cairo::Context, history: &VecDeque<f64>, x: f64, y: f64, w: f64, h: f64, stroke: [f64; 4], fill: [f64; 4]) {
+  let r = 3.0_f64.min(h / 2.0);
+  widget::rounded(cr, x, y, w, h, r);
+  cr.set_source_rgba(stroke[0], stroke[1], stroke[2], 0.10);
+  let _ = cr.fill_preserve();
+  cr.save().ok();
+  cr.clip();
+  let step = w / (HISTORY - 1) as f64;
+  let n = history.len();
+  let point = |i: usize, v: f64| (x + w - (n - 1 - i) as f64 * step, y + h - 1.0 - (h - 2.0) * v.clamp(0.0, 1.0));
+  if n >= 2 {
+    let (x0, _) = point(0, 0.0);
+    cr.move_to(x0, y + h);
+    for (i, v) in history.iter().enumerate() {
+      let (px, py) = point(i, *v);
+      cr.line_to(px, py);
+    }
+    cr.line_to(x + w, y + h);
+    cr.close_path();
+    cr.set_source_rgba(fill[0], fill[1], fill[2], 0.35);
+    let _ = cr.fill();
+    for (i, v) in history.iter().enumerate() {
+      let (px, py) = point(i, *v);
+      if i == 0 { cr.move_to(px, py) } else { cr.line_to(px, py) }
+    }
+    cr.set_source_rgba(fill[0], fill[1], fill[2], fill[3]);
+    cr.set_line_width(1.5);
+    cr.set_line_join(gtk::cairo::LineJoin::Round);
+    let _ = cr.stroke();
+  }
+  cr.restore().ok();
 }
 
 #[cfg(test)]
