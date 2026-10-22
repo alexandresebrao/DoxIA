@@ -28,17 +28,17 @@ dnf copr disable -y sdegler/hyprland 2>/dev/null || true
 dnf copr enable -y mineiro/hyprland
 dnf copr enable -y brycensranch/gpu-screen-recorder-git
 
-echo "==> mango (the DoxIA build, from this repository's releases)"
-# Also enables the kaleedtc/mangowm COPR for scenefx, with mangowm excluded.
-bash "$omarchy_path/fedora/doxia/install-mango"
-
 echo "==> wlroots (the DoxIA build, on VMware only)"
 # vmwgfx rejects every client DMA-BUF in Fedora's build: black login screen.
 bash "$omarchy_path/fedora/doxia/install-wlroots"
 
-echo "==> scenefx (the DoxIA build, on VMware only)"
-# vmwgfx can't allocate the blur/shadow buffers in the COPR build.
+echo "==> scenefx (the DoxIA build, from this repository's releases)"
+# Before mango, which requires it. Carries the vmwgfx fallback for the
+# blur/shadow buffers.
 bash "$omarchy_path/fedora/doxia/install-scenefx"
+
+echo "==> mango (the DoxIA build, from this repository's releases)"
+bash "$omarchy_path/fedora/doxia/install-mango"
 
 echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
 # doxia-shell is the shell: without it there is no desktop.

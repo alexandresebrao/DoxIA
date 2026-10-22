@@ -13,8 +13,8 @@ The spec is the COPR's (from its 0.5-3.fc44 source RPM). The release is
 `3%{?dist}.doxia2`, so it sorts newer than the COPR's own build.
 
 `fedora/doxia/install-scenefx` installs the RPMs from this repository's release
-`scenefx-<version>` only on VMware guests, and version-locks them so a COPR
-update does not swap them out. On any other machine it removes the lock.
+`scenefx-<version>` on every machine: it replaces the kaleedtc/mangowm COPR,
+which DoxIA no longer enables. The patch only changes anything on VMware.
 
 ## Shipping a new build
 
@@ -33,5 +33,6 @@ gh release create scenefx-<version> \
   --target fedora --latest=false
 ```
 
-Then set `version` in `fedora/doxia/install-scenefx`. When the COPR ships a
-newer scenefx, rebase the spec on its source RPM and keep the patch.
+Then set `version` in `fedora/doxia/install-scenefx`. A new scenefx upstream
+(github.com/wlrfx/scenefx) is ours to package now: bump the spec, keep the
+patch, and check mango still builds against it.

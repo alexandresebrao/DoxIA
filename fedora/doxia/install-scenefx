@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# The DoxIA build of scenefx on VMware (as root), for install-system.sh and
-# update.sh.
+# The DoxIA build of scenefx (as root), for install-system.sh and update.sh.
+# Runs before install-mango: mangowm requires scenefx, and no repository
+# enabled on DoxIA provides it.
 #
 # scenefx allocates its effect framebuffers (blur, shadows) as XBGR8888/
 # ABGR8888, which vmwgfx can't allocate with the scanout flag wlroots' gbm
 # allocator passes: "gbm_bo_create failed" every frame and no effects. The
-# DoxIA build falls back to XRGB8888/ARGB8888 and is published as a release
-# asset of this repository. It is version-locked so a COPR scenefx update does
-# not swap it out. Other machines keep the COPR's scenefx; if this system
-# stopped being a VMware guest, the lock is dropped and the COPR's next build
-# replaces it.
+# DoxIA build falls back to XRGB8888/ARGB8888, which only VMware ever reaches,
+# and is published as a release asset of this repository for every machine.
+# It replaces the kaleedtc/mangowm COPR, which install-mango disables. The
+# version lock earlier installs put on VMware is dropped: nothing else
+# offers scenefx anymore.
 #
 # To ship a new build: upload the RPMs as release scenefx-<version>, then bump
 # version below.
@@ -22,10 +23,7 @@ target="$version.fc$(rpm -E %fedora).doxia2"
 arch=$(uname -m)
 base="https://github.com/alexandresebrao/DoxIA/releases/download/scenefx-$version"
 
-if [[ $(systemd-detect-virt 2>/dev/null || true) != vmware ]]; then
-  dnf versionlock delete scenefx scenefx-devel &>/dev/null || true
-  exit 0
-fi
+dnf versionlock delete scenefx scenefx-devel &>/dev/null || true
 
 packages=(scenefx)
 # scenefx-devel requires the exact same build.
@@ -38,26 +36,23 @@ else
   order=$(rpm --eval "%{lua:print(rpm.vercmp('$installed', '$target'))}")
 fi
 
-if (( order != 0 )); then
-  urls=()
-  for package in "${packages[@]}"; do
-    urls+=("$base/$package-$target.$arch.rpm")
-  done
-
-  # Published for one Fedora release and architecture at a time.
-  if ! curl -sfIL "${urls[0]}" >/dev/null; then
-    echo "No DoxIA scenefx build for this system: ${urls[0]}" >&2
-    exit 1
-  fi
-
-  dnf versionlock delete scenefx scenefx-devel &>/dev/null || true
-  if (( order > 0 )); then
-    dnf downgrade -y "${urls[@]}"
-  else
-    dnf install -y --setopt=install_weak_deps=False "${urls[@]}"
-  fi
+if (( order == 0 )); then
+  exit 0
 fi
 
-# Re-added every run: scenefx-devel may have been installed since.
-dnf versionlock delete scenefx scenefx-devel &>/dev/null || true
-dnf versionlock add "${packages[@]/%/-$target}" >/dev/null
+urls=()
+for package in "${packages[@]}"; do
+  urls+=("$base/$package-$target.$arch.rpm")
+done
+
+# Published for one Fedora release and architecture at a time.
+if ! curl -sfIL "${urls[0]}" >/dev/null; then
+  echo "No DoxIA scenefx build for this system: ${urls[0]}" >&2
+  exit 1
+fi
+
+if (( order > 0 )); then
+  dnf downgrade -y "${urls[@]}"
+else
+  dnf install -y --setopt=install_weak_deps=False "${urls[@]}"
+fi

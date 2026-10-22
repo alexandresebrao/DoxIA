@@ -382,13 +382,15 @@ echo "==> Runtime packages installs before this one missed (sudo)"
 rpm -q perl-JSON-PP &>/dev/null || sudo dnf install -y perl-JSON-PP
 
 echo "==> Compositor: mango and its Wayland tools (sudo)"
-# Before the login screen below, whose greeter runs on mango. install-mango puts
-# back the DoxIA build if the unpatched COPR one got in, and keeps it excluded.
-sudo bash "$OMARCHY_PATH/fedora/doxia/install-mango"
+# Before the login screen below, whose greeter runs on mango.
 # On VMware, the DoxIA wlroots: Fedora's rejects every client DMA-BUF on vmwgfx.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-wlroots"
-# And scenefx: its blur/shadow buffers use formats vmwgfx can't allocate.
+# The DoxIA scenefx everywhere, before mango, which requires it; it replaces
+# the kaleedtc/mangowm COPR's.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-scenefx"
+# install-mango puts back the DoxIA build if the unpatched COPR one got in, and
+# disables that COPR.
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-mango"
 sudo bash -s <<'ROOT'
 set -euo pipefail
 tools=(xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)

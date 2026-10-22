@@ -4,22 +4,22 @@
 #
 # mango 0.18 crashes at startup without a DRM render node (Hyper-V, llvmpipe):
 # the DoxIA build carries the fix and is published as a release asset of this
-# repository. The kaleedtc/mangowm COPR stays enabled for scenefx, but excludes
-# mangowm: its unpatched 0.18.0-2.fc44 sorts newer than 0.18.0-2.doxia1.fc44,
-# so dnf upgrade would otherwise swap it in.
+# repository. Its scenefx is the DoxIA build too (install-scenefx, which runs
+# first), so the kaleedtc/mangowm COPR earlier installs enabled for it is
+# disabled here: its unpatched mangowm sorts newer than the DoxIA build.
 #
 # To ship a new build: upload the RPM as release mangowm-<version>, then bump
 # version below.
 
 set -euo pipefail
 
-version=0.18.0-2.doxia1
+version=0.18.2-1.doxia1
 target="$version.fc$(rpm -E %fedora)"
 rpm_file="mangowm-$target.$(uname -m).rpm"
 url="https://github.com/alexandresebrao/DoxIA/releases/download/mangowm-$version/$rpm_file"
 
-dnf copr enable -y kaleedtc/mangowm
-dnf config-manager setopt copr:copr.fedorainfracloud.org:kaleedtc:mangowm.excludepkgs=mangowm
+dnf copr disable -y kaleedtc/mangowm &>/dev/null || true
+dnf config-manager unsetopt copr:copr.fedorainfracloud.org:kaleedtc:mangowm.excludepkgs &>/dev/null || true
 
 installed=$(rpm -q --qf '%{VERSION}-%{RELEASE}' mangowm 2>/dev/null || true)
 if [[ -z $installed ]]; then

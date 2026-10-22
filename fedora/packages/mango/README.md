@@ -5,14 +5,14 @@ llvmpipe) `wlr_linux_dmabuf_v1_create_with_renderer()` returns NULL and mango
 crashed passing it to `wlr_scene_set_linux_dmabuf_v1()`.
 
 `fedora/doxia/install-mango` installs the RPM from this repository's release
-`mangowm-<version>` and excludes mangowm from the kaleedtc/mangowm COPR, which
-still provides scenefx.
+`mangowm-<version>`. scenefx is the DoxIA build too (`fedora/packages/scenefx`);
+the kaleedtc/mangowm COPR is no longer used.
 
 ## Shipping a new build
 
 ```bash
-# Build deps (scenefx-devel comes from the kaleedtc/mangowm COPR); spectool
-# is in rpmdevtools
+# Build deps (scenefx-devel is in this repository's scenefx-<version> release);
+# spectool is in rpmdevtools
 sudo dnf install rpmdevtools
 sudo dnf builddep fedora/packages/mango/mangowm.spec
 
