@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-version=3.60.2-0.20261022git6378593c58
-sha256=4e4d0ebdde672e331c95106c7e5efd8fdf5687487ab3275dba4505fc0c3a47b9
+version=3.60.2-0.20261022git90b770c51c
+sha256=848006b0bb98d9e2f402f90d055ecb4f5c3d623589e2c9285a1694a682adefee
 target="$version.fc$(rpm -E %fedora)"
 rpm_file="doxmail-$target.$(uname -m).rpm"
 url="https://github.com/alexandresebrao/DoxIA/releases/download/doxmail-$version/$rpm_file"
