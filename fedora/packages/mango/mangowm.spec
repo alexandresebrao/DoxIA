@@ -1,8 +1,8 @@
 %global forgeurl https://github.com/mangowm/mango
 
 Name:           mangowm
-Version:        0.18.0
-Release:        2.doxia1%{?dist}
+Version:        0.18.2
+Release:        1.doxia1%{?dist}
 Summary:        Practical and powerful Wayland compositor built on dwl
 
 License:        GPL-3.0-or-later
@@ -31,7 +31,7 @@ BuildRequires:  cjson-devel
 BuildRequires:  pango-devel
 BuildRequires:  systemd-rpm-macros
 
-# scenefx is resolved from the same Copr project
+# scenefx is the DoxIA build, from this repository's releases
 Requires:       scenefx
 
 %description
@@ -63,6 +63,9 @@ Mango is a modern, lightweight, high-performance tiling Wayland compositor built
 %{_userunitdir}/mango-session.target
 
 %changelog
+* Thu Oct 22 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.18.2-1.doxia1
+- Update to upstream version 0.18.2, keeping mango-dmabuf-null.patch
+
 * Fri Oct 09 2026 kaleedtc <kaleed@tutanota.com> - 0.18.0-2
 - Update to upstream version 0.18.0
 - Add missing mangonag binary, man page, and config.toml to %files
