@@ -12,6 +12,7 @@ that only matters on a machine still running it.
 | `greeter` | `doxia-greeter` | SDDM and its QML theme: the login screen, a greetd greeter |
 | `atualizar` | `doxia-atualizar` | the `omarchy.update` panel (`omarchy-launch-update`) |
 | `painel` | `doxia-painel` | the Python/libadwaita Painel Rápido (`fedora/doxia/painel`) |
+| `freeze` | `doxia-freeze` | `hyprpicker -r -z`: the screen freeze under slurp in the capture scripts |
 | `shell` | `doxia-shell` | Quickshell's layer-shell surfaces, one at a time: the OSD, the notifications, the polkit agent, the lock screen, the Omarchy menu, the Start menu and the pickers (clipboard, emojis, images) so far |
 
 The apps run as their own processes, so the update reloading or restarting
@@ -194,6 +195,16 @@ busctl --user call org.doxia.Shell /org/doxia/Shell/Ipc org.doxia.Shell \
 - Commands the menus start run in a scope of their own
   (`systemd-run --user --scope`, `run.rs`): doxia-shell is a service, and
   restarting it (the update does) would otherwise end everything it started.
+
+## doxia-freeze
+
+Freezes the screen while slurp picks (`omarchy-capture-region`, `-qr`, `-text`,
+`-color`): a grim screenshot of each monitor on an overlay layer surface
+(namespace `doxia-freeze`, no animation, blur or shadow in mango's layer
+rules), so slurp, mapped after it, sits above it, and grim captures the frozen
+content. `doxia-freeze --background` returns once the freeze is painted and
+prints its PID; the caller kills it after grim. Without it the scripts pick
+over the live screen.
 
 ## doxia-greeter
 

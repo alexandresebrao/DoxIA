@@ -2,10 +2,10 @@
 # See README.md for building and shipping them.
 [workspace]
 resolver = "3"
-members = ["doxia-theme", "login", "atualizar", "painel", "shell", "greeter"]
+members = ["doxia-theme", "login", "atualizar", "painel", "shell", "greeter", "freeze"]
 
 [workspace.package]
-version = "0.12.4"
+version = "0.12.5"
 edition = "2024"
 license = "MIT"
 publish = false
