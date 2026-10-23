@@ -14,7 +14,7 @@
 #                   (area < 20px^2) snaps to the rectangle it landed in
 #   fullscreen      the focused monitor, no interaction
 #
-#   --keep-freeze   leave the hyprpicker screen freeze running and print its
+#   --keep-freeze   leave the doxia-freeze screen freeze running and print its
 #                   PID as the first output line (empty when no freeze was
 #                   started); the caller owns killing it
 #   --match-monitor print "monitor:NAME" instead when the picked geometry
@@ -299,10 +299,10 @@ pick() {
 }
 
 FREEZE_PID=""
+# Returns once the freeze is on screen, so slurp maps above it. Without
+# doxia-freeze (doxia-rs not installed yet) the pick runs over live content.
 freeze_screen() {
-  hyprpicker -r -z >/dev/null 2>&1 &
-  FREEZE_PID=$!
-  sleep .1
+  FREEZE_PID=$(doxia-freeze --background 2>/dev/null)
 }
 
 cleanup_freeze() {

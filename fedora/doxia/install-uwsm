@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# The DoxIA build of uwsm (as root), for install-system.sh and update.sh.
+#
+# uwsm runs the session (mango and its units), and Fedora doesn't package it;
+# it came from the mineiro/hyprland COPR, which DoxIA no longer enables. The
+# DoxIA build is published as a release asset of this repository: noarch,
+# Python only, so one RPM per Fedora release serves every machine.
+#
+# To ship a new build: upload the RPM as release uwsm-<version>, then bump
+# version below.
+
+set -euo pipefail
+
+version=0.27.1-1.doxia1
+target="$version.fc$(rpm -E %fedora)"
+rpm_file="uwsm-$target.noarch.rpm"
+url="https://github.com/alexandresebrao/DoxIA/releases/download/uwsm-$version/$rpm_file"
+
+installed=$(rpm -q --qf '%{VERSION}-%{RELEASE}' uwsm 2>/dev/null || true)
+if [[ -z $installed ]]; then
+  order=-1
+else
+  order=$(rpm --eval "%{lua:print(rpm.vercmp('$installed', '$target'))}")
+fi
+
+if (( order == 0 )); then
+  exit 0
+fi
+
+# Published for one Fedora release at a time.
+if ! curl -sfIL "$url" >/dev/null; then
+  echo "No DoxIA uwsm build for this system: $url" >&2
+  exit 1
+fi
+
+if (( order > 0 )); then
+  dnf downgrade -y "$url"
+else
+  dnf install -y --setopt=install_weak_deps=False "$url"
+fi

@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# omarchy:summary=Pick a color from the screen and copy its hex code
+# omarchy:group=capture
+# omarchy:examples=omarchy capture color
+
+# The screen freezes (doxia-freeze), slurp picks a point over it and grim reads
+# that pixel; the code goes to the clipboard as #RRGGBB, like hyprpicker -a did.
+# Running it again while picking cancels the pick.
+
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/omarchy-capture-color.lock"
+if ! flock -n 9; then
+  pkill -x slurp
+  exit 0
+fi
+
+cleanup_freeze() {
+  [[ -n $PID ]] && kill $PID 2>/dev/null
+}
+trap cleanup_freeze EXIT
+
+PID=$(doxia-freeze --background 2>/dev/null)
+POINT=$(slurp -p 2>/dev/null)
+
+[[ -z $POINT ]] && exit 0
+
+# One pixel at scale 1, as binary PPM: the color is its last three bytes.
+COLOR=$(grim -s 1 -g "$POINT" -t ppm - | tail -c 3 | od -An -tx1 | tr -d ' \n')
+[[ ${#COLOR} == 6 ]] || exit 1
+COLOR="#${COLOR^^}"
+
+printf '%s' "$COLOR" | wl-copy
+omarchy-notification-send -g 󰃉 "Cor $COLOR copiada para a área de transferência"

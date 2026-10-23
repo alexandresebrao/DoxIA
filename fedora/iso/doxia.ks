@@ -65,7 +65,7 @@ echo "  installing $(runuser -u "$user" -- git -C "$checkout" rev-parse HEAD)"
 SUDO_USER=$user bash "$checkout/fedora/install-system.sh"
 
 # Anaconda already installed from the updates repo; this catches what was published
-# while it ran, and the COPRs install-system.sh enabled.
+# while it ran.
 echo "==> Updating every package"
 dnf upgrade -y --refresh
 runuser -l "$user" -c 'bash ~/.local/share/omarchy/fedora/install-user.sh'

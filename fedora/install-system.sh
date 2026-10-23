@@ -20,13 +20,10 @@ if [[ ! -d $omarchy_path/bin ]]; then
   exit 1
 fi
 
-echo "==> Enabling COPR repositories"
+# No COPR: what Fedora doesn't package (mango, scenefx, uwsm,
+# gpu-screen-recorder) comes as DoxIA builds from this repository's releases.
+# dnf-plugins-core for the version locks (install-wlroots, VMware only).
 dnf install -y dnf-plugins-core
-dnf copr disable -y sdegler/hyprland 2>/dev/null || true
-# Only for hyprpicker (the capture and color-picker binds); Hyprland itself
-# is no longer installed.
-dnf copr enable -y mineiro/hyprland
-dnf copr enable -y brycensranch/gpu-screen-recorder-git
 
 echo "==> wlroots (the DoxIA build, on VMware only)"
 # vmwgfx rejects every client DMA-BUF in Fedora's build: black login screen.
@@ -40,6 +37,12 @@ bash "$omarchy_path/fedora/doxia/install-scenefx"
 echo "==> mango (the DoxIA build, from this repository's releases)"
 bash "$omarchy_path/fedora/doxia/install-mango"
 
+echo "==> uwsm, the session manager (the DoxIA build, from this repository's releases)"
+bash "$omarchy_path/fedora/doxia/install-uwsm"
+
+echo "==> gpu-screen-recorder (the DoxIA build, from this repository's releases)"
+bash "$omarchy_path/fedora/doxia/install-gpu-screen-recorder"
+
 echo "==> DoxIA apps in Rust + GTK 4 (from this repository's releases)"
 # doxia-shell is the shell: without it there is no desktop.
 bash "$omarchy_path/fedora/doxia/install-rs"
@@ -51,10 +54,10 @@ echo "==> Installing packages"
 packages=(
   # Session and portals. mangowm ships mango-portals.conf, which routes screen
   # sharing and screenshots to the wlr portal.
-  xdg-desktop-portal-wlr xdg-desktop-portal-gtk uwsm
-  # Output layout (monitor panel, captures), virtual pointer (capture-region),
-  # color picker and the nightlight
-  wlr-randr wlrctl hyprpicker gammastep
+  xdg-desktop-portal-wlr xdg-desktop-portal-gtk
+  # Output layout (monitor panel, captures), virtual pointer (capture-region)
+  # and the nightlight
+  wlr-randr wlrctl gammastep
 
   # doxia-shell's layer surfaces (bar, menus, notifications, OSD, lock)
   gtk4-layer-shell
@@ -71,8 +74,9 @@ packages=(
   perl-JSON-PP
 
   # Wayland/desktop utilities used by omarchy-* commands
+  # grim and slurp also make the color picker, over doxia-freeze (doxia-rs)
   brightnessctl pamixer playerctl wireplumber wl-clipboard wtype grim slurp cliphist
-  gpu-screen-recorder libnotify upower udiskie xdg-user-dirs xdg-terminal-exec
+  libnotify upower udiskie xdg-user-dirs xdg-terminal-exec
   bluez-tools NetworkManager-tui wiremix
   # pactl for the omarchy-audio-* scripts (volume keys, output/input switching);
   # tuned-ppd serves the power profiles fedora/bin/powerprofilesctl talks to
@@ -101,9 +105,6 @@ packages=(
   fontawesome-fonts-all jetbrains-mono-fonts
 )
 dnf install -y --setopt=install_weak_deps=False "${packages[@]}"
-
-# Fedora's own uwsm can win over the COPR build on first install.
-dnf upgrade -y --refresh uwsm
 
 # Not every spin enables these presets (the Workstation one does).
 systemctl enable tuned.service tuned-ppd.service

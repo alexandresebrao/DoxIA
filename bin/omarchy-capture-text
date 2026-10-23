@@ -4,16 +4,14 @@
 # omarchy:group=capture
 # omarchy:examples=omarchy capture text
 
-# Keep hyprpicker alive until after grim captures so the screenshot sees the
+# Keep doxia-freeze alive until after grim captures so the screenshot sees the
 # frozen overlay rather than live content shifting during teardown.
 cleanup_freeze() {
   [[ -n $PID ]] && kill $PID 2>/dev/null
 }
 trap cleanup_freeze EXIT
 
-hyprpicker -r -z >/dev/null 2>&1 &
-PID=$!
-sleep .1
+PID=$(doxia-freeze --background 2>/dev/null)
 SELECTION=$(slurp 2>/dev/null)
 
 [[ -z $SELECTION ]] && exit 0

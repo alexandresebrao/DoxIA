@@ -391,9 +391,13 @@ sudo bash "$OMARCHY_PATH/fedora/doxia/install-scenefx"
 # install-mango puts back the DoxIA build if the unpatched COPR one got in, and
 # disables that COPR.
 sudo bash "$OMARCHY_PATH/fedora/doxia/install-mango"
+# uwsm and gpu-screen-recorder: DoxIA builds in place of the COPRs' (below).
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-uwsm"
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-gpu-screen-recorder"
 sudo bash -s <<'ROOT'
 set -euo pipefail
-tools=(xdg-desktop-portal-wlr wlr-randr wlrctl hyprpicker gammastep)
+# grim and slurp make the color picker since hyprpicker left.
+tools=(xdg-desktop-portal-wlr wlr-randr wlrctl gammastep grim slurp)
 missing=()
 for package in "${tools[@]}"; do
   rpm -q "$package" &>/dev/null || missing+=("$package")
@@ -407,6 +411,27 @@ fi
 if rpm -q xdg-desktop-portal-hyprland &>/dev/null; then
   dnf remove -y --setopt=clean_requirements_on_remove=False xdg-desktop-portal-hyprland
 fi
+# No COPR left: with uwsm and gpu-screen-recorder replaced above, what is still
+# installed from them is Hyprland and its libraries (and hyprpicker), which
+# nothing in DoxIA runs anymore. Only when removing them takes nothing else
+# along (rpm -e --test).
+coprs=(mineiro/hyprland brycensranch/gpu-screen-recorder-git sdegler/hyprland)
+leftovers=()
+while read -r name repo; do
+  for copr in "${coprs[@]}"; do
+    [[ $repo == "copr:copr.fedorainfracloud.org:${copr/\//:}" ]] && leftovers+=("$name")
+  done
+done < <(dnf repoquery --installed --qf '%{name} %{from_repo}\n' 2>/dev/null)
+if (( ${#leftovers[@]} )); then
+  if rpm -e --test "${leftovers[@]}" &>/dev/null; then
+    dnf remove -y --setopt=clean_requirements_on_remove=False "${leftovers[@]}"
+  else
+    echo "  Kept, other packages need them: ${leftovers[*]}"
+  fi
+fi
+for copr in "${coprs[@]}"; do
+  dnf copr disable -y "$copr" &>/dev/null || true
+done
 ROOT
 
 echo "==> System: /etc/motd, About screen, session name, login screen and browser theme color (sudo)"

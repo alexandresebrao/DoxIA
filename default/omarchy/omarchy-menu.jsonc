@@ -56,7 +56,7 @@
   "trigger.capture.screenrecord": {"icon":"","label":"Gravar tela"},
   "trigger.capture.text": {"icon":"󰴑","label":"Texto","action":"omarchy-capture-text"},
   "trigger.capture.qr": {"icon":"󰐲","label":"QR Code","action":"omarchy-capture-qr"},
-  "trigger.capture.color": {"icon":"󰃉","label":"Cor","action":"pkill hyprpicker || hyprpicker -a"},
+  "trigger.capture.color": {"icon":"󰃉","label":"Cor","action":"omarchy-capture-color"},
   "trigger.capture.screenrecord.no-audio": {"icon":"","label":"Sem áudio","action":"omarchy-capture-screenrecording"},
   "trigger.capture.screenrecord.desktop-audio": {"icon":"","label":"Com áudio do sistema","action":"omarchy-capture-screenrecording --with-desktop-audio"},
   "trigger.capture.screenrecord.microphone": {"icon":"","label":"Com áudio do sistema + microfone","action":"omarchy-capture-screenrecording --with-desktop-audio --with-microphone-audio"},
