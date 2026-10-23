@@ -97,6 +97,19 @@ pub fn build(ctx: &Rc<Ctx>) -> gtk::Widget {
   panel.content.append(&body);
   // A dropdown open keeps the list from being rebuilt under it.
   let menus_open = Rc::new(Cell::new(0));
+  // Nor is it rebuilt while a press is on it (a touch tap lasts long enough
+  // for a 1.5 s refresh to replace the icon under the finger and lose the
+  // tap), nor when what it shows has not changed.
+  let pressed_at = Rc::new(Cell::new(None::<Instant>));
+  {
+    let press = gtk::GestureClick::new();
+    press.set_button(0);
+    press.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let p = pressed_at.clone();
+    press.connect_pressed(move |_, _, _, _| p.set(Some(Instant::now())));
+    body.add_controller(press);
+  }
+  let shown = Rc::new(RefCell::new(String::new()));
 
   let again: Rc<RefCell<std::rc::Weak<dyn Fn()>>> = Rc::new(RefCell::new(std::rc::Weak::<Box<dyn Fn()>>::new() as std::rc::Weak<dyn Fn()>));
   let refresh: Rc<dyn Fn()> = {
@@ -154,6 +167,7 @@ pub fn build(ctx: &Rc<Ctx>) -> gtk::Widget {
   let pulse_since = Rc::new(Cell::new(None::<Instant>));
   let render: Rc<dyn Fn()> = {
     let (st, b, dot, body, panel_w, run, menus_open, pulse_since) = (st.clone(), button.clone(), dot.clone(), body.clone(), Rc::downgrade(&panel), run.clone(), menus_open.clone(), pulse_since.clone());
+    let (pressed_at, shown, again) = (pressed_at.clone(), shown.clone(), again.clone());
     let (refresh, read_lists) = (refresh.clone(), read_lists.clone());
     let space = space.clone();
     Rc::new(move || {
@@ -189,6 +203,21 @@ pub fn build(ctx: &Rc<Ctx>) -> gtk::Widget {
       if !panel.is_open() || menus_open.get() > 0 {
         return;
       }
+      const HOLD: Duration = Duration::from_millis(800);
+      if let Some(t) = pressed_at.get().filter(|t| t.elapsed() < HOLD) {
+        let again = again.clone();
+        glib::timeout_add_local_once(HOLD - t.elapsed(), move || {
+          if let Some(f) = again.borrow().upgrade() {
+            f();
+          }
+        });
+        return;
+      }
+      let key = format!("{}|{}|{}", s.services.iter().map(|x| format!("{x}{}", state_text(x, s.read_at))).collect::<String>(), s.branches, s.runtimes);
+      if *shown.borrow() == key {
+        return;
+      }
+      *shown.borrow_mut() = key;
       crate::popup::clear(&body);
       let hero = ui::hbox(space(14.0));
       hero.append(&ui::label("\u{f048b}", "panel-hero-icon"));
@@ -253,7 +282,7 @@ pub fn build(ctx: &Rc<Ctx>) -> gtk::Widget {
         stl.set_ellipsize(pango::EllipsizeMode::End);
         names.append(&stl);
         top.append(&names);
-        let actions = ui::hbox(space(2.0));
+        let actions = ui::hbox(space(6.0));
         let (r, i) = (run.clone(), id.clone());
         let start = ui::action(if is_running { "\u{f04db}" } else { "\u{f040a}" }, if is_running { "Parar" } else { "Iniciar" }, move || {
           if !is_busy {
@@ -388,11 +417,27 @@ pub fn build(ctx: &Rc<Ctx>) -> gtk::Widget {
     });
   }
   {
-    let (r, l) = (refresh.clone(), read_lists.clone());
+    let (r, l, shown) = (refresh.clone(), read_lists.clone(), shown.clone());
     panel.connect_open(move || {
+      shown.borrow_mut().clear();
       r();
       l();
     });
+  }
+  if ctx.first_screen {
+    if let Some(bar) = ctx.bar.upgrade() {
+      let p = Rc::downgrade(&panel);
+      bar.add_ipc("doxia.services", Box::new(move |method, _| {
+        let panel = p.upgrade()?;
+        match method {
+          "open" | "show" => panel.open(),
+          "close" | "hide" => panel.close(),
+          "toggle" => panel.toggle(),
+          _ => return None,
+        }
+        Some("ok".into())
+      }));
+    }
   }
   let p = panel.clone();
   button.on_press(move |_| p.toggle());

@@ -416,6 +416,9 @@ cmd_log() {
   local id="$1" json; json="$(svc_json "$id")" || exit 1
   local log; log="$(log_file "$id")"
   touch "$log"
+  # Abrir o log é ver o erro: tira o aviso (o ponto vermelho no ícone).
+  rm -f "$STATE_DIR/$id.failed"
+  is_active "$(unit "$id")" || systemctl --user reset-failed "$(unit "$id")" >/dev/null 2>&1 || true
 
   # Serviço com "logs" (vários servidores, cada um com seu arquivo): uma aba do
   # kitty por log, na ordem da config, e por último a do svc (start, stop, build).

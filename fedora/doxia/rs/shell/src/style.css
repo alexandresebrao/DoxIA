@@ -209,7 +209,7 @@ tooltip.background label { padding: 3px 4px; font-size: $FS_BODY; }
 /* The bar's panels (bar/panel.rs): the card is drawn, the rest is text. */
 window.panel-window { background: transparent; }
 .panel-content, .panel-tabs { color: $POPUP_TEXT; }
-.panel-action { font-size: $FS_TITLE; padding: 2px 8px; border-radius: $R_CTRL; color: $POPUP_TEXT; }
+.panel-action { font-size: $FS_TITLE; padding: 0; min-width: 34px; min-height: 34px; border-radius: 999px; color: $POPUP_TEXT; }
 .panel-action:hover { background: $HOVER_FILL; color: $ACCENT; }
 .calendar-hero-icon { font-size: 48px; }
 .calendar-hero-date { font-size: 52px; font-weight: bold; }
