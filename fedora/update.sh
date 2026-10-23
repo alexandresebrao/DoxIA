@@ -308,6 +308,8 @@ flatpak override --system --env=LANG=pt_BR.UTF-8 --env=LANGUAGE=pt_BR \
   --env=QT_IM_MODULE=compose --env=GTK_IM_MODULE=gtk-im-context-simple org.onlyoffice.desktopeditors
 flatpak install -y --noninteractive --or-update flathub org.onlyoffice.desktopeditors
 ROOT
+# ONLYOFFICE with the system title bar (also on every login, from mango's autostart).
+bash "$OMARCHY_PATH/fedora/doxia/onlyoffice-titlebar"
 
 echo "==> Mail: DoxMail as every user's default mail client (sudo)"
 # DoxMail replaces the Evolution Flatpak: this user's mail, accounts and

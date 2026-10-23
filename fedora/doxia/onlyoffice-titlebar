@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# As the user: ONLYOFFICE with the system title bar. With its own ("custom") it
+# draws a transparent shadow margin around a frameless window, which mango tiles
+# as part of the window: a thick empty border with the wallpaper behind it.
+# mango draws no title bars, so with "system" the window has no bar at all.
+# Run on every login (default/mango/autostart.conf), so it also undoes the
+# setting being switched back in ONLYOFFICE or a reset config.
+
+set -euo pipefail
+
+conf="$HOME/.var/app/org.onlyoffice.desktopeditors/config/onlyoffice/DesktopEditors.conf"
+
+mkdir -p "${conf%/*}"
+[[ -f $conf ]] || printf '[General]\n' >"$conf"
+grep -q '^\[General\]' "$conf" || printf '[General]\n' >>"$conf"
+if grep -q '^titlebar=' "$conf"; then
+  sed -i 's/^titlebar=.*/titlebar=system/' "$conf"
+else
+  sed -i '/^\[General\]/a titlebar=system' "$conf"
+fi
