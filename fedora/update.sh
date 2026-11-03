@@ -229,6 +229,8 @@ for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.
     sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
   fi
 done
+# Dead keys in GTK apps (see install-user.sh).
+gsettings set org.gnome.desktop.interface gtk-im-module 'gtk-im-context-simple'
 gtk_css="$HOME/.config/gtk-4.0/gtk.css"
 mkdir -p "$(dirname "$gtk_css")"
 if ! grep -q 'current/theme/gtk.css' "$gtk_css" 2>/dev/null; then

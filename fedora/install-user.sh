@@ -142,6 +142,10 @@ for ini in ~/.config/gtk-3.0/settings.ini ~/.config/gtk-4.0/settings.ini; do
     sed -i 's/^gtk-decoration-layout=.*/gtk-decoration-layout=:/' "$ini"
   fi
 done
+# Dead keys (´ ~ ^ on ABNT2) in GTK apps: without an input method running, GTK 4's
+# default "wayland" module (mango has text-input-v3) drops them. The portal hands
+# GTK this gsettings key, which overrides settings.ini on Wayland.
+gsettings set org.gnome.desktop.interface gtk-im-module 'gtk-im-context-simple'
 # ONLYOFFICE with the system title bar (also on every login, from mango's autostart).
 bash "$OMARCHY_PATH/fedora/doxia/onlyoffice-titlebar"
 bash "$OMARCHY_PATH/themes/doxia/make-icons.sh"
