@@ -401,17 +401,23 @@ pub fn system_update(ctx: &Rc<Ctx>) -> gtk::Widget {
   // One checker for the whole shell, not one per screen.
   if ctx.first_screen {
     check();
-    let c = check.clone();
+    let (c, st) = (check.clone(), state.clone());
     let w = button.widget.downgrade();
     glib::spawn_future_local(async move {
+      // Wake often and compare with the wall clock: glib timers run on the
+      // monotonic clock, which stops while suspended, so sleeping `hours`
+      // straight left the cache days old after a night in suspend.
       loop {
-        let prefs = crate::watch::output(&["omarchy-update-pref", "json"]).await.and_then(|t| m::parse(&t)).unwrap_or_default();
-        let hours = prefs.get("checkHours").and_then(Value::as_f64).unwrap_or(6.0).max(1.0);
-        glib::timeout_future(Duration::from_secs_f64(hours * 3600.0)).await;
+        glib::timeout_future(Duration::from_secs(300)).await;
         if w.upgrade().is_none() {
           break;
         }
-        c();
+        let prefs = crate::watch::output(&["omarchy-update-pref", "json"]).await.and_then(|t| m::parse(&t)).unwrap_or_default();
+        let hours = prefs.get("checkHours").and_then(Value::as_f64).unwrap_or(6.0).max(1.0);
+        let checked = st.borrow().status.as_ref().map(|s| m::num(s, "checkedAt")).unwrap_or(0.0);
+        if m::now() - checked >= hours * 3600.0 {
+          c();
+        }
       }
     });
   }
