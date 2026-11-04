@@ -36,7 +36,10 @@ def run(cmd, timeout=180):
 
 
 def system_updates(refresh, errors):
-    cmd = ["dnf", "-q", "check-update"] + (["--refresh"] if refresh else [])
+    # -y: run without root, dnf keeps its own cache and asks again to import the
+    # key of a signed repository (DoxIA's, from the checkout); without a terminal
+    # the answer is no and the repository is left out, here and in upgradable().
+    cmd = ["dnf", "-q", "-y", "check-update"] + (["--refresh"] if refresh else [])
     code, out = run(cmd)
     if code not in (0, 100):
         errors.append("Não foi possível consultar os repositórios do dnf.")
