@@ -3,6 +3,11 @@
 # Fedora release, signed with the key in the DOXIA_REPO_GPG_KEY secret (its
 # public half is fedora/repo/RPM-GPG-KEY-doxia). Runs whenever a release is
 # published, edited or deleted, and by hand.
+#
+# The github-pages environment only deploys from the fedora branch, and a
+# release run has the release tag as its ref: that run only starts this
+# workflow again on fedora (a workflow_dispatch from GITHUB_TOKEN does start a
+# run), which builds and deploys.
 name: DoxIA dnf repository
 
 on:
@@ -12,15 +17,25 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: doxia-dnf-repo
   cancel-in-progress: false
 
 jobs:
+  redispatch:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Run this workflow on the fedora branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run doxia-dnf-repo.yml --repo "$GITHUB_REPOSITORY" --ref fedora
+
   build:
+    if: github.event_name != 'release'
     runs-on: ubuntu-latest
     container:
       image: registry.fedoraproject.org/fedora:45
@@ -53,6 +68,9 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
