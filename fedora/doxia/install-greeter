@@ -37,8 +37,13 @@ restorecon -R /etc/greetd /usr/libexec/doxia-greeter-session "$data" 2>/dev/null
 # The screen preselects the last account and session: SDDM's, when moving
 # from it, or the owner on the DoxIA session.
 if [[ ! -s $state ]]; then
-  user=$(sed -n 's/^User=//p' /var/lib/sddm/state.conf 2>/dev/null | head -1)
-  session=$(sed -n 's/^Session=//p' /var/lib/sddm/state.conf 2>/dev/null | head -1)
+  user= session=
+  # Only when moving from SDDM: on a new install the file is missing, and a
+  # failing sed under pipefail would end the script before greetd is enabled.
+  if [[ -r /var/lib/sddm/state.conf ]]; then
+    user=$(sed -n 's/^User=//p' /var/lib/sddm/state.conf | head -1)
+    session=$(sed -n 's/^Session=//p' /var/lib/sddm/state.conf | head -1)
+  fi
   [[ -n $user ]] || user=$owner
   [[ $session == /* ]] || session=/usr/share/wayland-sessions/${session:-omarchy.desktop}
   if [[ -n $user ]]; then
