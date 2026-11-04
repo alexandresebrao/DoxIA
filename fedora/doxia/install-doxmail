@@ -7,23 +7,33 @@
 # it uses the system evolution-data-server, and conflicts with the
 # evolution RPM (both install the same files and share the mail data).
 #
-# To ship a new build: upload the RPM as release doxmail-<version>, then
-# bump version and sha256 below.
+# To ship a new build: build it on each Fedora release below (the EDS series
+# differs: 3.60 on 44, 3.62 on 45), upload the RPMs to release
+# doxmail-<version>, then bump version and the sha256 of each.
 
 set -euo pipefail
 
-version=3.60.2-0.20261022gite6280e278a
-sha256=43b0ee79db491710f9026fdf8f317826a9868d94840982622aff4997a25db05f
-target="$version.fc$(rpm -E %fedora)"
+version=3.60.2-0.20261104gitdafc8791f7
+declare -A sha256s=(
+  [44]=a65e29523212d01b39737e0d11a2102f31998b305c83a0e8b152b8d8c381cd48
+  [45]=4b37ffc46fa5956f4bf4d6e97aae21c441be22a0706a8c74376862a336daa18f
+)
+fedora=$(rpm -E %fedora)
+sha256=${sha256s[$fedora]:-}
+target="$version.fc$fedora"
 rpm_file="doxmail-$target.$(uname -m).rpm"
 url="https://github.com/alexandresebrao/DoxIA/releases/download/doxmail-$version/$rpm_file"
 
 installed=$(rpm -q --qf '%{VERSION}-%{RELEASE}' doxmail 2>/dev/null || true)
 [[ $installed == "$target" ]] && exit 0
 
+if [[ -z $sha256 ]]; then
+  echo "No DoxMail build for Fedora $fedora" >&2
+  exit 1
+fi
+
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-# Published for one Fedora release and architecture at a time.
 if ! curl -sfL --retry 3 -o "$tmp/$rpm_file" "$url"; then
   echo "No DoxMail build for this system: $url" >&2
   exit 1
