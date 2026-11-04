@@ -1,7 +1,7 @@
 %global forgeurl https://github.com/mangowm/mango
 
 Name:           mangowm
-Version:        0.18.2
+Version:        0.18.5
 Release:        1.doxia1%{?dist}
 Summary:        Practical and powerful Wayland compositor built on dwl
 
@@ -63,6 +63,9 @@ Mango is a modern, lightweight, high-performance tiling Wayland compositor built
 %{_userunitdir}/mango-session.target
 
 %changelog
+* Wed Nov 04 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.18.5-1.doxia1
+- Update to upstream version 0.18.5, keeping mango-dmabuf-null.patch
+
 * Thu Oct 22 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.18.2-1.doxia1
 - Update to upstream version 0.18.2, keeping mango-dmabuf-null.patch
 

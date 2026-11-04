@@ -1,6 +1,6 @@
 # mangowm (DoxIA build)
 
-mango 0.18.0 with `mango-dmabuf-null.patch`: without a DRM render node (Hyper-V,
+mango 0.18.5 with `mango-dmabuf-null.patch`: without a DRM render node (Hyper-V,
 llvmpipe) `wlr_linux_dmabuf_v1_create_with_renderer()` returns NULL and mango
 crashed passing it to `wlr_scene_set_linux_dmabuf_v1()`.
 
