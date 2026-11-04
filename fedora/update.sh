@@ -385,6 +385,9 @@ echo "==> Runtime packages installs before this one missed (sudo)"
 # perl-JSON-PP: the clipboard history capture and omarchy-menu-select/-input.
 rpm -q perl-JSON-PP &>/dev/null || sudo dnf install -y perl-JSON-PP
 
+echo "==> DoxIA dnf repository (the DoxIA packages for dnf upgrade and system-upgrade, sudo)"
+sudo bash "$OMARCHY_PATH/fedora/doxia/install-repo"
+
 echo "==> Compositor: mango and its Wayland tools (sudo)"
 # Before the login screen below, whose greeter runs on mango.
 # On VMware, the DoxIA wlroots: Fedora's rejects every client DMA-BUF on vmwgfx.

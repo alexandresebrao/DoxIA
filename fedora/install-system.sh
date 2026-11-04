@@ -25,6 +25,9 @@ fi
 # dnf-plugins-core for the version locks (install-wlroots, VMware only).
 dnf install -y dnf-plugins-core
 
+echo "==> DoxIA dnf repository (the DoxIA packages for dnf upgrade and system-upgrade)"
+bash "$omarchy_path/fedora/doxia/install-repo"
+
 echo "==> wlroots (the DoxIA build, on VMware only)"
 # vmwgfx rejects every client DMA-BUF in Fedora's build: black login screen.
 bash "$omarchy_path/fedora/doxia/install-wlroots"

@@ -1,0 +1,61 @@
+# Publishes the DoxIA dnf repository (fedora/repo/build) on GitHub Pages:
+# metadata for every RPM in this repository's releases, one repository per
+# Fedora release, signed with the key in the DOXIA_REPO_GPG_KEY secret (its
+# public half is fedora/repo/RPM-GPG-KEY-doxia). Runs whenever a release is
+# published, edited or deleted, and by hand.
+name: DoxIA dnf repository
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published, edited, deleted]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: doxia-dnf-repo
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.fedoraproject.org/fedora:45
+    steps:
+      - name: Install the tools
+        run: dnf install -y createrepo_c gnupg2 jq git
+
+      - uses: actions/checkout@v7
+
+      - name: Import the signing key
+        env:
+          DOXIA_REPO_GPG_PRIVATE_KEY: ${{ secrets.DOXIA_REPO_GPG_KEY }}
+        run: |
+          if [ -z "$DOXIA_REPO_GPG_PRIVATE_KEY" ]; then
+            echo "The DOXIA_REPO_GPG_KEY secret is missing: clients only accept signed metadata." >&2
+            exit 1
+          fi
+          echo "$DOXIA_REPO_GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "DOXIA_REPO_GPG_KEY=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ { print $10; exit }')" >> "$GITHUB_ENV"
+
+      - name: Build the repository
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash fedora/repo/build _site 44 45
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

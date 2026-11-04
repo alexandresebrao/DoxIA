@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# The DoxIA dnf repository (fedora/repo, published on GitHub Pages), as root,
+# for install-system.sh and update.sh. With it, dnf upgrade and dnf
+# system-upgrade see the DoxIA packages (mango, scenefx, uwsm,
+# gpu-screen-recorder, DoxMail) like any other: moving to a new Fedora release
+# swaps them in the same transaction instead of stopping on their old
+# dependencies.
+#
+# Only once the repository's signing key is in the checkout: doxia.repo asks
+# for signed metadata (repo_gpgcheck) and trusts that file.
+
+set -euo pipefail
+
+omarchy_path=$(dirname "$(dirname "$(dirname "$(readlink -f "$0")")")")
+key=$omarchy_path/fedora/repo/RPM-GPG-KEY-doxia
+
+if [[ ! -s $key ]]; then
+  echo "  The DoxIA repository has no signing key yet: not enabled."
+  exit 0
+fi
+
+install -Dm644 "$omarchy_path/fedora/repo/doxia.repo" /etc/yum.repos.d/doxia.repo

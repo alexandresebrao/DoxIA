@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# Builds the DoxIA dnf repository: the metadata of every RPM in this
+# repository's GitHub releases, one repository per Fedora release, for GitHub
+# Pages (.github/workflows/doxia-dnf-repo.yml publishes it).
+#
+#   fedora/repo/build <site dir> [fedora releases...]   (default: 44 45)
+#
+# The site holds metadata only: each package's location points at its release
+# asset (createrepo_c --baseurl), so the RPMs stay where install-* fetch them
+# and nothing is stored twice. The RPMs are not signed; repomd.xml is (with the
+# key in $DOXIA_REPO_GPG_KEY, a fingerprint whose secret key is in the GPG
+# keyring), and it carries the sha256 of every RPM.
+#
+# Left out: wlroots (the DoxIA build is for VMware only and install-wlroots
+# version-locks it; in the repository it would replace Fedora's everywhere)
+# and debug packages.
+
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "$0")")"
+repo=${GITHUB_REPOSITORY:-alexandresebrao/DoxIA}
+site=$(realpath -m "${1:?usage: build <site dir> [fedora releases...]}")
+shift
+releases=("$@")
+(( ${#releases[@]} )) || releases=(44 45)
+arch=x86_64
+download="https://github.com/$repo/releases/download/"
+
+auth=()
+[[ -n ${GITHUB_TOKEN:-} ]] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# Every RPM asset of every published release, as "<tag><TAB><asset>".
+page=1
+: > "$tmp/assets"
+while :; do
+  json=$(curl -sfL --retry 3 "${auth[@]}" "https://api.github.com/repos/$repo/releases?per_page=100&page=$page")
+  (( $(jq length <<< "$json") )) || break
+  jq -r '.[] | select(.draft | not) | .tag_name as $tag
+    | .assets[] | select(.name | endswith(".rpm")) | "\($tag)\t\(.name)"' <<< "$json" >> "$tmp/assets"
+  page=$((page + 1))
+done
+
+if [[ -n ${DOXIA_REPO_GPG_KEY:-} ]]; then
+  # Only the key whose public half ships in the checkout (doxia.repo trusts that
+  # file, not the copy on the site).
+  pinned=$(gpg --show-keys --with-colons RPM-GPG-KEY-doxia | awk -F: '/^fpr/ { print $10; exit }')
+  if [[ $DOXIA_REPO_GPG_KEY != "$pinned" ]]; then
+    echo "Signing key $DOXIA_REPO_GPG_KEY is not the one in fedora/repo/RPM-GPG-KEY-doxia ($pinned)" >&2
+    exit 1
+  fi
+fi
+
+rm -rf "$site"
+mkdir -p "$site"
+for release in "${releases[@]}"; do
+  layout=$tmp/fc$release
+  count=0
+  while IFS=$'\t' read -r tag asset; do
+    [[ $asset == wlroots-* || $asset == *-debuginfo-* || $asset == *-debugsource-* ]] && continue
+    [[ $asset == *.fc$release.* ]] || continue
+    [[ $asset == *.$arch.rpm || $asset == *.noarch.rpm ]] || continue
+    mkdir -p "$layout/$tag"
+    curl -sfL --retry 3 -o "$layout/$tag/$asset" "$download$tag/$asset"
+    count=$((count + 1))
+  done < "$tmp/assets"
+
+  out=$site/fedora/$release/$arch
+  mkdir -p "$out" "$layout"
+  createrepo_c --quiet --baseurl "$download" --outputdir "$out" "$layout"
+  if [[ -n ${DOXIA_REPO_GPG_KEY:-} ]]; then
+    gpg --batch --yes --local-user "$DOXIA_REPO_GPG_KEY" --armor --detach-sign "$out/repodata/repomd.xml"
+  fi
+  echo "Fedora $release: $count packages"
+done
+
+install -m644 doxia.repo "$site/"
+[[ -f RPM-GPG-KEY-doxia ]] && install -m644 RPM-GPG-KEY-doxia "$site/"
+cat > "$site/index.html" <<'EOF'
+<!doctype html>
+<meta charset="utf-8">
+<title>DoxIA dnf repository</title>
+<p>The DoxIA packages for Fedora, installed and kept up to date by the DoxIA
+setup (<code>fedora/doxia/install-repo</code>): <a href="doxia.repo">doxia.repo</a>.
+EOF

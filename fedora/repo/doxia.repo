@@ -1,0 +1,10 @@
+[doxia]
+name=DoxIA $releasever - $basearch
+baseurl=https://alexandresebrao.github.io/DoxIA/fedora/$releasever/$basearch/
+enabled=1
+# The RPMs are not signed; repomd.xml is, and it carries each RPM's sha256.
+gpgcheck=0
+repo_gpgcheck=1
+# The key from the checkout, not from the site: a tampered site can't swap it.
+gpgkey=file:///usr/share/omarchy/fedora/repo/RPM-GPG-KEY-doxia
+skip_if_unavailable=True
