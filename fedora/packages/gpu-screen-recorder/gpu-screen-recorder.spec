@@ -1,8 +1,8 @@
 # dec05eba publishes snapshots, not tags: r<commits>.<hash> of the release.
-%global snapshot r1528.1c01417
+%global snapshot r1549.1d4946a
 
 Name:           gpu-screen-recorder
-Version:        6.1.5
+Version:        6.1.7
 Release:        1.doxia1%{?dist}
 Summary:        A shadowplay-like screen recorder for Linux. The fastest screen recorder for Linux.
 # The brycensranch/gpu-screen-recorder-git COPR's epoch, which installs from it
@@ -75,6 +75,8 @@ setcap cap_sys_admin+ep %{_bindir}/gsr-kms-server
 
 
 %changelog
+* Wed Nov 04 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 2:6.1.7-1.doxia1
+- Update to 6.1.7 (snapshot r1549.1d4946a)
 * Thu Oct 22 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 2:6.1.5-1.doxia1
 - DoxIA build, from the brycensranch/gpu-screen-recorder-git COPR spec: 6.1.5
 * Tue Aug 18 2026 Brycen G <brycengranville@outlook.com> - 6.0.1-1
