@@ -18,10 +18,11 @@
 
 set -euo pipefail
 
-cd "$(dirname "$(readlink -f "$0")")"
-repo=${GITHUB_REPOSITORY:-alexandresebrao/DoxIA}
+# Resolved before the cd below: a relative site dir is the caller's.
 site=$(realpath -m "${1:?usage: build <site dir> [fedora releases...]}")
 shift
+cd "$(dirname "$(readlink -f "$0")")"
+repo=${GITHUB_REPOSITORY:-alexandresebrao/DoxIA}
 releases=("$@")
 (( ${#releases[@]} )) || releases=(44 45)
 arch=x86_64
