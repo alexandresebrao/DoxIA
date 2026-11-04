@@ -57,6 +57,24 @@ run_system_pkgs --offline || fail "a staged upgrade that works reports a failure
   fail "--offline stages the upgrade for the next boot" "$(<"$test_tmp/dnf-calls")"
 pass "--offline stages the upgrade for the next boot"
 
+run_system_pkgs --release 45 || fail "a release move that works reports a failure"
+[[ $(<"$test_tmp/dnf-calls") == "system-upgrade download --releasever=45 -y --setopt=max_parallel_downloads=10" ]] ||
+  fail "--release downloads the next Fedora release with system-upgrade" "$(<"$test_tmp/dnf-calls")"
+pass "--release stages the move to the next Fedora release"
+
+if run_system_pkgs --release 45abc; then
+  fail "--release accepts something that is not a release number"
+fi
+[[ ! -s $test_tmp/dnf-calls ]] || fail "--release with a bad number still ran dnf" "$(<"$test_tmp/dnf-calls")"
+pass "--release refuses anything but a release number"
+
+printf '[ 1/2] a\n[ 2/2] b\n' >"$test_tmp/dnf-output"
+OMARCHY_UPDATE_GUI=1 run_system_pkgs --release 45 || fail "a release move from the window reports a failure"
+grep -q '^frac download 1 2/2' "$test_tmp/state-calls" ||
+  fail "a release move fills the download step like --offline" "$(<"$test_tmp/state-calls")"
+pass "a release move reports its download progress to the window"
+: >"$test_tmp/dnf-output"
+
 if DNF_STATUS=1 run_system_pkgs; then
   fail "a failed terminal upgrade passes for a whole one"
 fi

@@ -80,8 +80,59 @@ pub fn errors(status: Option<&Value>) -> Vec<String> {
   list(status, &["errors"]).iter().filter_map(|e| e.as_str().map(String::from)).collect()
 }
 
+// The next Fedora release (omarchy-update-check's "release"): offered once
+// Fedora has it out and the DoxIA repository publishes it.
+fn release(status: Option<&Value>) -> Option<&Value> {
+  status.and_then(|s| s.get("release"))
+}
+
+pub fn release_offered(status: Option<&Value>) -> bool {
+  release(status).is_some_and(|r| flag(r, "offered"))
+}
+
+pub fn release_current(status: Option<&Value>) -> u64 {
+  release(status).map(|r| num(r, "current") as u64).unwrap_or(0)
+}
+
+pub fn release_next(status: Option<&Value>) -> u64 {
+  release(status).map(|r| num(r, "next") as u64).unwrap_or(0)
+}
+
+// The installed packages that would stop the move, as (package, what it needs).
+pub fn release_blockers(status: Option<&Value>) -> Vec<(String, String)> {
+  list(status, &["release", "blockers"])
+    .iter()
+    .map(|b| (text(b, "package").to_string(), text(b, "requires").to_string()))
+    .collect()
+}
+
+pub fn release_dry_run_failed(status: Option<&Value>) -> bool {
+  release(status).is_some_and(|r| text(r, "dryRun") == "failed")
+}
+
+// Ready for the button: offered, and the dry run went through.
+pub fn release_ready(status: Option<&Value>) -> bool {
+  release_offered(status)
+    && release(status).is_some_and(|r| text(r, "dryRun") == "ok")
+    && release_blockers(status).is_empty()
+}
+
+// What waits for the reboot moves to this Fedora release (0: an ordinary update).
+pub fn staged_release(status: Option<&Value>) -> u64 {
+  status.and_then(|s| s.get("staged")).map(|s| num(s, "release") as u64).unwrap_or(0)
+}
+
+// Updates of the current release: those go first, the move to the next one after.
+pub fn current_release_pending(status: Option<&Value>) -> bool {
+  system_count(status) > 0 || doxia_behind(status) > 0
+}
+
 pub fn anything(status: Option<&Value>) -> bool {
-  system_count(status) > 0 || flatpak_count(status) > 0 || doxia_behind(status) > 0 || staged_pending(status)
+  system_count(status) > 0
+    || flatpak_count(status) > 0
+    || doxia_behind(status) > 0
+    || staged_pending(status)
+    || release_offered(status)
 }
 
 pub fn only_flatpak(status: Option<&Value>) -> bool {
@@ -130,7 +181,10 @@ pub fn flatpak_names(status: Option<&Value>, max: usize) -> String {
 }
 
 pub fn updates_count(status: Option<&Value>) -> usize {
-  system_count(status) + flatpak_count(status) + usize::from(doxia_behind(status) > 0)
+  system_count(status)
+    + flatpak_count(status)
+    + usize::from(doxia_behind(status) > 0)
+    + usize::from(release_offered(status))
 }
 
 // Local time as HH:MM.
@@ -279,5 +333,36 @@ mod tests {
     assert_eq!(duration(59.4), "59 s");
     assert_eq!(duration(120.0), "2 min");
     assert_eq!(duration(125.0), "2 min 5 s");
+  }
+
+  #[test]
+  fn release_ready_only_without_blockers() {
+    let ok = json!({"release": {"current": 44, "next": 45, "offered": true, "dryRun": "ok", "blockers": []}});
+    assert!(release_ready(Some(&ok)));
+    assert!(anything(Some(&ok)));
+    assert_eq!(updates_count(Some(&ok)), 1);
+    assert_eq!((release_current(Some(&ok)), release_next(Some(&ok))), (44, 45));
+
+    let blocked = json!({"release": {"next": 45, "offered": true, "dryRun": "ok",
+      "blockers": [{"package": "nwg-displays", "requires": "python(abi) = 3.14"}]}});
+    assert!(!release_ready(Some(&blocked)));
+    assert_eq!(release_blockers(Some(&blocked)), vec![("nwg-displays".to_string(), "python(abi) = 3.14".to_string())]);
+
+    let failed = json!({"release": {"next": 45, "offered": true, "dryRun": "failed", "blockers": []}});
+    assert!(!release_ready(Some(&failed)));
+    assert!(release_dry_run_failed(Some(&failed)));
+
+    // Not out for DoxIA yet: nothing to show, the bar stays quiet.
+    let gated = json!({"release": {"next": 45, "offered": false, "fedora": true, "doxia": false}});
+    assert!(!anything(Some(&gated)));
+  }
+
+  #[test]
+  fn staged_release_and_order() {
+    let staged = json!({"staged": {"pending": true, "release": 45}});
+    assert_eq!(staged_release(Some(&staged)), 45);
+    assert_eq!(staged_release(Some(&json!({"staged": {"pending": true}}))), 0);
+    assert!(current_release_pending(Some(&json!({"system": [{"name": "a"}]}))));
+    assert!(!current_release_pending(Some(&json!({"flatpak": {"apps": [{"name": "A"}]}}))));
   }
 }

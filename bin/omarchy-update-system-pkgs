@@ -1,29 +1,44 @@
 #!/bin/bash
 
 # omarchy:summary=Update system packages with dnf
-# omarchy:args=[--offline]
+# omarchy:args=[--offline | --release <fedora>]
 # omarchy:requires-sudo=true
 # Fedora port: dnf instead of pacman.
 # --offline downloads and tests the upgrade, which then installs on a reboot
-# (omarchy-update-offline arms it). From the update window (OMARCHY_UPDATE_GUI)
+# (omarchy-update-offline arms it). --release <N> does the same for the move to
+# Fedora N (dnf system-upgrade download, the same offline transaction).
+# From the update window (OMARCHY_UPDATE_GUI)
 # dnf's "[ 12/380]" lines move the step's progress bar.
 
 set -e
 
-offline=()
-[[ ${1:-} == "--offline" ]] && offline=(--offline)
 # dnf fetches 3 packages at a time by default, so one slow mirror holds up the rest.
 dnf_args=(upgrade --refresh -y --setopt=max_parallel_downloads=10)
+# Stored for the reboot (--offline, --release): only downloads and the test run.
+staged=0
+case ${1:-} in
+  --offline)
+    dnf_args+=(--offline)
+    staged=1
+    ;;
+  --release)
+    release=${2:?usage: omarchy-update-system-pkgs --release <fedora>}
+    [[ $release =~ ^[0-9]+$ ]] || { echo "Not a Fedora release: $release" >&2; exit 1; }
+    # The same offline transaction as --offline: omarchy-update-offline arms it.
+    dnf_args=(system-upgrade download --releasever="$release" -y --setopt=max_parallel_downloads=10)
+    staged=1
+    ;;
+esac
 
 if [[ -n ${OMARCHY_UPDATE_GUI:-} ]]; then
   step=system
-  (( ${#offline[@]} )) && step=download
+  (( staged )) && step=download
   echo -e "\e[32m\nUpdate system packages\e[0m"
-  sudo dnf "${dnf_args[@]}" "${offline[@]}" 2>&1 | {
+  sudo dnf "${dnf_args[@]}" 2>&1 | {
     # Downloads fill the first half and the transaction the second; an offline
     # run stops after the downloads and its test transaction.
     phase_start=0 phase_size=0.5 last=-1
-    (( ${#offline[@]} )) && phase_size=1
+    (( staged )) && phase_size=1
     while IFS= read -r line; do
       echo "$line"
       [[ $line == "Running transaction"* ]] && phase_start=0.5
@@ -42,4 +57,4 @@ if [[ -n ${OMARCHY_UPDATE_GUI:-} ]]; then
 fi
 
 echo -e "\e[32m\nUpdate system packages\e[0m"
-sudo dnf "${dnf_args[@]}" "${offline[@]}"
+sudo dnf "${dnf_args[@]}"

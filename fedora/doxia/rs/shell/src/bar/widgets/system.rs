@@ -246,12 +246,19 @@ pub fn system_update(ctx: &Rc<Ctx>) -> gtk::Widget {
       let title = match ph {
         Phase::Running => step.as_ref().map(|s| m::text(s, "label").to_string()).unwrap_or_else(|| "Atualizando…".into()),
         Phase::Password => "Aguardando senha".into(),
-        Phase::Staged => "Instala no reinício".into(),
+        Phase::Staged => match m::staged_release(status) {
+          0 => "Instala no reinício".into(),
+          release => format!("Fedora {release} no reinício"),
+        },
         Phase::Failed => "A atualização não terminou".into(),
+        _ if m::updates_count(status) == 1 && m::release_offered(status) => {
+          format!("Fedora {} disponível", m::release_next(status))
+        }
         _ => m::plural(m::updates_count(status), "atualização", "atualizações"),
       };
       let subtitle = match ph {
         Phase::Running => format!("{}%", run.map(|r| m::num(r, "progress")).unwrap_or(0.0).round()),
+        Phase::Staged if m::staged_release(status) > 0 => "BAIXADO E TESTADO".into(),
         Phase::Staged => m::plural(m::staged_packages(status).len(), "pacote pronto", "pacotes prontos"),
         Phase::Available => format!("VERIFICADO {}", m::ago(status.map(|s| m::num(s, "checkedAt")).unwrap_or(0.0)).to_uppercase()),
         _ => String::new(),
@@ -278,6 +285,14 @@ pub fn system_update(ctx: &Rc<Ctx>) -> gtk::Widget {
           }
           if m::doxia_behind(status) > 0 {
             lines.push(format!("DoxIA: {}", m::plural(m::doxia_behind(status), "novidade", "novidades")));
+          }
+          if m::release_offered(status) {
+            let next = m::release_next(status);
+            lines.push(if m::release_blockers(status).is_empty() {
+              format!("Fedora {next}: nova versão disponível")
+            } else {
+              format!("Fedora {next}: há pacotes impedindo a mudança")
+            });
           }
           lines.join("\n")
         }

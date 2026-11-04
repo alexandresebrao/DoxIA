@@ -43,6 +43,10 @@ cleanup() { rm -f "$grant"; }
 trap cleanup EXIT
 
 packages=$(jq '.packages | length' "$staged" 2>/dev/null || echo 0)
+# Set when the stored transaction moved to a new Fedora release (omarchy-update --release).
+release=$(jq -r '.release // 0' "$staged" 2>/dev/null || echo 0)
+mode=boot
+(( release > 0 )) && mode=release
 steps='[]'
 
 add_step() {
@@ -54,8 +58,8 @@ write_result() {
   local result=$1 message=$2 migrations=${3:-0} orphans=${4:-0}
   jq -n --arg result "$result" --arg message "$message" --argjson steps "$steps" \
     --argjson packages "$packages" --argjson migrations "$migrations" --argjson orphans "$orphans" \
-    --argjson now "$(date +%s)" \
-    '{running: false, mode: "boot", result: $result, message: $message, finishedAt: $now,
+    --argjson now "$(date +%s)" --arg mode "$mode" --argjson release "$release" \
+    '{running: false, mode: $mode, release: $release, result: $result, message: $message, finishedAt: $now,
       seen: false, progress: 100, steps: $steps,
       summary: {packages: $packages, migrations: $migrations, orphans: $orphans}}' |
     as_user bash -c 'mkdir -p "$(dirname "$1")" && cat > "$1"' _ "$result_file"

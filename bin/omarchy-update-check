@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 CACHE = Path.home() / ".cache/omarchy/update-status.json"
@@ -144,9 +145,100 @@ def staged():
             saved = json.loads(STAGED.read_text())
             data["packages"] = saved.get("packages", [])
             data["stagedAt"] = saved.get("stagedAt", 0)
+            # Set when the stored transaction moves to a new Fedora release.
+            data["release"] = saved.get("release", 0)
         except (OSError, ValueError):
             pass
     return data
+
+
+FEDORA_RELEASES = "https://dl.fedoraproject.org/pub/fedora/linux/releases"
+DOXIA_REPO = Path("/etc/yum.repos.d/doxia.repo")
+# The dry run downloads the next release's metadata: once a day is enough.
+RELEASE_DRY_RUN_EVERY = 24 * 3600
+PROBLEM_LINE = re.compile(r"^(?:Problem(?: \d+)?: |\s+- )installed package (\S+) requires (.+?), "
+                          r"but none of the providers can be installed")
+NEVRA = re.compile(r"^(.+)-[^-]+-[^-]+\.[^.]+$")
+
+
+def url_ok(url):
+    request = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "DoxIA update check"})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return 200 <= response.status < 300
+    except (OSError, ValueError):
+        return False
+
+
+def doxia_repo_url(release):
+    """The DoxIA repository of a Fedora release, from doxia.repo ("" without it)."""
+    try:
+        match = re.search(r"^baseurl\s*=\s*(\S+)", DOXIA_REPO.read_text(), re.M)
+    except OSError:
+        return ""
+    if not match:
+        return ""
+    return match[1].replace("$releasever", str(release)).replace("$basearch", os.uname().machine)
+
+
+def release_blockers(release):
+    """The installed packages that would stop the move to `release`, from a dry run
+    (as the user: system-upgrade itself wants root). [] when it would go through,
+    None when the dry run gives no answer."""
+    env = dict(os.environ, LC_ALL="C")
+    # dnf keeps a cache per repository URL and asks again for the key of the DoxIA
+    # repository of the new release; it comes from the checkout, so say yes.
+    try:
+        subprocess.run(["dnf", "-q", "-y", f"--releasever={release}", "makecache", "--repo", "doxia"],
+                       capture_output=True, text=True, timeout=300, env=env)
+        p = subprocess.run(["dnf", f"--releasever={release}", "distro-sync", "--assumeno"],
+                           capture_output=True, text=True, timeout=900, env=env)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = p.stdout + p.stderr
+    if "Transaction Summary:" in out or "Nothing to do." in out:
+        return []
+    blockers = {}
+    for line in out.splitlines():
+        match = PROBLEM_LINE.match(line)
+        if match:
+            nevra = NEVRA.match(match[1])
+            name = nevra[1] if nevra else match[1]
+            blockers.setdefault(name, {"package": name, "installed": match[1], "requires": match[2]})
+    return list(blockers.values()) or None
+
+
+def release_info(previous, refresh, staged_pending):
+    """The next Fedora release, offered once Fedora has released it and the DoxIA
+    repository publishes it: the second is the DoxIA side's go-ahead (its RPMs for
+    that release are built and uploaded, fedora/repo)."""
+    code, out = run(["rpm", "-E", "%fedora"], timeout=10)
+    try:
+        current = int(out.strip())
+    except ValueError:
+        return {}
+    upcoming = current + 1
+    info = {"current": current, "next": upcoming, "fedora": False, "doxia": False,
+            "offered": False, "blockers": [], "dryRun": "", "checkedAt": 0}
+    arch = os.uname().machine
+    info["fedora"] = url_ok(f"{FEDORA_RELEASES}/{upcoming}/Everything/{arch}/os/repodata/repomd.xml")
+    if info["fedora"]:
+        url = doxia_repo_url(upcoming)
+        info["doxia"] = bool(url) and url_ok(url.rstrip("/") + "/repodata/repomd.xml")
+    if not (info["fedora"] and info["doxia"]) or staged_pending:
+        return info
+    info["offered"] = True
+    before = (previous or {}).get("release") or {}
+    if (not refresh and before.get("next") == upcoming and before.get("dryRun")
+            and time.time() - before.get("checkedAt", 0) < RELEASE_DRY_RUN_EVERY):
+        for key in ("blockers", "dryRun", "checkedAt"):
+            info[key] = before.get(key, info[key])
+        return info
+    blockers = release_blockers(upcoming)
+    info["checkedAt"] = int(time.time())
+    info["dryRun"] = "failed" if blockers is None else "ok"
+    info["blockers"] = blockers or []
+    return info
 
 
 def snapper_present():
@@ -161,6 +253,10 @@ def main(args):
             sys.exit(1)
     else:
         errors = []
+        try:
+            previous = json.loads(CACHE.read_text())
+        except (OSError, ValueError):
+            previous = None
         stage = staged()
         # A stored offline transaction already holds the system updates.
         system, held = ([], []) if stage["pending"] else split_held(system_updates("--refresh" in args, errors))
@@ -172,6 +268,7 @@ def main(args):
             "flatpak": flatpak_updates(errors),
             "doxia": doxia_updates(),
             "staged": stage,
+            "release": release_info(previous, "--refresh" in args, stage["pending"]),
             "snapper": snapper_present(),
             "errors": errors,
         }
@@ -182,7 +279,8 @@ def main(args):
 
     print(json.dumps(status))
     pending = (status["system"] or status["flatpak"]["apps"] or status["flatpak"]["runtimes"]
-               or status["doxia"]["behind"] or status["staged"]["pending"])
+               or status["doxia"]["behind"] or status["staged"]["pending"]
+               or (status.get("release") or {}).get("offered"))
     sys.exit(0 if pending else 1)
 
 

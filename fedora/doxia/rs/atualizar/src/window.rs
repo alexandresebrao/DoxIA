@@ -21,6 +21,8 @@ const G_CUBE: &str = "\u{f1b2}";
 const G_ARCHIVE: &str = "\u{f187}";
 const G_BRANCH: &str = "\u{f126}";
 const G_POWER: &str = "\u{f011}";
+// md-arrow_up, drawn as Lucide's arrow-up by the DoxIA Shell font.
+const G_RELEASE: &str = "\u{f005d}";
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum View {
@@ -571,12 +573,19 @@ impl Window {
       View::Idle => {
         let refresh_text = format!("{G_REFRESH}  {}", if s.checking { "Verificando\u{2026}" } else { "Verificar" });
         left.append(&button(&refresh_text, false, Box::new(|w| w.check(true))));
+        // The current release's updates first; the move to the next one after.
+        let regular =
+          model::system_count(status) > 0 || model::flatpak_count(status) > 0 || model::doxia_behind(status) > 0;
+        if !s.checking && !regular && model::release_ready(status) {
+          let next = model::release_next(status);
+          right.append(&button(&format!("Atualizar para o Fedora {next}"), true, Box::new(|w| w.start("release"))));
+        }
         if !s.checking && model::system_count(status) > 0 {
           let other = if boot { "Atualizar agora mesmo" } else { "Instalar no reinício" };
           let mode = if boot { "now" } else { "boot" };
           right.append(&button(other, false, Box::new(move |w| w.start(mode))));
         }
-        if !s.checking && model::anything(status) {
+        if !s.checking && regular {
           let text = if model::system_count(status) > 0 && boot { "Preparar para o reinício" } else { "Atualizar agora" };
           right.append(&button(
             text,
@@ -726,6 +735,22 @@ impl Window {
       dx > 0,
     ));
 
+    if model::release_offered(st) {
+      let (current, next) = (model::release_current(st), model::release_next(st));
+      let blockers = model::release_blockers(st);
+      let (subtitle, chip, color) = if !blockers.is_empty() {
+        let names: Vec<&str> = blockers.iter().map(|(p, _)| p.as_str()).collect();
+        (format!("bloqueado por {}", names.join(", ")), "BLOQUEADO", "c-urgent")
+      } else if model::release_dry_run_failed(st) {
+        ("não deu para simular a mudança".to_string(), "VERIFICAR", "c-warn")
+      } else if model::current_release_pending(st) {
+        (format!("Fedora {current} → {next} · depois das atualizações acima"), "DEPOIS", "c-dim")
+      } else {
+        (format!("Fedora {current} → {next}"), "NO REINÍCIO", "c-warn")
+      };
+      col.append(&source_row(G_RELEASE, &format!("Fedora {next} disponível"), &subtitle, chip, color, true));
+    }
+
     if !s.checking && st.is_some() {
       let tone = if sys > 0 && boot {
         "warn"
@@ -744,10 +769,53 @@ impl Window {
         "Só apps Flatpak. Eles são atualizados agora, sem senha e sem reiniciar."
       } else if dx > 0 {
         "Só novidades do DoxIA. São aplicadas agora, sem reiniciar."
+      } else if model::release_offered(st) {
+        ""
       } else {
         "Tudo em dia."
       };
-      col.append(&banner(tone, if tone == "warn" { G_REFRESH } else { G_CHECK }, text, false));
+      if !text.is_empty() {
+        col.append(&banner(tone, if tone == "warn" { G_REFRESH } else { G_CHECK }, text, false));
+      }
+    }
+
+    if !s.checking && model::release_offered(st) {
+      let next = model::release_next(st);
+      let blockers = model::release_blockers(st);
+      if !blockers.is_empty() {
+        let list: Vec<String> = blockers.iter().map(|(p, r)| format!("{p} (precisa de {r})")).collect();
+        col.append(&banner(
+          "error",
+          G_WARN,
+          &format!(
+            "Estes pacotes instalados impedem a mudança para o Fedora {next}: {}. Remova ou atualize esses pacotes e clique em Verificar.",
+            list.join("; ")
+          ),
+          false,
+        ));
+      } else if model::release_dry_run_failed(st) {
+        col.append(&banner(
+          "plain",
+          G_WARN,
+          &format!("Não foi possível simular a mudança para o Fedora {next}. Clique em Verificar para tentar de novo."),
+          false,
+        ));
+      } else if !model::current_release_pending(st) {
+        let snapshots = st.is_some_and(|x| x.get("snapper").and_then(Value::as_bool) == Some(true));
+        let backup = if snapshots {
+          "Um snapshot é criado antes."
+        } else {
+          "Faça um backup antes: este computador não tem snapshots."
+        };
+        col.append(&banner(
+          "warn",
+          G_RELEASE,
+          &format!(
+            "O Fedora {next} é baixado agora (cerca de 2 GB) e instalado no próximo reinício, que demora mais que o normal. {backup}"
+          ),
+          false,
+        ));
+      }
     }
 
     let errors = model::errors(st);
@@ -800,10 +868,16 @@ impl Window {
     let packages = model::staged_packages(s.status.as_ref());
     let autoremove = model::flag(&s.prefs, "autoremoveOrphans");
     let col = vbox(12);
-    let count = if packages.is_empty() { String::new() } else { packages.len().to_string() };
+    let release = model::staged_release(s.status.as_ref());
+    let count = if packages.is_empty() || release > 0 { String::new() } else { packages.len().to_string() };
+    let (downloaded, install) = if release > 0 {
+      (format!("Fedora {release} baixado e testado"), format!("Instalar o Fedora {release} durante o reinício"))
+    } else {
+      ("Pacotes baixados e testados".to_string(), "Instalar durante o reinício".to_string())
+    };
     let steps = serde_json::json!([
-      {"id": "a", "label": "Pacotes baixados e testados", "state": "done", "detail": count},
-      {"id": "b", "label": "Instalar durante o reinício", "state": "todo"},
+      {"id": "a", "label": downloaded, "state": "done", "detail": count},
+      {"id": "b", "label": install, "state": "todo"},
       {"id": "c", "label": "Migrações e configuração do DoxIA", "state": "todo"},
       {"id": "d", "label": "Remover pacotes órfãos", "state": if autoremove { "todo" } else { "skip" },
        "detail": if autoremove { "auto" } else { "desligado" }}
@@ -816,12 +890,14 @@ impl Window {
       }
       col.append(&command_box(&lines, false));
     }
-    col.append(&banner(
-      "warn",
-      G_POWER,
-      "A atualização é instalada na próxima vez que você reiniciar ou desligar, antes de voltar para o login. Até lá, continue usando normalmente.",
-      false,
-    ));
+    let text = if release > 0 {
+      format!(
+        "O Fedora {release} é instalado na próxima vez que você reiniciar ou desligar, antes de voltar para o login. Isso leva de 10 a 20 minutos: deixe o computador na tomada. Até lá, continue usando normalmente."
+      )
+    } else {
+      "A atualização é instalada na próxima vez que você reiniciar ou desligar, antes de voltar para o login. Até lá, continue usando normalmente.".to_string()
+    };
+    col.append(&banner("warn", G_POWER, &text, false));
     self.body.append(&col);
   }
 
@@ -1026,7 +1102,10 @@ fn header_title(s: &State, view: View) -> String {
     View::Running => model::current_step(s.run.as_ref())
       .map(|st| model::text(&st, "label").to_string())
       .unwrap_or_else(|| "Preparando…".into()),
-    View::Staged => "Pronto para instalar".into(),
+    View::Staged => match model::staged_release(s.status.as_ref()) {
+      0 => "Pronto para instalar".into(),
+      release => format!("Fedora {release} pronto"),
+    },
     View::Result => {
       let Some(last) = s.last.as_ref() else { return String::new() };
       if model::text(last, "result") != "ok" {
@@ -1034,6 +1113,7 @@ fn header_title(s: &State, view: View) -> String {
       }
       match model::text(last, "mode") {
         "boot" => "Sistema atualizado".into(),
+        "release" => format!("Fedora {} instalado", model::num(last, "release") as u64),
         "flatpak" => "Apps atualizados".into(),
         _ => "Tudo atualizado".into(),
       }
@@ -1043,7 +1123,13 @@ fn header_title(s: &State, view: View) -> String {
         return "Procurando atualizações".into();
       }
       let n = model::updates_count(s.status.as_ref());
-      if n > 0 { model::plural(n, "atualização", "atualizações") } else { "Tudo em dia".into() }
+      if n == 1 && model::release_offered(s.status.as_ref()) {
+        format!("Fedora {} disponível", model::release_next(s.status.as_ref()))
+      } else if n > 0 {
+        model::plural(n, "atualização", "atualizações")
+      } else {
+        "Tudo em dia".into()
+      }
     }
   }
 }
@@ -1069,7 +1155,15 @@ fn header_subtitle(s: &State, view: View) -> String {
     }
     View::Staged => {
       let n = model::staged_packages(s.status.as_ref()).len();
-      let prefix = if n > 0 { format!("{} · ", model::plural(n, "pacote", "pacotes")) } else { String::new() };
+      let release = model::staged_release(s.status.as_ref());
+      let prefix = if release > 0 {
+        let from = model::release_current(s.status.as_ref());
+        if from > 0 { format!("Fedora {from} → {release} · ") } else { String::new() }
+      } else if n > 0 {
+        format!("{} · ", model::plural(n, "pacote", "pacotes"))
+      } else {
+        String::new()
+      };
       format!("{prefix}preparado às {}", model::clock(model::staged_at(s.status.as_ref())))
     }
     View::Result => {

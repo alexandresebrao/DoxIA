@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # omarchy:summary=Prompt for confirmation before starting an update
-# omarchy:args=[now|boot]
+# omarchy:args=[now|boot|release]
 
 when="• System packages install right away"
 [[ ${1:-} == "boot" ]] && when="• System packages download now and install on the next reboot"
+[[ ${1:-} == "release" ]] && when="• The next Fedora release downloads now and installs on the next reboot (back up first)"
 
 gum style --border normal --padding "1 2" \
   "Ready to update?" \

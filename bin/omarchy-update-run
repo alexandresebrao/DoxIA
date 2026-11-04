@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Run an update for the Atualizar DoxIA window
-# omarchy:args=<start <now|boot|flatpak>|answer|stop|cancel-staged|active>
+# omarchy:args=<start <now|boot|flatpak|release>|answer|stop|cancel-staged|active>
 # omarchy:hidden=true
 
 # start         omarchy-update --gui in a transient user unit, so the run
@@ -19,8 +19,8 @@ fifo=$run_dir/askpass.fifo
 
 case "${1:-}" in
   start)
-    mode=${2:?usage: omarchy-update-run start <now|boot|flatpak>}
-    [[ $mode == "now" || $mode == "boot" || $mode == "flatpak" ]] || { echo "Unknown mode: $mode" >&2; exit 1; }
+    mode=${2:?usage: omarchy-update-run start <now|boot|flatpak|release>}
+    [[ $mode == "now" || $mode == "boot" || $mode == "flatpak" || $mode == "release" ]] || { echo "Unknown mode: $mode" >&2; exit 1; }
     if systemctl --user is-active --quiet "$unit"; then
       echo "An update is already running." >&2
       exit 1
@@ -58,7 +58,7 @@ case "${1:-}" in
     systemctl --user is-active --quiet "$unit"
     ;;
   *)
-    echo "Usage: omarchy-update-run <start <now|boot|flatpak>|answer|stop|cancel-staged|active>" >&2
+    echo "Usage: omarchy-update-run <start <now|boot|flatpak|release>|answer|stop|cancel-staged|active>" >&2
     exit 1
     ;;
 esac
