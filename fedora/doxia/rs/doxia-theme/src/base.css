@@ -10,10 +10,13 @@ window.doxia {
 window.doxia.app { background: $APP_BG; }
 
 window.doxia * {
-  /* The shell font, Lucide icons and all (fedora/doxia/lucide). No
-     "monospace" in the list: omarchy-font-set's fontconfig rule puts the
-     terminal font first in any list naming it, icons included. */
-  font-family: "DoxIA Shell", "JetBrainsMono Nerd Font";
+  /* The shell font, Lucide icons and all (fedora/doxia/lucide). Nothing
+     else in the list: omarchy-font-set's fontconfig rule puts the terminal
+     font first in any list naming "monospace", and since fontconfig 2.18
+     (Fedora 45) 48-guessfamily.conf appends "monospace" to any list with a
+     family containing "mono" (JetBrainsMono Nerd Font, for one). The Nerd
+     glyphs are all in DoxIA Shell anyway; Pango falls back per character. */
+  font-family: "DoxIA Shell";
   outline: none;
   box-shadow: none;
   text-shadow: none;
