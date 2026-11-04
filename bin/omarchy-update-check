@@ -58,6 +58,44 @@ def system_updates(refresh, errors):
     return pkgs
 
 
+def upgradable(pkgs):
+    """The name.arch pairs a real `dnf upgrade` would take, or None when the
+    dry run gives no answer. check-update also lists updates the solver has
+    to skip (a pinned dependency, as libheif-freeworld from RPM Fusion holds
+    libheif at its own version until it is rebuilt), which no update would
+    install."""
+    env = dict(os.environ, LC_ALL="C")
+    try:
+        p = subprocess.run(["dnf", "upgrade", "--assumeno"], capture_output=True, text=True,
+                           timeout=180, env=env)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    out = p.stdout + p.stderr
+    if "Nothing to do." in out:
+        return set()
+    if "Transaction Summary:" not in out:
+        return None
+    taken, section = set(), ""
+    for line in out.splitlines():
+        if line and not line[0].isspace():
+            section = line.strip()
+            continue
+        if section == "Upgrading:" and line.startswith(" ") and not line.startswith("  "):
+            fields = line.split()
+            if len(fields) >= 2:
+                taken.add(f"{fields[0]}.{fields[1]}")
+    return taken
+
+
+def split_held(pkgs):
+    taken = upgradable(pkgs) if pkgs else None
+    if taken is None:
+        return pkgs, []
+    keep = [p for p in pkgs if f"{p['name']}.{p['arch']}" in taken]
+    held = [p for p in pkgs if f"{p['name']}.{p['arch']}" not in taken]
+    return keep, held
+
+
 def flatpak_updates(errors):
     apps, runtimes = [], 0
     code, out = run(["flatpak", "remote-ls", "--updates", "--columns=ref,name"])
@@ -121,10 +159,13 @@ def main(args):
     else:
         errors = []
         stage = staged()
+        # A stored offline transaction already holds the system updates.
+        system, held = ([], []) if stage["pending"] else split_held(system_updates("--refresh" in args, errors))
         status = {
             "checkedAt": int(time.time()),
-            # A stored offline transaction already holds the system updates.
-            "system": [] if stage["pending"] else system_updates("--refresh" in args, errors),
+            "system": system,
+            # Listed by dnf but skipped by its solver: not counted as pending.
+            "held": held,
             "flatpak": flatpak_updates(errors),
             "doxia": doxia_updates(),
             "staged": stage,
