@@ -2,7 +2,7 @@
 
 uwsm runs the DoxIA session (mango and its units). Fedora doesn't package it;
 it came from the mineiro/hyprland COPR, which DoxIA no longer enables. The spec
-is that COPR's (from its 0.27.0-1.fc44 source RPM), on upstream 0.27.1.
+is that COPR's (from its 0.27.0-1.fc44 source RPM), on upstream 0.27.2.
 
 `fedora/doxia/install-uwsm` installs the RPM from this repository's release
 `uwsm-<version>`. It is noarch: one RPM per Fedora release.

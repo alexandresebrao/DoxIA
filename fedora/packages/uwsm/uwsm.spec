@@ -1,5 +1,5 @@
 Name:           uwsm
-Version:        0.27.1
+Version:        0.27.2
 Release:        1.doxia1%{?dist}
 Summary:        Universal Wayland Session Manager
 
@@ -81,5 +81,8 @@ desktop-file-validate %{buildroot}%{_datadir}/applications/*.desktop
 %{_userpresetdir}/80-fumon.preset
 
 %changelog
+* Fri Nov 13 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.27.2-1.doxia1
+- Upstream 0.27.2: double-fork systemctl (upstream #229)
+
 * Thu Oct 22 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.27.1-1.doxia1
 - DoxIA build, from the mineiro/hyprland COPR spec: upstream 0.27.1
