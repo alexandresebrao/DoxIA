@@ -61,6 +61,15 @@ if [[ ${1:-} != "--no-pull" ]]; then
   exec bash "$OMARCHY_PATH/fedora/update.sh" --no-pull
 fi
 
+# DoxIA builds its packages (mango, scenefx, uwsm...) for one Fedora release
+# at a time, and the install-* scripts fail without a build for this one.
+min_fedora=45
+if (( $(rpm -E %fedora) < min_fedora )); then
+  echo "DoxIA no longer supports Fedora $(rpm -E %fedora). Upgrade to Fedora $min_fedora first:" >&2
+  echo "  sudo dnf system-upgrade download --releasever=$min_fedora && sudo dnf system-upgrade reboot" >&2
+  exit 1
+fi
+
 echo "==> Kitty as the default terminal (foot and chafa are no longer used)"
 omarchy-pkg-add kitty
 omarchy-pkg-drop foot chafa

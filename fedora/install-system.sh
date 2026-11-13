@@ -20,6 +20,15 @@ if [[ ! -d $omarchy_path/bin ]]; then
   exit 1
 fi
 
+# DoxIA builds its packages (mango, scenefx, uwsm...) for one Fedora release
+# at a time, and the install-* scripts fail without a build for this one.
+min_fedora=45
+if (( $(rpm -E %fedora) < min_fedora )); then
+  echo "DoxIA no longer supports Fedora $(rpm -E %fedora). Upgrade to Fedora $min_fedora first:" >&2
+  echo "  sudo dnf system-upgrade download --releasever=$min_fedora && sudo dnf system-upgrade reboot" >&2
+  exit 1
+fi
+
 # No COPR: what Fedora doesn't package (mango, scenefx, uwsm,
 # gpu-screen-recorder) comes as DoxIA builds from this repository's releases.
 # dnf-plugins-core for the version locks (install-wlroots, VMware only).
