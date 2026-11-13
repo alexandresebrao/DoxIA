@@ -1,0 +1,19 @@
+--- a/types/scene/wlr_scene.c	2026-10-23 10:18:05.709826501 -0300
++++ b/types/scene/wlr_scene.c	2026-10-23 10:18:05.723746682 -0300
+@@ -2912,6 +2912,16 @@
+ 	pixman_region32_t intersection;
+ 	pixman_region32_init(&intersection);
+ 	if (pixman_region32_intersect(&intersection, &expanded_damage, &node_visible_region)) {
++		/* DoxIA (backport of upstream main): a blurred node partly off the
++		 * output (sliding in, dragged past the edge) would put negative
++		 * coordinates in the output damage, which the ext-image-copy-capture
++		 * clients echo back and wlroots rejects (screen sharing dies). */
++		struct wlr_output *output = render_data->output->output;
++		pixman_region32_intersect_rect(&intersection, &intersection,
++			0, 0, output->width, output->height);
++	}
++
++	if (!pixman_region32_empty(&intersection)) {
+ 		should_compensate_blur = true;
+ 
+ 		// Expand the render damage to re-render surrounding blur nodes

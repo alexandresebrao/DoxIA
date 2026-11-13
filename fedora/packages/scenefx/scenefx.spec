@@ -1,6 +1,6 @@
 Name:           scenefx
 Version:        0.5
-Release:        3%{?dist}.doxia2
+Release:        3%{?dist}.doxia3
 Summary:        Drop-in replacement for the wlroots scene API with eye-candy effects
 
 License:        MIT
@@ -8,6 +8,8 @@ URL:            https://github.com/wlrfx/scenefx
 Source0:        %{url}/archive/refs/tags/%{version}.tar.gz
 # DoxIA: vmwgfx (VMware) has no XBGR/ABGR DMA-BUFs for the effect buffers
 Patch0:         fallback-to-bgra-effect-buffers-on-vmwgfx.patch
+# DoxIA: blur damage clipped to the output (backport of upstream main)
+Patch1:         clip-blur-damage-to-output.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -56,6 +58,12 @@ developing applications that use %{name}.
 %{_libdir}/pkgconfig/scenefx-%{version}.pc
 
 %changelog
+* Fri Oct 23 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.5-3.doxia3
+- Clip the blur damage to the output (backport of upstream main): a blurred
+  window partly off screen put negative coordinates in the output damage and
+  xdg-desktop-portal-wlr died with "Invalid buffer damage coordinates",
+  freezing screen sharing (e.g. when the Painel Rápido slid in)
+
 * Tue Oct 13 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.5-3.doxia2
 - Also fall back to ARGB8888/XRGB8888 when ABGR/XBGR is listed but can't
   be allocated (vmwgfx rejects it for scanout): gbm_bo_create failed every frame
