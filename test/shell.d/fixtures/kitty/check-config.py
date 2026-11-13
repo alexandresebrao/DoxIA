@@ -43,6 +43,9 @@ with TemporaryDirectory() as tmp:
   for shortcut in ('ctrl+insert', 'shift+insert', 'shift+enter', 'alt+shift+enter'):
     assert binding(opts, shortcut) == binding(before, shortcut), shortcut
 
+  for shortcut in ('super+c', 'super+v', 'super+x'):
+    assert binding(opts, shortcut) == ['discard_event'], shortcut
+
   user.write_text(themed + 'font_size 15\nmap ctrl+insert\nmap shift+insert copy_to_clipboard\n')
   opts = load_config(str(system), str(user), accumulate_bad_lines=errors)
   assert opts.font_size == 15
