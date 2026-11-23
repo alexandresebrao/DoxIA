@@ -1,0 +1,35 @@
+From 5c8fdc20d16a7929e2ad903ce356a9fa8e8318f1 Mon Sep 17 00:00:00 2001
+From: rewine <luhongxu@deepin.org>
+Date: Thu, 19 Nov 2026 20:57:53 +0800
+Subject: [PATCH] fix: avoid NULL deref when clearing blur transparency mask
+ source
+
+wlr_scene_blur_set_transparency_mask_source() dereferences source->blur
+even when source is NULL. A compositor switching a blur node from a
+full-surface mask to a partial region (or disabling the mask) passes
+NULL here, so linked_node_destroy(&source->blur) reads a bogus pointer
+and crashes.
+
+Unlink only the blur side when source is NULL.
+---
+ types/scene/wlr_scene.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/types/scene/wlr_scene.c b/types/scene/wlr_scene.c
+index 94b4ff7..899a9d1 100644
+--- a/types/scene/wlr_scene.c
++++ b/types/scene/wlr_scene.c
+@@ -1245,9 +1245,9 @@ void wlr_scene_blur_set_transparency_mask_source(struct wlr_scene_blur *blur,
+ 	}
+ 
+ 	linked_node_destroy(&blur->transparency_mask_source);
+-	linked_node_destroy(&source->blur);
+ 
+ 	if (source != NULL) {
++		linked_node_destroy(&source->blur);
+ 		linked_node_init_link(&blur->transparency_mask_source, &source->blur);
+ 	}
+ 
+-- 
+2.56.1
+

@@ -5,7 +5,7 @@
 
 Name:           wlroots
 Version:        0.20.2
-Release:        1%{?dist}.doxia1
+Release:        2%{?dist}.doxia1
 Summary:        A modular Wayland compositor library
 
 %global tag     %{gsub %{version} ~ -}
@@ -145,6 +145,12 @@ install -pm0644 -D '%{SOURCE3}' '%{buildroot}/%{_pkgdocdir}/examples/meson.build
 
 
 %changelog
+* Mon Nov 23 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.20.2-2.doxia1
+- Rebase on Fedora's 0.20.2-2 (F45 mass rebuild), keeping the vmwgfx patch
+
+* Fri Jul 17 2026 Fedora Release Engineering <releng@fedoraproject.org> - 0.20.2-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_45_Mass_Rebuild
+
 * Tue Oct 13 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.20.2-1.doxia1
 - Skip the DMA-BUF import check on vmwgfx (VMware): it fails with EINVAL
   closing TTM handles and rejected every GL client buffer

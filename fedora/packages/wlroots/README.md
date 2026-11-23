@@ -8,8 +8,8 @@ the SDDM greeter shows only the cursor and Quickshell gives up. The patch skips
 that advisory check when the main device is vmwgfx; the renderer still imports
 for real.
 
-The other files are Fedora's (spec from the 0.20.2-1.fc44 source RPM). The
-release is `1%{?dist}.doxia1`, so it sorts newer than Fedora's own build.
+The other files are Fedora's (spec from the 0.20.2-2.fc45 source RPM). The
+release is `2%{?dist}.doxia1`, so it sorts newer than Fedora's own build.
 
 `fedora/doxia/install-wlroots` installs the RPMs from this repository's release
 `wlroots-<version>` only on VMware guests, and version-locks them so a Fedora

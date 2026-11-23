@@ -19,7 +19,7 @@
 set -euo pipefail
 
 version=0.5-3
-target="$version.fc$(rpm -E %fedora).doxia3"
+target="$version.fc$(rpm -E %fedora).doxia4"
 arch=$(uname -m)
 base="https://github.com/alexandresebrao/DoxIA/releases/download/scenefx-$version"
 

@@ -1,6 +1,6 @@
 Name:           scenefx
 Version:        0.5
-Release:        3%{?dist}.doxia3
+Release:        3%{?dist}.doxia4
 Summary:        Drop-in replacement for the wlroots scene API with eye-candy effects
 
 License:        MIT
@@ -10,6 +10,8 @@ Source0:        %{url}/archive/refs/tags/%{version}.tar.gz
 Patch0:         fallback-to-bgra-effect-buffers-on-vmwgfx.patch
 # DoxIA: blur damage clipped to the output (backport of upstream main)
 Patch1:         clip-blur-damage-to-output.patch
+# DoxIA: no NULL deref clearing the blur mask source (backport of upstream main)
+Patch2:         blur-null-transparency-mask-source.patch
 
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
@@ -58,6 +60,10 @@ developing applications that use %{name}.
 %{_libdir}/pkgconfig/scenefx-%{version}.pc
 
 %changelog
+* Mon Nov 23 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.5-3.doxia4
+- Avoid a NULL dereference when clearing the blur transparency mask source
+  (backport of upstream main, 5c8fdc20d1)
+
 * Fri Oct 23 2026 Alexandre Sebrão <xandizitxu@hotmail.com> - 0.5-3.doxia3
 - Clip the blur damage to the output (backport of upstream main): a blurred
   window partly off screen put negative coordinates in the output damage and
