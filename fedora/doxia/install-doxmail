@@ -13,10 +13,9 @@
 
 set -euo pipefail
 
-version=3.60.2-0.20261104gitdafc8791f7
+version=3.60.2-0.20261124gitf22c68e6bf
 declare -A sha256s=(
-  [44]=a65e29523212d01b39737e0d11a2102f31998b305c83a0e8b152b8d8c381cd48
-  [45]=4b37ffc46fa5956f4bf4d6e97aae21c441be22a0706a8c74376862a336daa18f
+  [45]=a1fb5fbdf96beee1859f00dbb10e6d22effa6d7b3ae880d3fdeb71741ed9c98e
 )
 fedora=$(rpm -E %fedora)
 sha256=${sha256s[$fedora]:-}
