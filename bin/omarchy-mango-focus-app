@@ -1,28 +1,59 @@
 #!/bin/bash
 
-# omarchy:summary=Focus a mango window by application identity
-# omarchy:args=<app-name>
+# omarchy:summary=Focus a mango window by application identity, switching to its tag
+# omarchy:args=[--pid <pid>] [--desktop-entry <id>] [--if-unfocused] [app-name]
 # omarchy:examples=omarchy mango focus app Slack
 
 usage() {
-  echo "Usage: omarchy-mango-focus-app <app-name>" >&2
+  echo "Usage: omarchy-mango-focus-app [--pid <pid>] [--desktop-entry <id>] [--if-unfocused] [app-name]" >&2
   exit 1
 }
 
+pid=0
+entry=""
+if_unfocused=0
+while (($#)); do
+  case $1 in
+    --pid) [[ ${2:-} =~ ^[0-9]+$ ]] || usage; pid=$2; shift 2 ;;
+    --desktop-entry) entry=${2:-}; shift 2 ;;
+    --if-unfocused) if_unfocused=1; shift ;;
+    --) shift; break ;;
+    -?*) usage ;;
+    *) break ;;
+  esac
+done
 app=${1:-}
-[[ -n $app ]] || usage
+[[ -n $app || -n $entry ]] || ((pid)) || usage
 
-# Agent terminals notify as kitty/foot/etc. while their shared app id is
-# org.omarchy.agent, leaving the terminal name only in the title. So match by
-# app id first, then fall back to the title of agent windows.
+# A window is the app's when it is the sender's process, its app id is the
+# desktop entry, or the app name (a pattern) matches its app id, as written or
+# as an id ("Google Chrome" → google-chrome). Agent terminals notify as
+# kitty/foot/etc. while their shared app id is org.omarchy.agent, leaving the
+# terminal name only in the title, so those match by title last.
+# focusid switches to the window's tag (and output) when it is not on screen.
+# With --if-unfocused a window of the app already in focus stays as it is:
+# the sender raised the one it meant. When the sender's process has windows
+# (one kitty per window, say) only those count as the app's.
 id=$(
   mmsg get all-clients 2>/dev/null |
-    jq -r --arg pattern "$app" \
-      'def matches($value): ($value // "") | test($pattern; "i");
-       first(
-         (.clients[] | select(matches(.appid))),
-         (.clients[] | select(.appid == "org.omarchy.agent" and matches(.title)))
-       ).id // empty'
+    jq -r --argjson pid "$pid" --arg entry "${entry%.desktop}" --arg app "$app" --argjson keep "$if_unfocused" '
+      def test_i($value; $pattern):
+        $pattern != "" and (try (($value // "") | test($pattern; "i")) catch false);
+      def by_pid: $pid > 0 and .pid == $pid;
+      def by_entry: $entry != "" and ((.appid // "") | ascii_downcase) == ($entry | ascii_downcase);
+      def by_name: test_i(.appid; $app) or test_i(.appid; $app | gsub(" "; "-"));
+      def by_title: .appid == "org.omarchy.agent" and test_i(.title; $app);
+      any(.clients[]; by_pid) as $sender_has_window |
+      def mine: if $sender_has_window then by_pid else by_entry or by_name or by_title end;
+      if $keep == 1 and any(.clients[]; .is_focused and mine) then empty
+      else first(
+        (.clients[] | select(by_pid and (by_entry or by_name))),
+        (.clients[] | select(by_entry)),
+        (.clients[] | select(by_pid)),
+        (.clients[] | select(by_name)),
+        (.clients[] | select(by_title))
+      ).id // empty
+      end'
 )
 
 [[ -n $id ]] || exit 1

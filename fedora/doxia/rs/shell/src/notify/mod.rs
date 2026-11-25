@@ -69,11 +69,21 @@ struct Popup {
   restored: bool,
   // Whether a file under notifications/ mirrors it (replays have none).
   has_file: bool,
-  has_default_action: bool,
+  sender: Sender,
   lifetime: u64,
   remaining: i64,
   hovered: bool,
   card: gtk::Box,
+}
+
+// Who sent a live notification, for a click to reach it: its "default"
+// action, its desktop entry hint and its bus name (whose process owns its
+// windows, unless it sits behind a Flatpak or portal proxy).
+#[derive(Clone, Default)]
+struct Sender {
+  default_action: bool,
+  desktop_entry: String,
+  bus_name: String,
 }
 
 thread_local! {
@@ -202,9 +212,8 @@ impl Notifications {
   pub fn activate(&self, entry: &Entry) {
     if let Some(argv) = model::parse_exec_argv(&entry.exec_argv) {
       spawn(&argv);
-    } else if !entry.app.is_empty() {
-      let focus = format!("{}/bin/omarchy-mango-focus-app", std::env::var("OMARCHY_PATH").unwrap_or_default());
-      spawn(&[focus, entry.app.clone()]);
+    } else {
+      focus_app(&entry.app, Sender::default(), 0);
     }
     self.forget(entry);
   }
@@ -229,13 +238,13 @@ impl Notifications {
     let me = self.clone();
     let registered = conn
       .register_object(PATH, &iface)
-      .method_call(move |_conn, _sender, _path, _iface, method, params, invocation| {
+      .method_call(move |_conn, sender, _path, _iface, method, params, invocation| {
         let reply: Option<glib::Variant> = match method {
           "GetCapabilities" => Some(
             (vec!["actions", "body", "body-markup", "body-hyperlinks", "icon-static", "persistence"],).to_variant(),
           ),
           "GetServerInformation" => Some(("doxia-shell", "DoxIA", env!("CARGO_PKG_VERSION"), "1.2").to_variant()),
-          "Notify" => me.on_notify(&params).map(|id| (id,).to_variant()),
+          "Notify" => me.on_notify(&params, sender.unwrap_or_default()).map(|id| (id,).to_variant()),
           "CloseNotification" => {
             if let Some((id,)) = params.get::<(u32,)>() {
               me.close_by_id(id);
@@ -296,13 +305,17 @@ impl Notifications {
     }
   }
 
-  fn on_notify(self: &Rc<Self>, params: &glib::Variant) -> Option<u32> {
+  fn on_notify(self: &Rc<Self>, params: &glib::Variant, bus_name: &str) -> Option<u32> {
     let (app, replaces, app_icon, summary, body, actions, hints, timeout) =
       params.get::<(String, u32, String, String, String, Vec<String>, HashMap<String, glib::Variant>, i32)>()?;
     let hint_str = |k: &str| hints.get(k).and_then(|v| v.str().map(String::from)).unwrap_or_default();
     let urgency = hints.get("urgency").and_then(|v| v.get::<u8>()).map(|u| u.min(CRITICAL)).unwrap_or(NORMAL);
     let transient = hints.get("transient").and_then(|v| v.get::<bool>()).unwrap_or(false);
-    let has_default_action = actions.chunks(2).any(|pair| pair[0] == "default");
+    let sender = Sender {
+      default_action: actions.chunks(2).any(|pair| pair[0] == "default"),
+      desktop_entry: hint_str("desktop-entry"),
+      bus_name: bus_name.to_string(),
+    };
 
     // A replaces_id that names a live (not restored) popup keeps its identity.
     let replacing = replaces > 0
@@ -338,7 +351,7 @@ impl Notifications {
     entry.image = self.image_from_hints(&hints, &entry);
     // No icon of its own: the one of the app that sent it.
     if entry.image.is_empty() && card::icon_widget(&entry.app_icon).is_none() {
-      if let Some(icon) = desktop_icon(&hint_str("desktop-entry"), &entry.app) {
+      if let Some(icon) = desktop_icon(&sender.desktop_entry, &entry.app) {
         entry.app_icon = icon;
       }
     }
@@ -364,7 +377,7 @@ impl Notifications {
         }
         p.lifetime = lifetime;
         p.entry = persisted;
-        p.has_default_action = has_default_action;
+        p.sender = sender;
         let new_card = self.card_for(&p.entry);
         self.column.insert_child_after(&new_card, Some(&p.card));
         self.column.remove(&p.card);
@@ -383,7 +396,7 @@ impl Notifications {
       for i in repeats.into_iter().rev() {
         self.drop_repeat(i);
       }
-      self.insert(0, persisted, false, true, has_default_action);
+      self.insert(0, persisted, false, true, sender);
     }
     Some(id)
   }
@@ -416,7 +429,7 @@ impl Notifications {
 
   // ---- popups ---------------------------------------------------------------
 
-  fn insert(self: &Rc<Self>, at: usize, entry: Entry, restored: bool, has_file: bool, has_default_action: bool) {
+  fn insert(self: &Rc<Self>, at: usize, entry: Entry, restored: bool, has_file: bool, sender: Sender) {
     let lifetime = model::duration_for(entry.urgency, entry.expire_timeout);
     let card = self.card_for(&entry);
     {
@@ -426,7 +439,7 @@ impl Notifications {
         None => self.column.prepend(&card),
       }
     }
-    let popup = Popup { entry, restored, has_file, has_default_action, lifetime, remaining: lifetime as i64, hovered: false, card };
+    let popup = Popup { entry, restored, has_file, sender, lifetime, remaining: lifetime as i64, hovered: false, card };
     let mut popups = self.popups.borrow_mut();
     let at = at.min(popups.len());
     popups.insert(at, popup);
@@ -540,16 +553,17 @@ impl Notifications {
   }
 
   // Omarchy's own toasts carry their click as an argv; other senders get
-  // their "default" action, or their window focused.
+  // their "default" action, and always their window focused, on whatever tag
+  // it sits.
   fn invoke(&self, i: usize) {
-    let (entry, restored, has_default) = {
+    let (entry, restored, sender) = {
       let popups = self.popups.borrow();
       let Some(p) = popups.get(i) else { return };
-      (p.entry.clone(), p.restored, p.has_default_action)
+      (p.entry.clone(), p.restored, p.sender.clone())
     };
     if let Some(argv) = model::parse_exec_argv(&entry.exec_argv) {
       spawn(&argv);
-    } else if !restored && has_default {
+    } else if !restored && sender.default_action {
       // Without an xdg-activation token the sender may not raise its window
       // (Chrome, kitty): mango keeps the focus where it is, on another tag.
       // The spec has the token go first, then the action.
@@ -557,9 +571,11 @@ impl Notifications {
         self.emit("ActivationToken", (entry.original_id, token).to_variant());
       }
       self.emit("ActionInvoked", (entry.original_id, "default").to_variant());
-    } else if !entry.app.is_empty() {
-      let focus = format!("{}/bin/omarchy-mango-focus-app", std::env::var("OMARCHY_PATH").unwrap_or_default());
-      spawn(&[focus, entry.app.clone()]);
+      // The sender raises the window it means (a chat, a terminal tab) when
+      // it can; if it raised none of its own, the shell does.
+      focus_app(&entry.app, sender, ACTION_GRACE_MS);
+    } else {
+      focus_app(&entry.app, sender, 0);
     }
     self.remove(i, DISMISSED);
   }
@@ -580,7 +596,7 @@ impl Notifications {
         self.store.write_popup(&entry);
       }
       let at = self.popups.borrow().len();
-      self.insert(at, entry, true, true, false);
+      self.insert(at, entry, true, true, Sender::default());
     }
   }
 
@@ -618,12 +634,12 @@ impl Notifications {
         timestamp: now_ms(),
         ..Default::default()
       };
-      self.insert(0, placeholder, true, false, false);
+      self.insert(0, placeholder, true, false, Sender::default());
       return;
     }
     for row in rows {
       let at = self.popups.borrow().len();
-      self.insert(at, row, true, false, false);
+      self.insert(at, row, true, false, Sender::default());
     }
   }
 
@@ -696,6 +712,43 @@ fn activation_token() -> Option<String> {
   ctx.startup_notify_id(None::<&gio::AppInfo>, &[]).map(|t| t.to_string())
 }
 
+// How long a sender gets to raise its own window after its action.
+const ACTION_GRACE_MS: u64 = 500;
+
+// The sender's window in focus, switching tag if it is elsewhere
+// (omarchy-mango-focus-app): its process's windows first, then its desktop
+// entry and app name as app ids. After a delay, a window of the app already in
+// focus is left alone.
+fn focus_app(app: &str, sender: Sender, delay_ms: u64) {
+  if app.is_empty() && sender.desktop_entry.is_empty() && sender.bus_name.is_empty() {
+    return;
+  }
+  let app = app.to_string();
+  glib::spawn_future_local(async move {
+    let pid = match gio::bus_get_future(gio::BusType::Session).await {
+      Ok(conn) if !sender.bus_name.is_empty() => connection_pid(&conn, &sender.bus_name).await,
+      _ => None,
+    };
+    if delay_ms > 0 {
+      glib::timeout_future(Duration::from_millis(delay_ms)).await;
+    }
+    let mut argv = vec![format!("{}/bin/omarchy-mango-focus-app", std::env::var("OMARCHY_PATH").unwrap_or_default())];
+    if let Some(pid) = pid {
+      argv.extend(["--pid".to_string(), pid.to_string()]);
+    }
+    if !sender.desktop_entry.is_empty() {
+      argv.extend(["--desktop-entry".to_string(), sender.desktop_entry]);
+    }
+    if delay_ms > 0 {
+      argv.push("--if-unfocused".into());
+    }
+    if !app.is_empty() {
+      argv.extend(["--".to_string(), app]);
+    }
+    spawn(&argv);
+  });
+}
+
 // Detached, argv as given (no shell).
 fn spawn(argv: &[String]) {
   use std::os::unix::process::CommandExt;
@@ -710,8 +763,8 @@ fn spawn(argv: &[String]) {
     .map(|mut c| std::thread::spawn(move || c.wait()));
 }
 
-// The process name of a bus name's owner.
-async fn name_owner_comm(conn: &gio::DBusConnection, name: &str) -> Option<String> {
+// The process id of a bus name's owner.
+async fn connection_pid(conn: &gio::DBusConnection, name: &str) -> Option<u32> {
   let reply = conn
     .call_future(
       Some("org.freedesktop.DBus"),
@@ -725,7 +778,12 @@ async fn name_owner_comm(conn: &gio::DBusConnection, name: &str) -> Option<Strin
     )
     .await
     .ok()?;
-  let (pid,) = reply.get::<(u32,)>()?;
+  reply.get::<(u32,)>().map(|(pid,)| pid)
+}
+
+// The process name of a bus name's owner.
+async fn name_owner_comm(conn: &gio::DBusConnection, name: &str) -> Option<String> {
+  let pid = connection_pid(conn, name).await?;
   std::fs::read_to_string(format!("/proc/{pid}/comm")).ok().map(|c| c.trim().to_string())
 }
 
